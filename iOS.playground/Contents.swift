@@ -1,4 +1,4 @@
-import Cocoa    // This is an OSX playground
+import UIKit    // This is an iOS playground
 //: Playground - noun: a place where people can play
 
 protocol UnsignedInteger: IntegerArithmeticType, UnsignedIntegerType {
