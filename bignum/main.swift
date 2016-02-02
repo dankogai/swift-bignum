@@ -8,18 +8,17 @@
 
 let test = TAP()
 test.eq(sizeof(BigUInt), sizeof(Array<UInt32>), "sizeof(BigUInt) == sizeof([UInt32])")
-
-
-func bfact(n:BigUInt)->BigUInt {
-    // return n < 2 ? n : (2...n).reduce(1, combine:*)
+// protocol check
+protocol UnsignedInteger: IntegerArithmeticType, UnsignedIntegerType {
+    init(_:Self)
+}
+extension UInt: UnsignedInteger {}
+extension BigUInt: UnsignedInteger {}
+func fact<U:UnsignedInteger>(n:U)->U {
     return n < 2 ? n : (2...n).reduce(1, combine:*)
 }
-
-var v = BigUInt("ffff_FFFF_ffff_FFFF_ffff_FFFF_ffff_FFFF"  ,base:16)
-print(v / BigUInt("FFFF_ffff_FFFF",base:16))
-
-// for i in 0 ... 127 {
-//    print((BigUInt(1)<<BigUInt(i)).toString(16))
-//}
-
+let fact20 = 2432902008176640000 as UInt
+let fact42 = BigUInt("3C1581D491B28F523C23ABDF35B689C908000000000", base:16)
+test.eq(fact(20 as UInt),       fact20, "20! as UInt    == \(fact20)")
+test.eq(fact(42 as BigUInt),    fact42, "42! as BigUInt == \(fact42)")
 test.done()
