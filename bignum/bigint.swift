@@ -13,9 +13,6 @@ public struct BigUInt {
     public init(_ s:BigUInt) {
         self.value = s.value
     }
-    public init(rawValue:[UInt32]) {
-        self.value = rawValue
-    }
     // init from built-in types
     public init(_ u:UInt32) {
         value.append(u)
@@ -105,6 +102,11 @@ extension BigUInt : BitwiseOperationsType {
             value.removeLast()
         }
     }
+    /// init from raw value -- always trimmed
+    public init(rawValue:[UInt32]) {
+        self.value = rawValue
+        self.trim()
+    }
     public subscript(i:Int)->Bit {
         get {
             let (digit, offset) = (i / 32, i % 32)
@@ -149,9 +151,7 @@ extension BigUInt : BitwiseOperationsType {
         let shift = lhs.value.map{ $0 << DigitType(offset) } + [0]
         let carry = [0] + lhs.value.map{ $0 >> DigitType(32 - offset) }
         let value = zip(shift, carry).map { $0.0 | $0.1 }
-        var result = BigUInt(rawValue:blank + value)
-        result.trim()   // clean sentinel
-        return result
+        return BigUInt(rawValue:blank + value)
     }
     public static func bitShiftL(lhs:BigUInt, _ rhs:BigUInt)->BigUInt {
         return bitShiftL(lhs, rhs.asUInt32)
@@ -174,9 +174,7 @@ extension BigUInt : BitwiseOperationsType {
         for i in e..<b {
             value[i] = ((value[i+1] & mask) << oh) | (value[i] >> ol)
         }
-        var result = BigUInt(rawValue:value)
-        result.trim()   // clean sentinel
-        return result
+        return BigUInt(rawValue:value)
     }
     public static func bitShiftR(lhs:BigUInt, _ rhs:BigUInt)->BigUInt {
         return bitShiftR(lhs, rhs.asUInt32)
@@ -232,9 +230,7 @@ public extension BigUInt {
             value[i] = DigitType(carry & 0xffff_ffff)
             if carry <= 0xffff_ffff { break }
         }
-        var result = BigUInt(rawValue:value)
-        result.trim()   // clean sentinel
-        return result
+        return BigUInt(rawValue:value)
     }
     /// addition never overflows
     public static func addWithOverflow(lhs:BigUInt, _ rhs:BigUInt)->(BigUInt, overflow:Bool) {
@@ -296,9 +292,7 @@ public extension BigUInt {
             value[i] = DigitType(carry & 0xffff_ffff)
         }
         value[lhs.value.count] = DigitType(carry >> 32)
-        var result = BigUInt(rawValue:value)
-        result.trim()   // clean sentinel
-        return result
+        return BigUInt(rawValue:value)
     }
     public static func multiply(lhs:BigUInt, _ rhs:BigUInt)->BigUInt {
         var result = BigUInt()
@@ -333,9 +327,7 @@ extension BigUInt : CustomStringConvertible, CustomDebugStringConvertible, Hasha
             carry = UInt64(carry % UInt64(rhs)) << 32 + UInt64(value[i])
             value[i] = UInt32(carry / UInt64(rhs))
         }
-        var quotient = BigUInt(rawValue:value)
-        quotient.trim()   // clean sentinel
-        return (quotient, UInt32(carry % UInt64(rhs)))
+        return (BigUInt(rawValue:value), UInt32(carry % UInt64(rhs)))
     }
     public static let int2char = Array("0123456789abcdefghijklmnopqrstuvwxyz".characters)
     public func toString(base:Int = 10)-> String {
