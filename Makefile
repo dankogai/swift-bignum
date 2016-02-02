@@ -1,7 +1,7 @@
 MOD=BigNum
 BIN=main
-MODSRC=bignum/biguint.swift bignum/bigint.swift bignum/util.swift
-BINSRC=$(MODSRC) bignum/main.swift bignum/tap.swift
+MODSRC=bignum/*.swift
+BINSRC=$(MODSRC) test/*.swift
 MODULE=$(MOD).swiftmodule $(MOD).swiftdoc
 SWIFTC=swiftc
 SWIFT=swift

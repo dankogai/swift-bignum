@@ -384,10 +384,7 @@ public extension BigUInt {
         var r = BigUInt(0)
         for i in (0...lhs.msbAt).reverse() {
             r <<= 1
-            //print("i:  \(i)\n  R:  \(r)")
-            
             r[0] = lhs[i]
-            // print("i:  \(i)\n  r:  \(r)\n  rhs:\(rhs)\n  q:  \(q)")
             if r >= rhs {
                 r -= rhs
                 q[i] = .One
@@ -415,7 +412,7 @@ public func %(lhs:BigUInt, rhs:BigUInt)->BigUInt {
 //
 // // makes Range<BigUInt> possible
 extension BigUInt : RandomAccessIndexType {
-    public typealias Distance = Int.Distance
+    public typealias Distance = UInt.Distance
     public func successor() -> BigUInt {
         return self + 1
     }
