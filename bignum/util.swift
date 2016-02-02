@@ -21,7 +21,7 @@ public extension Double {
     }
     public static func ldexp(m:Double, _ e:Int)->Double {
         // return Glibc.ldexp(m, e)
-        return ldexp(m, Int32(e))
+        return Glibc.ldexp(m, Int32(e))
     }
     #else
     public static func frexp(d:Double)->(Double, Int)   { return Darwin.frexp(d) }
