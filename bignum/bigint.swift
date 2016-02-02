@@ -79,9 +79,10 @@ public func == (lhs:BigUInt, rhs:BigUInt)->Bool {
 // and Comparable
 extension BigUInt: Comparable {}
 public func < (lhs:BigUInt, rhs:BigUInt)->Bool {
-    if lhs.value.count < rhs.value.count { return true }
     if lhs.value.count > rhs.value.count { return false }
+    if lhs.value.count < rhs.value.count { return true }
     for i in (0..<lhs.value.count).reverse() {
+        if lhs.value[i] > rhs.value[i] { return false }
         if lhs.value[i] < rhs.value[i] { return true }
     }
     return false
@@ -143,16 +144,14 @@ extension BigUInt : BitwiseOperationsType {
     public static func bitShiftL(lhs:BigUInt, _ rhs:DigitType)->BigUInt {
         if lhs == 0 { return lhs }
         let (digit, offset) = (rhs / 32, rhs % 32)
-        var value = [DigitType](count:Int(digit), repeatedValue:0) + lhs.value
-        if offset == 0 { return BigUInt(rawValue:value) }
-        value.append(0) // stretch in advance
-        let e = value.count - lhs.value.count - 1
-        let b = value.count
-        let o = offset
-        for i in (e..<b).reverse() {
-            value[i] = (value[i] << o) | (value[i-1] >> o)
-        }
-        return BigUInt(rawValue:value)
+        let blank = [DigitType](count:Int(digit), repeatedValue:0)
+        if offset == 0 { return BigUInt(rawValue: blank + lhs.value) }
+        let shift = lhs.value.map{ $0 << DigitType(offset) } + [0]
+        let carry = [0] + lhs.value.map{ $0 >> DigitType(32 - offset) }
+        let value = zip(shift, carry).map { $0.0 | $0.1 }
+        var result = BigUInt(rawValue:blank + value)
+        result.trim()   // clean sentinel
+        return result
     }
     public static func bitShiftL(lhs:BigUInt, _ rhs:BigUInt)->BigUInt {
         return bitShiftL(lhs, rhs.asUInt32)
@@ -284,7 +283,7 @@ public prefix func -(bs:BigUInt)->BigUInt {
     return 0 - bs
 }
 public func -=(inout lhs:BigUInt, rhs:BigUInt) {
-    lhs = lhs + rhs
+    lhs = lhs - rhs
 }
 // multiplication
 public extension BigUInt {
@@ -368,7 +367,7 @@ extension BigUInt : CustomStringConvertible, CustomDebugStringConvertible, Hasha
     /// init from string
     public init(_ s:String, base:Int = 10) {
         self.init(0)
-        for c in s.characters {
+        for c in s.lowercaseString.characters {
             if let d = BigUInt.char2int[c] {
                 self = BigUInt.multiply32(self, UInt32(base))
                 self += BigUInt(d)
@@ -394,7 +393,10 @@ public extension BigUInt {
         var r = BigUInt(0)
         for i in (0...lhs.msbAt).reverse() {
             r <<= 1
+            //print("i:  \(i)\n  R:  \(r)")
+
             r[0] = lhs[i]
+            // print("i:  \(i)\n  r:  \(r)\n  rhs:\(rhs)\n  q:  \(q)")
             if r >= rhs {
                 r -= rhs
                 q[i] = .One
