@@ -13,8 +13,16 @@
 #endif
 public extension Double {
     #if os(Linux)
-    public static func frexp(d:Double)->(Double, Int)   { return Glibc.frexp(d) }
-    public static func ldexp(m:Double, _ e:Int)->Double { return Glibc.ldexp(m, e) }
+    public static func frexp(d:Double)->(Double, Int) {
+        // return Glibc.frexp(d)
+        var e:Int32 = 0
+        let m = Glibc.frexp(d, &e)
+        return (m, Int(e))
+    }
+    public static func ldexp(m:Double, _ e:Int)->Double {
+        // return Glibc.ldexp(m, e)
+        return ldexp(m, Int32(e))
+    }
     #else
     public static func frexp(d:Double)->(Double, Int)   { return Darwin.frexp(d) }
     public static func ldexp(m:Double, _ e:Int)->Double { return Darwin.ldexp(m, e) }
