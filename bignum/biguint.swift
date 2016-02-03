@@ -400,7 +400,6 @@ public extension BigUInt {
     public static func remainderWithOverflow(lhs:BigUInt, _ rhs:BigUInt)->(BigUInt, overflow:Bool) {
         return (divmod(lhs, rhs).1, false)
     }
-    
 }
 public func /(lhs:BigUInt, rhs:BigUInt)->BigUInt {
     return BigUInt.divmod(lhs, rhs).0
