@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9E43D3961C61F9AC00A19CE8 /* operators.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E43D3951C61F9AC00A19CE8 /* operators.swift */; };
 		9E488C7B1C60623400A19CE8 /* bigint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E488C7A1C60623400A19CE8 /* bigint.swift */; };
 		9E488C7F1C60EEA300A19CE8 /* util.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E488C7E1C60EEA300A19CE8 /* util.swift */; };
 		9E488C811C61352600A19CE8 /* biguint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E488C801C61352600A19CE8 /* biguint.swift */; };
@@ -28,6 +29,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		9E43D3951C61F9AC00A19CE8 /* operators.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = operators.swift; sourceTree = "<group>"; };
 		9E488C7A1C60623400A19CE8 /* bigint.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = bigint.swift; sourceTree = "<group>"; };
 		9E488C7E1C60EEA300A19CE8 /* util.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = util.swift; sourceTree = "<group>"; };
 		9E488C801C61352600A19CE8 /* biguint.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = biguint.swift; sourceTree = "<group>"; };
@@ -82,6 +84,7 @@
 				9E488C7A1C60623400A19CE8 /* bigint.swift */,
 				9E488C801C61352600A19CE8 /* biguint.swift */,
 				9E488C7E1C60EEA300A19CE8 /* util.swift */,
+				9E43D3951C61F9AC00A19CE8 /* operators.swift */,
 			);
 			path = bignum;
 			sourceTree = "<group>";
@@ -144,6 +147,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9E488C8B1C61460A00A19CE8 /* tap.swift in Sources */,
+				9E43D3961C61F9AC00A19CE8 /* operators.swift in Sources */,
 				9E488C811C61352600A19CE8 /* biguint.swift in Sources */,
 				9E488C7B1C60623400A19CE8 /* bigint.swift in Sources */,
 				9E488C8A1C61460A00A19CE8 /* main.swift in Sources */,
