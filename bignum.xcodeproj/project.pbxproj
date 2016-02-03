@@ -12,6 +12,7 @@
 		9E488C811C61352600A19CE8 /* biguint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E488C801C61352600A19CE8 /* biguint.swift */; };
 		9E488C8A1C61460A00A19CE8 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E488C881C61460A00A19CE8 /* main.swift */; };
 		9E488C8B1C61460A00A19CE8 /* tap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E488C891C61460A00A19CE8 /* tap.swift */; };
+		9E488C8E1C61F15900A19CE8 /* protocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E488C8D1C61F15900A19CE8 /* protocol.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -32,6 +33,7 @@
 		9E488C801C61352600A19CE8 /* biguint.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = biguint.swift; sourceTree = "<group>"; };
 		9E488C881C61460A00A19CE8 /* main.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = main.swift; path = test/main.swift; sourceTree = SOURCE_ROOT; };
 		9E488C891C61460A00A19CE8 /* tap.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = tap.swift; path = test/tap.swift; sourceTree = SOURCE_ROOT; };
+		9E488C8D1C61F15900A19CE8 /* protocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = protocol.swift; sourceTree = "<group>"; };
 		9E87CBBC1C604F3900A19CE8 /* bignum */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = bignum; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -76,6 +78,7 @@
 		9E87CBBE1C604F3900A19CE8 /* bignum */ = {
 			isa = PBXGroup;
 			children = (
+				9E488C8D1C61F15900A19CE8 /* protocol.swift */,
 				9E488C7A1C60623400A19CE8 /* bigint.swift */,
 				9E488C801C61352600A19CE8 /* biguint.swift */,
 				9E488C7E1C60EEA300A19CE8 /* util.swift */,
@@ -145,6 +148,7 @@
 				9E488C7B1C60623400A19CE8 /* bigint.swift in Sources */,
 				9E488C8A1C61460A00A19CE8 /* main.swift in Sources */,
 				9E488C7F1C60EEA300A19CE8 /* util.swift in Sources */,
+				9E488C8E1C61F15900A19CE8 /* protocol.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
