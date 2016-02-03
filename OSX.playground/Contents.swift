@@ -27,4 +27,3 @@ let sfact42 = BigInt("3C1581D491B28F523C23ABDF35B689C908000000000", base:16)
 
 fact(20 as Int)     == Int(fact(20 as UInt))
 fact(42 as BigInt)  == BigInt(fact(42 as BigUInt))
-
