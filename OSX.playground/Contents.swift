@@ -24,3 +24,4 @@ fact(42 as BigInt)  == BigInt(fact(42 as BigUInt))
 
 Int(2) ** 42
 BigInt(2) ** 1024
+fact(1000 as BigInt) / fact(999 as BigInt)

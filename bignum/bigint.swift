@@ -95,7 +95,7 @@ extension BigInt : AbsoluteValuable, SignedNumberType {
 //
 public func abs(bi:BigInt)->BigInt { return bi.abs }
 //
-extension BigInt : CustomStringConvertible, CustomDebugStringConvertible, Hashable {
+extension BigInt : CustomStringConvertible, CustomDebugStringConvertible, StringLiteralConvertible {
     public func toString(base:Int = 10)-> String {
         return (self.isSignMinus ? "-" : "") + unsignedValue.toString(base)
     }
@@ -114,6 +114,20 @@ extension BigInt : CustomStringConvertible, CustomDebugStringConvertible, Hashab
         }
         isSignMinus =  s[s.startIndex] == "-"
     }
+    public typealias StringLiteralType = String
+    public init(stringLiteral: StringLiteralType) {
+        self.init(stringLiteral)
+    }
+    public typealias UnicodeScalarLiteralType = String
+    public init(unicodeScalarLiteral: UnicodeScalarLiteralType) {
+        self.init(stringLiteral: "\(unicodeScalarLiteral)")
+    }
+    public typealias ExtendedGraphemeClusterLiteralType = StringLiteralType
+    public init(extendedGraphemeClusterLiteral: ExtendedGraphemeClusterLiteralType) {
+        self.init(stringLiteral: extendedGraphemeClusterLiteral)
+    }
+}
+extension BigInt: Hashable {
     public var hashValue : Int {    // slow but steady
         return self.debugDescription.hashValue
     }

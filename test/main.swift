@@ -10,6 +10,9 @@ let test = TAP()
 // check inits
 test.eq(BigInt(+42 as Int), +BigInt(42), "BigInt(+42 as Int) == +BigInt(42)")
 test.eq(BigInt(-42 as Int), -BigInt(42), "BigInt(-42 as Int) == -BigInt(42)")
+test.eq(9223372036854775807 as BigInt, BigInt(Int.max), "BigInt is integerLiteralConvertible")
+test.eq("0xfedcba98765432100123456789ABCDEF" as BigInt,
+    BigInt("fedcba98765432100123456789ABCDEF", base:16), "BigInt is stringLiteralConvertible")
 // check signed operations
 test.eq(+BigInt(2) + -BigInt(1), +BigInt(1), "+2 + -1 == +1")
 test.eq(-BigInt(2) + +BigInt(1), -BigInt(1), "-2 + +1 == -1")

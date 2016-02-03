@@ -317,7 +317,7 @@ public func *=(inout lhs:BigUInt, rhs:BigUInt) {
 // before we get down to division, let's define divmod32
 // and use it to make it conform to CustomStringConvertible
 // (and CustomDebugStringConvertible and  Hashable)
-extension BigUInt : CustomStringConvertible, CustomDebugStringConvertible, Hashable {
+extension BigUInt : CustomStringConvertible, CustomDebugStringConvertible, StringLiteralConvertible {
     public static func divmod32(lhs:BigUInt, _ rhs:DigitType)->(BigUInt, DigitType) {
         var value = lhs.value
         // value.append(0) // sentinel
@@ -357,14 +357,31 @@ extension BigUInt : CustomStringConvertible, CustomDebugStringConvertible, Hasha
     }()
     /// init from string
     public init(_ s:String, base:Int = 10) {
-        self.init(0)
-        for c in s.lowercaseString.characters {
+        self.init()
+        let (ss, b) = s[s.startIndex] == "0" && s[s.startIndex.successor()] == "x"
+            ? (s[s.startIndex.successor().successor()..<s.endIndex], 16)
+            : (s, base)
+        for c in ss.lowercaseString.characters {
             if let d = BigUInt.char2int[c] {
-                self = BigUInt.multiply32(self, UInt32(base))
+                self = BigUInt.multiply32(self, UInt32(b))
                 self += BigUInt(d)
             }
         }
     }
+    public typealias StringLiteralType = String
+    public init(stringLiteral: StringLiteralType) {
+        self.init(stringLiteral)
+    }
+    public typealias UnicodeScalarLiteralType = String
+    public init(unicodeScalarLiteral: UnicodeScalarLiteralType) {
+        self.init(stringLiteral: "\(unicodeScalarLiteral)")
+    }
+    public typealias ExtendedGraphemeClusterLiteralType = StringLiteralType
+    public init(extendedGraphemeClusterLiteral: ExtendedGraphemeClusterLiteralType) {
+        self.init(stringLiteral: extendedGraphemeClusterLiteral)
+    }
+}
+extension BigUInt: Hashable {
     public var hashValue : Int {    // slow but steady
         return self.debugDescription.hashValue
     }
@@ -374,12 +391,10 @@ public extension BigUInt {
     public var msbAt:Int {
         return self.value.count * 32 + Double.frexp(Double(self.value.last!)).1 - 1
     }
-    public static func divmod(lhs:BigUInt, _ rhs:BigUInt)->(BigUInt, BigUInt) {
-        if rhs <= BigUInt(UInt32.max) {
-            let (q, r) = divmod32(lhs, rhs.asUInt32)
-            return (q, BigUInt(r))
-        }
-        // slow but steady division algorithm
+    /// binary long division
+    ///
+    /// cf. https://en.wikipedia.org/wiki/Division_algorithm#Integer_division_.28unsigned.29_with_remainder
+    public static func divmodLong(lhs:BigUInt, _ rhs:BigUInt)->(BigUInt, BigUInt) {
         var q:BigUInt = 0
         var r:BigUInt = 0
         for i in (0...lhs.msbAt).reverse() {
@@ -391,6 +406,13 @@ public extension BigUInt {
             }
         }
         return (q, r)
+    }
+    public static func divmod(lhs:BigUInt, _ rhs:BigUInt)->(BigUInt, BigUInt) {
+        if rhs <= BigUInt(UInt32.max) {
+            let (q, r) = divmod32(lhs, rhs.asUInt32)
+            return (q, BigUInt(r))
+        }
+        return divmodLong(lhs, rhs)
     }
     // no overflow
     public static func divideWithOverflow(lhs:BigUInt, _ rhs:BigUInt)->(BigUInt, overflow:Bool) {

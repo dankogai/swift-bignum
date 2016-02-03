@@ -5,6 +5,7 @@
 //  Created by Dan Kogai on 2/3/16.
 //  Copyright © 2016 Dan Kogai. All rights reserved.
 //
+
 public extension _Integer {
     /// lhs to the rhs
     public static func pow(lhs: Self, _ rhs:Self)->Self {
