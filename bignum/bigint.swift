@@ -115,7 +115,7 @@ extension BigInt : CustomStringConvertible, CustomDebugStringConvertible, Hashab
         isSignMinus =  s[s.startIndex] == "-"
     }
     public var hashValue : Int {    // slow but steady
-        return self.description.hashValue
+        return self.debugDescription.hashValue
     }
 }
 

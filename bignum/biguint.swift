@@ -366,7 +366,7 @@ extension BigUInt : CustomStringConvertible, CustomDebugStringConvertible, Hasha
         }
     }
     public var hashValue : Int {    // slow but steady
-        return self.description.hashValue
+        return self.debugDescription.hashValue
     }
 }
 // now let's go for the toughest one:division!
@@ -380,8 +380,8 @@ public extension BigUInt {
             return (q, BigUInt(r))
         }
         // slow but steady division algorithm
-        var q = BigUInt(0)
-        var r = BigUInt(0)
+        var q:BigUInt = 0
+        var r:BigUInt = 0
         for i in (0...lhs.msbAt).reverse() {
             r <<= 1
             r[0] = lhs[i]
