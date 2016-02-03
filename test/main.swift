@@ -14,10 +14,14 @@ test.eq(9223372036854775807 as BigInt, BigInt(Int.max), "BigInt is integerLitera
 test.eq("0xfedcba98765432100123456789ABCDEF" as BigInt,
     BigInt("fedcba98765432100123456789ABCDEF", base:16), "BigInt is stringLiteralConvertible")
 // check signed operations
-test.eq(+BigInt(2) + -BigInt(1), +BigInt(1), "+2 + -1 == +1")
+test.eq(+BigInt(2) + +BigInt(1), +BigInt(3), "+2 + +1 == +3")
 test.eq(-BigInt(2) + +BigInt(1), -BigInt(1), "-2 + +1 == -1")
+test.eq(+BigInt(2) + -BigInt(1), +BigInt(1), "+2 + -1 == +1")
+test.eq(-BigInt(2) + -BigInt(1), -BigInt(3), "-2 + -1 == -3")
+test.eq(+BigInt(2) - +BigInt(1), +BigInt(1), "+2 - +1 == +1")
+test.eq(-BigInt(2) - +BigInt(1), -BigInt(3), "-2 - +1 == -3")
 test.eq(+BigInt(2) - -BigInt(1), +BigInt(3), "+2 - -1 == +3")
-test.eq(-BigInt(2) - +BigInt(1), -BigInt(3), "-2 + -1 == -3")
+test.eq(-BigInt(2) - +BigInt(1), -BigInt(3), "-2 - -1 == -1")
 test.eq(+BigInt(1) * +BigInt(1), +BigInt(1), "+1 * +1 == +1")
 test.eq(-BigInt(1) * +BigInt(1), -BigInt(1), "-1 * +1 == -1")
 test.eq(+BigInt(1) * -BigInt(1), -BigInt(1), "+1 * -1 == -1")
@@ -58,4 +62,5 @@ for i in 1...42 {
     let bbi = bi + 100
     test.eq(fib(bbi),fib(bbi-2)+fib(bbi-1), "BigInt: F\(bbi) == F\(bbi-2)+F\(bbi-1)")
 }
+
 test.done()

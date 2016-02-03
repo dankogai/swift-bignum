@@ -389,7 +389,7 @@ extension BigUInt: Hashable {
 // now let's go for the toughest one:division!
 public extension BigUInt {
     public var msbAt:Int {
-        return self.value.count * 32 + Double.frexp(Double(self.value.last!)).1 - 1
+        return (self.value.count-1) * 32 + Double.frexp(Double(self.value.last!)).1 - 1
     }
     /// binary long division
     ///
