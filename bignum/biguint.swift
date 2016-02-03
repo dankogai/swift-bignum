@@ -147,9 +147,13 @@ extension BigUInt : BitwiseOperationsType {
         let (digit, offset) = (rhs / 32, rhs % 32)
         let blank = [DigitType](count:Int(digit), repeatedValue:0)
         if offset == 0 { return BigUInt(rawValue: blank + lhs.value) }
-        let shift = lhs.value.map{ $0 << DigitType(offset) } + [0]
-        let carry = [0] + lhs.value.map{ $0 >> DigitType(32 - offset) }
-        let value = zip(shift, carry).map { $0.0 | $0.1 }
+        var value = lhs.value
+        var carry:UInt32 = 0
+        for i in 0..<value.count {
+            value[i] = carry | (value[i] << offset)
+            carry = lhs.value[i] >> (32 - offset)
+        }
+        value.append(carry)
         return BigUInt(rawValue:blank + value)
     }
     public static func bitShiftL(lhs:BigUInt, _ rhs:BigUInt)->BigUInt {

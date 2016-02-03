@@ -62,5 +62,4 @@ for i in 1...42 {
     let bbi = bi + 100
     test.eq(fib(bbi),fib(bbi-2)+fib(bbi-1), "BigInt: F\(bbi) == F\(bbi-2)+F\(bbi-1)")
 }
-
 test.done()
