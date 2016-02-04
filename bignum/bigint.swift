@@ -103,7 +103,7 @@ extension BigInt : CustomStringConvertible, CustomDebugStringConvertible, String
         return self.toString()
     }
     public var debugDescription:String {
-        return "BigInt(\"" + self.toString(16) + "\",base:16)"
+        return (self.isSignMinus ? "-" : "") + self.unsignedValue.debugDescription
     }
     public init(_ s:String, base:Int = 10) {
         self.init(0)
@@ -132,7 +132,6 @@ extension BigInt: Hashable {
         return self.debugDescription.hashValue
     }
 }
-
 extension BigInt : RandomAccessIndexType {
     public typealias Distance = Int.Distance
     public func successor() -> BigInt {
@@ -275,3 +274,5 @@ public extension Int    { public init(_ bi:BigInt){ self.init(bi.toIntMax()) } }
 public extension UInt   { public init(_ bi:BigInt){ self.init(bi.toUIntMax()) } }
 public extension Double { public init(_ bi:BigInt){ self.init(bi.asDouble) } }
 public extension Float  { public init(_ bi:BigInt){ self.init(bi.asFloat) } }
+//
+extension BigInt: _Integer {}

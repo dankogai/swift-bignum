@@ -35,16 +35,25 @@ public protocol _BitShiftable : IntegerArithmeticType, BitwiseOperationsType {
     func >>(_:Self,_:Self)->Self
     func >>=(inout _:Self, _:Self)
 }
-public protocol _Integer :  _SelfInitializable, _BitShiftable, IntegerType {}
-/// Usage:
 ///
-///     extension UInt: _UnsignedInteger {}     // already compliant
-///     extension BigUInt: _UnsignedInteger {}  // ditto
+/// Generic Integer, signed or unsigned.
+///
+public protocol _Integer :  _SelfInitializable, _BitShiftable, IntegerType {}
+///
+/// Generic unsigned integer.  All built-ins already conform to this.
 ///
 public protocol _UnsignedInteger: UnsignedIntegerType, _Integer {}
-/// Usage:
+extension UInt64:   _UnsignedInteger {}
+extension UInt32:   _UnsignedInteger {}
+extension UInt16:   _UnsignedInteger {}
+extension UInt8:    _UnsignedInteger {}
+extension UInt:     _UnsignedInteger {}
 ///
-///     extension Int: _Integer {}      // already compliant
-///     extension BigInt: _Integer {}   // ditto
+/// Generic signed integer.  All built-ins already conform to this.
 ///
 public protocol _SignedInteger: SignedIntegerType, _Integer {}
+extension Int64:    _SignedInteger {}
+extension Int32:    _SignedInteger {}
+extension Int16:    _SignedInteger {}
+extension Int8:     _SignedInteger {}
+extension Int:      _SignedInteger {}

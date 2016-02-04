@@ -350,7 +350,7 @@ extension BigUInt : CustomStringConvertible, CustomDebugStringConvertible, Strin
         return self.toString()
     }
     public var debugDescription:String {
-        return "BigUInt(\"" + self.toString(16) + "\", base:16)"
+        return "0x" + self.toString(16)
     }
     public static let char2int:[Character:Int] = {
         var result = [Character:Int]()
@@ -412,6 +412,9 @@ public extension BigUInt {
         return (q, r)
     }
     public static func divmod(lhs:BigUInt, _ rhs:BigUInt)->(BigUInt, BigUInt) {
+        if lhs <= rhs {
+            return (0, lhs)
+        }
         if rhs <= BigUInt(UInt32.max) {
             let (q, r) = divmod32(lhs, rhs.asUInt32)
             return (q, BigUInt(r))
@@ -461,5 +464,4 @@ extension BigUInt : UnsignedIntegerType {
         return UIntMax(self.asUInt)
     }
 }
-
-
+extension BigUInt:  _UnsignedInteger {} // BigUInt can fact() now
