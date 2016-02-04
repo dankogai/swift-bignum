@@ -464,4 +464,4 @@ extension BigUInt : UnsignedIntegerType {
         return UIntMax(self.asUInt)
     }
 }
-extension BigUInt:  _UnsignedInteger {} // BigUInt can fact() now
+extension BigUInt:  GenericUInt {} // BigUInt can fact() now

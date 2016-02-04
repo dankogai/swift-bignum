@@ -6,7 +6,7 @@
 //  Copyright © 2016 Dan Kogai. All rights reserved.
 //
 
-public extension _Integer {
+public extension GenericInteger {
     /// lhs to the rhs
     public static func pow(lhs: Self, _ rhs:Self)->Self {
         guard 0 <= lhs else {
@@ -30,9 +30,9 @@ public extension _Integer {
 infix operator ** { associativity right precedence 170 }
 infix operator **= { associativity right precedence 90 }
 
-public func **<T:_Integer>(lhs:T, rhs:T)->T {
+public func **<T:GenericInteger>(lhs:T, rhs:T)->T {
     return T.pow(lhs, rhs)
 }
-public func **=<T:_Integer>(inout lhs:T, rhs:T) {
+public func **=<T:GenericInteger>(inout lhs:T, rhs:T) {
     lhs = lhs ** rhs
 }

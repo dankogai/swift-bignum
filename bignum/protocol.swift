@@ -41,28 +41,28 @@ public protocol _BitShiftable : IntegerArithmeticType, BitwiseOperationsType {
 /// For the sake of protocol-oriented programming, 
 /// consider extend this protocol first before extending each integer type.
 ///
-public protocol _Integer :  _SelfInitializable, _BitShiftable, IntegerType {}
+public protocol GenericInteger :  _SelfInitializable, _BitShiftable, IntegerType {}
 ///
 /// Generic unsigned integer.  All built-ins already conform to this.
 ///
 /// For the sake of protocol-oriented programming,
 /// consider extend this protocol first before extending each unsigned integer type.
 ///
-public protocol _UnsignedInteger: UnsignedIntegerType, _Integer {}
-extension UInt64:   _UnsignedInteger {}
-extension UInt32:   _UnsignedInteger {}
-extension UInt16:   _UnsignedInteger {}
-extension UInt8:    _UnsignedInteger {}
-extension UInt:     _UnsignedInteger {}
+public protocol GenericUInt: UnsignedIntegerType, GenericInteger {}
+extension UInt64:   GenericUInt {}
+extension UInt32:   GenericUInt {}
+extension UInt16:   GenericUInt {}
+extension UInt8:    GenericUInt {}
+extension UInt:     GenericUInt {}
 ///
 /// Generic signed integer.  All built-ins already conform to this.
 ///
 /// For the sake of protocol-oriented programming,
 /// consider extend this protocol first before extending each signed integer types.
 ///
-public protocol _SignedInteger: SignedIntegerType, _Integer {}
-extension Int64:    _SignedInteger {}
-extension Int32:    _SignedInteger {}
-extension Int16:    _SignedInteger {}
-extension Int8:     _SignedInteger {}
-extension Int:      _SignedInteger {}
+public protocol GenericInt: SignedIntegerType, GenericInteger {}
+extension Int64:    GenericInt {}
+extension Int32:    GenericInt {}
+extension Int16:    GenericInt {}
+extension Int8:     GenericInt {}
+extension Int:      GenericInt {}

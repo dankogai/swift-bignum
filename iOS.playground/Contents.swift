@@ -1,7 +1,7 @@
 import UIKit    // This is an iOS playground
 //: Playground - noun: a place where people can play
 
-func fact<T:_Integer>(n:T)->T { // works for any type that conforms to _Integer
+func fact<T:GenericInteger>(n:T)->T { // works for any type that conforms to _Integer
     return n < 2 ? 1 : (2...n).reduce(1, combine:*)
 }
 
@@ -15,6 +15,6 @@ let fact42bi = BigInt("0x3C1581D491B28F523C23ABDF35B689C908000000000")
 fact(20 as Int)     == Int(fact(20 as UInt))
 fact(42 as BigInt)  == BigInt(fact(42 as BigUInt))
 
-// _Integer can ** -- see operators.swift
+// GenericInteger can ** -- see operators.swift
 Int(2) ** 42
 BigInt(2) ** 1024

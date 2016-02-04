@@ -35,7 +35,7 @@ test.eq(-BigInt(3) % +BigInt(2), -BigInt(1), "-3 % +1 == -1")
 test.eq(+BigInt(3) % -BigInt(2), +BigInt(1), "+3 % -2 == +1")
 test.eq(-BigInt(3) % -BigInt(2), -BigInt(1), "-3 % -2 == -1")
 
-func fact<T:_Integer>(n:T)->T {
+func fact<T:GenericInteger>(n:T)->T {
     return n < 2 ? 1 : (2...n).reduce(1, combine:*)
 }
 
@@ -48,7 +48,7 @@ let sfact42 = BigInt("0x3C1581D491B28F523C23ABDF35B689C908000000000")
 test.eq(fact(20 as Int),    sfact20, "20! as Int    == \(sfact20)")
 test.eq(fact(42 as BigInt), sfact42, "42! as BigInt == \(sfact42)")
 
-func fib<T:_Integer>(n:T)->T {
+func fib<T:GenericInteger>(n:T)->T {
     return n < 2 ? n : (2...n).reduce((0, 1)){ p, _ in (p.1, p.0 + p.1) }.1
 }
 for i in 1...42 {

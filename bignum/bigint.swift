@@ -275,4 +275,4 @@ public extension UInt   { public init(_ bi:BigInt){ self.init(bi.toUIntMax()) } 
 public extension Double { public init(_ bi:BigInt){ self.init(bi.asDouble) } }
 public extension Float  { public init(_ bi:BigInt){ self.init(bi.asFloat) } }
 //
-extension BigInt: _Integer {}
+extension BigInt: GenericInt {}
