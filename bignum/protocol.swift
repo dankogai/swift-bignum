@@ -38,9 +38,15 @@ public protocol _BitShiftable : IntegerArithmeticType, BitwiseOperationsType {
 ///
 /// Generic Integer, signed or unsigned.
 ///
+/// For the sake of protocol-oriented programming, 
+/// consider extend this protocol first before extending each integer type.
+///
 public protocol _Integer :  _SelfInitializable, _BitShiftable, IntegerType {}
 ///
 /// Generic unsigned integer.  All built-ins already conform to this.
+///
+/// For the sake of protocol-oriented programming,
+/// consider extend this protocol first before extending each unsigned integer type.
 ///
 public protocol _UnsignedInteger: UnsignedIntegerType, _Integer {}
 extension UInt64:   _UnsignedInteger {}
@@ -50,6 +56,9 @@ extension UInt8:    _UnsignedInteger {}
 extension UInt:     _UnsignedInteger {}
 ///
 /// Generic signed integer.  All built-ins already conform to this.
+///
+/// For the sake of protocol-oriented programming,
+/// consider extend this protocol first before extending each signed integer types.
 ///
 public protocol _SignedInteger: SignedIntegerType, _Integer {}
 extension Int64:    _SignedInteger {}

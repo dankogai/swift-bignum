@@ -80,11 +80,11 @@
 		9E87CBBE1C604F3900A19CE8 /* bignum */ = {
 			isa = PBXGroup;
 			children = (
-				9E488C8D1C61F15900A19CE8 /* protocol.swift */,
 				9E488C7A1C60623400A19CE8 /* bigint.swift */,
 				9E488C801C61352600A19CE8 /* biguint.swift */,
-				9E488C7E1C60EEA300A19CE8 /* util.swift */,
 				9E43D3951C61F9AC00A19CE8 /* operators.swift */,
+				9E488C8D1C61F15900A19CE8 /* protocol.swift */,
+				9E488C7E1C60EEA300A19CE8 /* util.swift */,
 			);
 			path = bignum;
 			sourceTree = "<group>";

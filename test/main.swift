@@ -40,11 +40,11 @@ func fact<T:_Integer>(n:T)->T {
 }
 
 let ufact20 = 2432902008176640000 as UInt
-let ufact42 = BigUInt("3C1581D491B28F523C23ABDF35B689C908000000000", base:16)
+let ufact42 = BigUInt("1405006117752879898543142606244511569936384000000000")
 test.eq(fact(20 as UInt),       ufact20, "20! as UInt    == \(ufact20)")
 test.eq(fact(42 as BigUInt),    ufact42, "42! as BigUInt == \(ufact42)")
-let sfact20 = 2432902008176640000 as Int
-let sfact42 = BigInt("3C1581D491B28F523C23ABDF35B689C908000000000", base:16)
+let sfact20 = 0x21C3677C82B40000 as Int
+let sfact42 = BigInt("0x3C1581D491B28F523C23ABDF35B689C908000000000")
 test.eq(fact(20 as Int),    sfact20, "20! as Int    == \(sfact20)")
 test.eq(fact(42 as BigInt), sfact42, "42! as BigInt == \(sfact42)")
 
