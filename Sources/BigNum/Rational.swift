@@ -1,4 +1,4 @@
-public protocol RationalElement : SignedInteger & ExpressibleByIntegerLiteral  {
+public protocol RationalElement : SignedInteger & Codable {
     init(_:Int)
 }
 
@@ -19,7 +19,7 @@ extension RationalElement {
     }
 }
 
-public protocol RationalType : CustomStringConvertible, FloatingPoint {
+public protocol RationalType : CustomStringConvertible, FloatingPoint, Codable {
     associatedtype Element:RationalElement
     var num:Element { get set }
     var den:Element { get set }
