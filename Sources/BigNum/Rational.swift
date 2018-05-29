@@ -1,4 +1,4 @@
-public protocol RationalElement : SignedInteger & Codable {
+public protocol RationalElement : SignedInteger {
     init(_:Int)
 }
 
@@ -19,7 +19,7 @@ extension RationalElement {
     }
 }
 
-public protocol RationalType : CustomStringConvertible, FloatingPoint, Codable {
+public protocol RationalType : CustomStringConvertible, FloatingPoint {
     associatedtype Element:RationalElement
     var num:Element { get set }
     var den:Element { get set }
@@ -262,6 +262,23 @@ extension RationalType where Element == BigInt {
     }
 }
 
+extension Rational : Codable where Element: Codable {
+    public enum CodingKeys : String, CodingKey {
+        public typealias RawValue = String
+        case num, den
+    }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.num = try values.decode(Element.self, forKey: .num)
+        self.den = try values.decode(Element.self, forKey: .den)
+    }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.num, forKey: .num)
+        try container.encode(self.den, forKey: .den)
+    }
+}
+
 public protocol FixedRationalElement : RationalElement & FixedWidthInteger {}
 
 extension Int:      FixedRationalElement {}
@@ -329,3 +346,20 @@ public struct FixRat<I:FixedRationalElement> : FixeRationalType {
 }
 
 public typealias Rat = FixRat<Int>
+
+extension FixRat : Codable where Element: Codable {
+    public enum CodingKeys : String, CodingKey {
+        public typealias RawValue = String
+        case num, den
+    }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.num = try values.decode(Element.self, forKey: .num)
+        self.den = try values.decode(Element.self, forKey: .den)
+    }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.num, forKey: .num)
+        try container.encode(self.den, forKey: .den)
+    }
+}

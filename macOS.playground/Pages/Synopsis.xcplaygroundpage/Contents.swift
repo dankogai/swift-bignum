@@ -14,6 +14,9 @@ bq * bq
 
 bq.asDouble
 
+import Foundation
+let data = try JSONEncoder().encode(bq)
+String(data:data, encoding:.utf8)
 
 //let q = Rat(Double.pi)
 //
