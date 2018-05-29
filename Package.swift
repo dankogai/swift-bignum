@@ -12,13 +12,19 @@ let package = Package(
     ],
     dependencies: [
       .package(
+        url: "https://github.com/dankogai/swift-floatingpointmath.git", .branch("master")
+      ),
+      .package(
         url: "https://github.com/dankogai/BigInt.git", .branch("master")
       )
     ],
     targets: [
         .target(
             name: "BigNum",
-            dependencies: ["BigInt"]),
+            dependencies: ["BigInt", "FloatingPointMath"]),
+        .target(
+            name: "BigNumRun",
+            dependencies: ["BigNum"]),
         .testTarget(
             name: "BigNumTests",
             dependencies: ["BigNum"]),
