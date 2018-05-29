@@ -2,7 +2,12 @@ import XCTest
 @testable import BigNum
 
 final class BigRatTests: XCTestCase {
-    func testRational() {
+    private typealias BI = BigInt
+    func testConv() {
+        XCTAssertEqual(BigRat(+Double.pi).asDouble, +Double.pi)
+        XCTAssertEqual(BigRat(-Double.pi).asDouble, -Double.pi)
+    }
+    func testIntRatOps() {
         XCTAssertEqual(+2.over(+4), (+1).over(+2))
         XCTAssertEqual(-2.over(+4), (-1).over(+2))
         XCTAssertEqual(+2.over(-4), (-1).over(+2))
@@ -12,7 +17,19 @@ final class BigRatTests: XCTestCase {
         XCTAssertEqual( 1.over(2) * 1.over(3), 1.over(6))
         XCTAssertEqual( 1.over(2) / 1.over(3), 3.over(2))
     }
-    static var allTests = [
-        ("testRational", testRational),
+    func testBigRatOps() {
+        XCTAssertEqual(+BI(2).over(+4), BI(+1).over(+2))
+        XCTAssertEqual(-BI(2).over(+4), BI(-1).over(+2))
+        XCTAssertEqual(+BI(2).over(-4), BI(-1).over(+2))
+        XCTAssertEqual(-BI(2).over(-4), BI(+1).over(+2))
+        XCTAssertEqual( BI(1).over(2) + BI(1).over(3), BI(5).over(6))
+        XCTAssertEqual( BI(1).over(2) - BI(1).over(3), BI(1).over(6))
+        XCTAssertEqual( BI(1).over(2) * BI(1).over(3), BI(1).over(6))
+        XCTAssertEqual( BI(1).over(2) / BI(1).over(3), BI(3).over(2))
+    }
+    static var testAll = [
+        ("testConv", testConv),
+        ("testIntRatOps", testIntRatOps),
+        ("testBigRatOps", testBigRatOps),
     ]
 }

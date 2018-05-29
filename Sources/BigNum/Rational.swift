@@ -145,7 +145,7 @@ extension RationalType {
             self.init(r.sign == .minus ? -1 : +1, 0)
         }
         else {
-            let n = Int(r.significand * Double(1 << Double.significandBitCount))
+            let n = (r.sign == .minus ? -1 : +1) * Int(r.significand * Double(1 << Double.significandBitCount))
             let d = 1 << Double.significandBitCount
             if (r.exponent < 0) {
                 self.init(Element(n), Element(d) << -r.exponent)

@@ -11,6 +11,8 @@ let q0 = 215.over(10)
 75.over(100)
 let bq = BigRat(Double.pi)
 bq * bq
+BigRat(-Double.pi)
+BigRat.cos(bq)
 
 bq.asDouble
 
@@ -23,4 +25,3 @@ String(data:data, encoding:.utf8)
 //q * q
 
 //: [Next](@next)
-
