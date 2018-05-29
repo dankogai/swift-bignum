@@ -256,9 +256,9 @@ extension RationalType where Element == BigInt {
         self = self.truncated(width: width)
         return self
     }
-    public var asRat:Rat {
+    public var asIntRat:IntRat {
         let q = self.truncated(width: Int.bitWidth - 1)
-        return Rat(num:Int(q.num), den:Int(q.den))
+        return IntRat(num:Int(q.num), den:Int(q.den))
     }
 }
 
@@ -294,9 +294,9 @@ extension FixedRationalElement {
     }
 }
 
-public protocol FixeRationalType : RationalType where Element: FixedRationalElement { }
+public protocol FixedRationalType : RationalType where Element: FixedRationalElement { }
 
-extension FixeRationalType {
+extension FixedRationalType {
     public static var max:Self {
         return Self(+Element.max, 1)
     }
@@ -333,7 +333,7 @@ extension FixeRationalType {
     }
 }
 
-public struct FixRat<I:FixedRationalElement> : FixeRationalType {
+public struct FixRat<I:FixedRationalElement> : FixedRationalType {
     public typealias IntegerLiteralType = Int
     public typealias Element = I
     public var (num, den):(I, I)
@@ -345,7 +345,7 @@ public struct FixRat<I:FixedRationalElement> : FixeRationalType {
     }
 }
 
-public typealias Rat = FixRat<Int>
+public typealias IntRat = FixRat<Int>
 
 extension FixRat : Codable where Element: Codable {
     public enum CodingKeys : String, CodingKey {
