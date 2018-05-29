@@ -13,9 +13,16 @@ let bq = BigRat(Double.pi)
 bq * bq
 BigRat(-Double.pi)
 BigRat.cos(bq)
+bq.asMixed
+BigInt(255).squareRoot()
+BigRat(256).squareRoot()
+BigInt(1).over(2)
+let x:BigRat = 0.1
 
 bq.asDouble
-
+// (bq*bq).rounded()
+Double.greatestFiniteMagnitude
+(bq*bq).asDouble
 import Foundation
 let data = try JSONEncoder().encode(bq)
 String(data:data, encoding:.utf8)

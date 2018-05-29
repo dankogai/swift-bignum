@@ -17,9 +17,12 @@ extension RationalElement {
     public func over(_ den:Self)->Rational<Self> {
         return Rational(self, den)
     }
+    public func squareRoot()->Self {
+        return Self(BigInt(self).squareRoot())
+    }
 }
 
-public protocol RationalType : CustomStringConvertible, FloatingPoint {
+public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral {
     associatedtype Element:RationalElement
     var num:Element { get set }
     var den:Element { get set }
@@ -27,19 +30,19 @@ public protocol RationalType : CustomStringConvertible, FloatingPoint {
 }
 
 extension RationalType {
-    public static var radix: Int { return 2 }
-    public static var nan: Self { return Self(0, 0) }
-    public static var signalingNaN:Self { return nan }
-    public static var zero:Self { return Self(0, 1) }
-    public static var negativeZero:Self { return Self(0, -1) }
-    public static var infinity:Self { return Self(1, 0) }
-    public static var greatestFiniteMagnitude:Self { return infinity }
-    public static var pi:Self { return Self(Double.pi) }
-    public static var ulp:Self { return zero }
-    public var ulp:Self { return Self.zero }
-    public static var leastNormalMagnitude:Self { return zero }
-    public static var leastNonzeroMagnitude:Self { return zero }
-    public var sign:FloatingPointSign {
+    public static var radix: Int                    { return 2 }
+    public static var nan: Self                     { return Self(num:0, den:0) }
+    public static var signalingNaN:Self             { return nan }
+    public static var zero:Self                     { return Self(num:0, den:+1) }
+    public static var negativeZero:Self             { return Self(num:0, den:-1) }
+    public static var infinity:Self                 { return Self(num:+1, den:0) }
+    public static var greatestFiniteMagnitude:Self  { return infinity }
+    public static var pi:Self                       { return Self(Double.pi) }
+    public static var ulp:Self                      { return zero }
+    public static var leastNormalMagnitude:Self     { return zero }
+    public static var leastNonzeroMagnitude:Self    { return zero }
+    public var ulp:Self                             { return Self.zero }
+    public var sign:FloatingPointSign   {
         return num != 0
         ? num < 0 ? .minus : .plus
         : den < 0 ? .minus : .plus
@@ -56,16 +59,36 @@ extension RationalType {
     public mutating func formTruncatingRemainder(dividingBy other: Self) {
         fatalError()
     }
+    public func squareRoot()->Self {
+        if self < 0 { return Self.nan }
+        var n = self.num
+        var d = self.den
+        let w = 2 * max(n.bitWidth, d.bitWidth, Int64.bitWidth)
+        n <<= w
+        d <<= w
+        return Self(n.squareRoot(), d.squareRoot())
+    }
     public mutating func formSquareRoot() {
         fatalError()
     }
     public var nextUp:Self {
         return Self.zero
     }
+    public var isNormal: Bool       { return true }
+    public var isFinite: Bool       { return den != 0 }
+    public var isZero: Bool         { return num == 0 && den != 0 }
+    public var isSubnormal:Bool     { return false }
+    public var isInfinite:Bool      { return den == 0 && num != 0 }
+    public var isNaN:Bool           { return (num, den) == (0, 0) }
+    public var isSignalingNaN:Bool  { return self.isNaN }
+    public var isCanonical:Bool     { return true }
+
     public func isEqual(to other: Self) -> Bool {
+        if self.isNaN || other.isNaN { return false }
         return self.num == other.num && self.den == other.den
     }
     public func isLess(than other: Self) -> Bool {
+        if self.isNaN || other.isNaN { return false }
         let l = self.num * other.den
         let r = other.num * self.den
         return l < r
@@ -79,14 +102,6 @@ extension RationalType {
     public mutating func addProduct(_ lhs: Self, _ rhs: Self) {
         fatalError()
     }
-    public var isNormal: Bool { return true }
-    public var isFinite: Bool { return den != 0 }
-    public var isZero: Bool   { return num == 0 && den != 0 }
-    public var isSubnormal:Bool { return false }
-    public var isInfinite:Bool { return den == 0 && num != 0 }
-    public var isNaN:Bool { return (num, den) == (0, 0) }
-    public var isSignalingNaN:Bool { return self.isNaN }
-    public var isCanonical:Bool { return true }
     public func distance(to other: Self) -> Self {
         return self - other
     }
@@ -96,7 +111,16 @@ extension RationalType {
     public var magnitude: Self {
         return sign == .minus ? -self : +self
     }
-    public mutating func round(_ rule: FloatingPointRoundingRule) {} // no-op
+    public var asMixed:(Element, Self) {
+        let (q, r) = self.num.quotientAndRemainder(dividingBy: self.den)
+        return (q, Self(r, self.den))
+    }
+    public func rounded(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Self {
+        return Self(self.asDouble.rounded(rule))
+    }
+    public mutating func round(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
+        self = self.rounded(rule)
+    }
     public init(_ n:Element, _ d:Element) {
         var (num, den) = d < 0 ? (-n, -d) : (n, d)
         if num == 0 {
@@ -135,14 +159,14 @@ extension RationalType {
         self.init(num:n, den:1)
     }
     public init(_ r:Double) {
-        if r.isNaN {
+        if r.isNaN || r.isSignalingNaN {
             self.init(num:0, den:0)
         }
         else if r.isZero {
-            self.init(0, 1)
+            self.init(0, (r.sign == .minus ? -1 : +1))
         }
         else if r.isInfinite {
-            self.init(r.sign == .minus ? -1 : +1, 0)
+            self.init((r.sign == .minus ? -1 : +1), 0)
         }
         else {
             let n = (r.sign == .minus ? -1 : +1) * Int(r.significand * Double(1 << Double.significandBitCount))
@@ -153,6 +177,29 @@ extension RationalType {
                 self.init(Element(n) << r.exponent,  Element(d))
             }
         }
+    }
+    public var asDouble: Double {
+        if self.isNaN {
+            return Double.nan
+        }
+        if self.isZero {
+            return self.sign == .minus ? -0.0 : +0.0
+        }
+        if self.isInfinite {
+            return self.sign == .minus ? -Double.infinity : +Double.infinity
+        }
+        var n = self.num
+        var d = self.den
+        let w = max(n.bitWidth, d.bitWidth) - Int64.bitWidth
+        // print("n=\(n),d=\(d),w=\(w)")
+        if w > 0 {
+            n >>= w
+            d >>= w
+        }
+        return Double(Int64(n)) / Double(Int64(d))
+    }
+    public init(_ q:Self) {
+        self.init(q.num, q.den)
     }
     public var description:String {
         return "(\(num)/\(den))"
@@ -222,8 +269,16 @@ extension RationalType {
     }
 }
 
+extension Double {
+    public init<Q:RationalType>(_ q:Q) {
+        self.init(q.asDouble)
+    }
+}
+
+
 public struct Rational<I:RationalElement> : RationalType {
     public typealias IntegerLiteralType = Int
+    public typealias FloatLiteralType =   Double
     public typealias Element = I
     public var (num, den):(I, I)
     public init(num n:I, den d:I) {
@@ -232,15 +287,14 @@ public struct Rational<I:RationalElement> : RationalType {
     public init(integerLiteral: IntegerLiteralType) {
         self.init(Element(integerLiteral))
     }
+    public init(floatLiteral: FloatLiteralType) {
+        self.init(floatLiteral)
+    }
 }
 
 import FloatingPointMath
 
-extension Rational : FloatingPointMath {
-    public var asDouble: Double {
-        return Double(Int64(num)) / Double(Int64(den))
-    }
-}
+extension Rational : FloatingPointMath {}
 
 public typealias BigRat = Rational<BigInt>
 
@@ -252,7 +306,7 @@ extension RationalType where Element == BigInt {
         let sb = mb - width
         return Self(self.num >> sb, self.den >> sb)
     }
-    public mutating func trancate(width:Int)->Self {
+    public mutating func truncate(width:Int)->Self {
         self = self.truncated(width: width)
         return self
     }
@@ -303,21 +357,6 @@ extension FixedWidthRationalType {
     public static var min:Self {
         return Self(-Element.max, 1)
     }
-    public init(_ r:Double) {
-        if r.isNaN {
-            self.init(num:0, den:0)
-        }
-        else if Double(Int64(Element.max)) < abs(1/r) { // to zero
-            self.init(0, 1)
-        }
-        else if Double(Int64(Element.max)) < abs(r) { // to inifity
-            self.init(r.sign == .minus ? -1 : +1, 0)
-        }
-        else {
-            let q = BigRat(r).truncated(width:Element.bitWidth)
-            self.init(Element(Int(q.num)), Element(Int(q.den)))
-        }
-    }
     public var asBigRat:BigRat {
         return BigInt(Int(self.num)).over(BigInt(Int(self.den)))
     }
@@ -335,6 +374,7 @@ extension FixedWidthRationalType {
 
 public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRationalType {
     public typealias IntegerLiteralType = Int
+    public typealias FloatLiteralType   = Double
     public typealias Element = I
     public var (num, den):(I, I)
     public init(num n:I, den d:I) {
@@ -342,6 +382,9 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRation
     }
     public init(integerLiteral: IntegerLiteralType) {
         self.init(Element(integerLiteral))
+    }
+    public init(floatLiteral: FloatLiteralType) {
+        self.init(floatLiteral)
     }
 }
 
