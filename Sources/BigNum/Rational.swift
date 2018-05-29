@@ -279,24 +279,24 @@ extension Rational : Codable where Element: Codable {
     }
 }
 
-public protocol FixedRationalElement : RationalElement & FixedWidthInteger {}
+public protocol FixedWidthRationalElement : RationalElement & FixedWidthInteger {}
 
-extension Int:      FixedRationalElement {}
-extension Int8:     FixedRationalElement {}
-extension Int16:    FixedRationalElement {}
-extension Int32:    FixedRationalElement {}
-extension Int64:    FixedRationalElement {}
+extension Int:      FixedWidthRationalElement {}
+extension Int8:     FixedWidthRationalElement {}
+extension Int16:    FixedWidthRationalElement {}
+extension Int32:    FixedWidthRationalElement {}
+extension Int64:    FixedWidthRationalElement {}
 
 
-extension FixedRationalElement {
-    public func over(_ den:Self)->FixRat<Self> {
-        return FixRat(self, den)
+extension FixedWidthRationalElement {
+    public func over(_ den:Self)->FixedWidthRational<Self> {
+        return FixedWidthRational(self, den)
     }
 }
 
-public protocol FixedRationalType : RationalType where Element: FixedRationalElement { }
+public protocol FixedWidthRationalType : RationalType where Element: FixedWidthRationalElement { }
 
-extension FixedRationalType {
+extension FixedWidthRationalType {
     public static var max:Self {
         return Self(+Element.max, 1)
     }
@@ -333,7 +333,7 @@ extension FixedRationalType {
     }
 }
 
-public struct FixRat<I:FixedRationalElement> : FixedRationalType {
+public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRationalType {
     public typealias IntegerLiteralType = Int
     public typealias Element = I
     public var (num, den):(I, I)
@@ -345,9 +345,9 @@ public struct FixRat<I:FixedRationalElement> : FixedRationalType {
     }
 }
 
-public typealias IntRat = FixRat<Int>
+public typealias IntRat = FixedWidthRational<Int>
 
-extension FixRat : Codable where Element: Codable {
+extension FixedWidthRational : Codable where Element: Codable {
     public enum CodingKeys : String, CodingKey {
         public typealias RawValue = String
         case num, den
