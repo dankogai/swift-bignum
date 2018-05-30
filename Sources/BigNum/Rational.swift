@@ -82,11 +82,14 @@ extension RationalType {
     public var isNaN:Bool           { return (num, den) == (0, 0) }
     public var isSignalingNaN:Bool  { return self.isNaN }
     public var isCanonical:Bool     { return true }
-
-    public func isEqual(to other: Self) -> Bool {
-        if self.isNaN || other.isNaN { return false }
-        if self.isZero { return other.isZero }
+    //
+    public func isIdentical(to other: Self) -> Bool {
         return self.num == other.num && self.den == other.den
+    }
+    public func isEqual(to other: Self) -> Bool {
+        return self.isNaN || other.isNaN ? false
+            :  self.isZero ? other.isZero
+            :  self.isIdentical(to: other)
     }
     public func isLess(than other: Self) -> Bool {
         if self.isNaN || other.isNaN { return false }
@@ -100,6 +103,7 @@ extension RationalType {
     public func isTotallyOrdered(belowOrEqualTo other: Self) -> Bool {
         return self.isLessThanOrEqualTo(other)
     }
+    //
     public mutating func addProduct(_ lhs: Self, _ rhs: Self) {
         fatalError()
     }
