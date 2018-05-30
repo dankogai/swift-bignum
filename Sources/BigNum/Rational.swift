@@ -85,6 +85,7 @@ extension RationalType {
 
     public func isEqual(to other: Self) -> Bool {
         if self.isNaN || other.isNaN { return false }
+        if self.isZero { return other.isZero }
         return self.num == other.num && self.den == other.den
     }
     public func isLess(than other: Self) -> Bool {
@@ -124,7 +125,7 @@ extension RationalType {
     public init(_ n:Element, _ d:Element) {
         var (num, den) = d < 0 ? (-n, -d) : (n, d)
         if num == 0 {
-            if den != 0 { den = 1 }
+            if den != 0 { den /= den }
         } else if den == 0 {
             num = num < 0 ? -1 : +1
         } else {
@@ -205,12 +206,17 @@ extension RationalType {
         return "(\(num)/\(den))"
     }
     public static prefix func +(_ q:Self)->Self {
-        return Self(+q.num, +q.den)
+        return Self(num:+q.num, den:+q.den)
     }
     public static prefix func -(_ q:Self)->Self {
-        return Self(-q.num, +q.den)
+        return q.isZero ? Self(num:+q.num, den:-q.den) : Self(num:-q.num, den:+q.den)
     }
     public static func *(_ lhs:Self, _ rhs:Self)->Self {
+        if rhs.isNaN      { return Self.nan }
+        if rhs.isZero {
+            return lhs.isInfinite ? Self.nan
+                : lhs.sign == rhs.sign ? Self.zero : Self.negativeZero
+        }
         return Self(lhs.num * rhs.num, lhs.den * rhs.den)
     }
     public static func *(_ lhs:Self, _ rhs:Element)->Self {
@@ -223,6 +229,11 @@ extension RationalType {
         lhs = lhs * rhs
     }
     public func over(_ q:Self)->Self {
+        if q.isNaN      { return Self.nan }
+        if q.isInfinite {
+            return self.isInfinite ? Self.nan
+                : self.sign == q.sign ? Self.zero : Self.negativeZero
+        }
         return Self(self.num * q.den, self.den * q.num)
     }
     public func over(_ d:Element)->Self {

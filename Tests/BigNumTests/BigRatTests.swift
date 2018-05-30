@@ -68,9 +68,55 @@ final class BigRatTests: XCTestCase {
         XCTAssertTrue ((nan / one).isNaN)
         XCTAssertTrue (nan.squareRoot().isNaN)
     }
-    func testIntRatInt() {
-        let inf = II(1).over(0)
+    func testBigRatInf() {
+        let inf  = BI(1).over(0)
+        let zero = BQ(0)
+        let one  = BQ(1)
+        let two  = one + one
+        let half = one.over(two)
         XCTAssert(inf.isInfinite)
+        XCTAssertEqual(+zero, -zero)
+        XCTAssertEqual((+zero).sign, .plus)
+        XCTAssertEqual((-zero).sign, .minus)
+        XCTAssertNotEqual((+zero).sign, (-zero).sign)
+        XCTAssertEqual(+two * inf, +inf)
+        XCTAssertEqual(-two * inf, -inf)
+        XCTAssertEqual(+half * inf, +inf)
+        XCTAssertEqual(-half * inf, -inf)
+        XCTAssert     ((zero * inf).isNaN)
+        XCTAssert     ((zero / inf).isZero)
+        XCTAssertEqual( +inf / inf, +inf)
+
+        XCTAssertEqual( zero + inf, +inf)
+        XCTAssertEqual( zero - inf, -inf)
+
+        XCTAssert((+inf / inf).isNaN)
+        XCTAssert((+one / inf).isZero)
+        XCTAssert((+one / inf).sign == .plus)
+        XCTAssert((-one / inf).isZero)
+        XCTAssert((-one / inf).sign == .minus)
+    }
+    func testIntRatInf() {
+        let inf  = II(1).over(0)
+        let zero = IQ(0)
+        let one  = IQ(1)
+        let two  = one + one
+        let half = one.over(two)
+        XCTAssert(inf.isInfinite)
+        XCTAssertEqual(+zero, -zero)
+        XCTAssertEqual((+zero).sign, .plus)
+        XCTAssertEqual((-zero).sign, .minus)
+        XCTAssertNotEqual((+zero).sign, (-zero).sign)
+        XCTAssertEqual(+two * inf, +inf)
+        XCTAssertEqual(-two * inf, -inf)
+        XCTAssertEqual(+half * inf, +inf)
+        XCTAssertEqual(-half * inf, -inf)
+        XCTAssert((zero * inf).isNaN)
+        XCTAssert((+inf / inf).isNaN)
+        XCTAssert((+one / inf).isZero)
+        XCTAssert((+one / inf).sign == .plus)
+        XCTAssert((-one / inf).isZero)
+        XCTAssert((-one / inf).sign == .minus)
 
     }
      static var testAll = [
