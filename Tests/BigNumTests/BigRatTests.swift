@@ -48,36 +48,67 @@ final class BigRatTests: XCTestCase {
         let two  = one + one
         let half = one.over(two)
         let inf  = one.over(zero)
-        // +- 0
+        // ±0
         XCTAssert(inf.isInfinite)
         XCTAssertEqual(+zero, -zero)
         XCTAssertEqual((+zero).sign, .plus)
         XCTAssertEqual((-zero).sign, .minus)
         XCTAssertNotEqual((+zero).sign, (-zero).sign)
-        //
-        XCTAssertEqual(+two * inf, +inf)
-        XCTAssertEqual(-two * inf, -inf)
-        XCTAssertEqual(+half * inf, +inf)
-        XCTAssertEqual(-half * inf, -inf)
-        XCTAssert     ((zero * inf).isNaN)
-        XCTAssert     ((zero / inf).isZero)
-        XCTAssertEqual( zero + inf, +inf)
-        XCTAssertEqual((inf * inf), +inf)
-        XCTAssert     ((inf / inf).isNaN)
-        XCTAssertEqual((inf + inf), +inf)
-        XCTAssert     ((inf - inf).isNaN)
-        
-        XCTAssert     ((zero * inf).isNaN)
-        XCTAssert     ((zero / inf).isZero)
-        XCTAssertEqual( zero + inf, +inf)
-        XCTAssertEqual( zero - inf, -inf)
-        
-        XCTAssert((+inf / inf).isNaN)
-        XCTAssert((+one / inf).isZero)
-        XCTAssert((+one / inf).sign == .plus)
-        XCTAssert((-one / inf).isZero)
-        XCTAssert((-one / inf).sign == .minus)
-
+        // *(±0, ±inf)
+        XCTAssertTrue ((+zero * +inf).isNaN)
+        XCTAssertTrue ((-zero * -inf).isNaN)
+        XCTAssertTrue ((+zero * +inf).isNaN)
+        XCTAssertTrue ((-zero * -inf).isNaN)
+        // *(±inf, ±0)
+        XCTAssertTrue ((+inf * +zero).isNaN)
+        XCTAssertTrue ((-inf * -zero).isNaN)
+        XCTAssertTrue ((+inf * +zero).isNaN)
+        XCTAssertTrue ((-inf * -zero).isNaN)
+        // /(±0, ±inf)
+        XCTAssertEqual (+zero / +inf, zero)
+        XCTAssertEqual((+zero / +inf).sign, .plus)
+        XCTAssertEqual (-zero / +inf, zero)
+        XCTAssertEqual((-zero / +inf).sign, .minus)
+        XCTAssertEqual (+zero / -inf, zero)
+        XCTAssertEqual((+zero / -inf).sign, .minus)
+        XCTAssertEqual (-zero / -inf, zero)
+        XCTAssertEqual((-zero / -inf).sign, .plus)
+        // /(±0, ±inf)
+        XCTAssertEqual (+inf / +zero, +inf)
+        XCTAssertEqual (-inf / +zero, -inf)
+        XCTAssertEqual (+inf / -zero, -inf)
+        XCTAssertEqual (+inf / +zero, +inf)
+     // usual cases
+        for q in [half, one, two] {
+            // *(_, ±inf) and *(±inf, _)
+            XCTAssertEqual(+q * +inf, +inf)
+            XCTAssertEqual(-q * +inf, -inf)
+            XCTAssertEqual(+q * -inf, -inf)
+            XCTAssertEqual(-q * -inf, +inf)
+            XCTAssertEqual(+inf * +q, +inf)
+            XCTAssertEqual(-inf * +q, -inf)
+            XCTAssertEqual(+inf * -q, -inf)
+            XCTAssertEqual(-inf * -q, +inf)
+            // /(_, ±inf)
+            XCTAssertEqual (+q / +inf, zero)
+            XCTAssertEqual((+q / +inf).sign, .plus)
+            XCTAssertEqual (-q / +inf, zero)
+            XCTAssertEqual((-q / +inf).sign, .minus)
+            XCTAssertEqual (+q / -inf, zero)
+            XCTAssertEqual((+q / -inf).sign, .minus)
+            XCTAssertEqual (-q / -inf, zero)
+            XCTAssertEqual((-q / -inf).sign, .plus)
+            // +(_, ±inf)
+            XCTAssertEqual (+q + +inf, +inf)
+            XCTAssertTrue ((-q + +inf).isNaN)
+            XCTAssertTrue ((+q + -inf).isNaN)
+            XCTAssertEqual (-q + -inf, -inf)
+            // +(±inf, _)
+            XCTAssertEqual (+inf + +q, +inf)
+            XCTAssertTrue ((-inf + +q).isNaN)
+            XCTAssertTrue ((+inf + -q).isNaN)
+            XCTAssertEqual (-inf + -q, -inf)
+        }
     }
     func testBigRatInf() { runRatInf(forType: BigRat.self) }
     func testIntRatInf() { runRatInf(forType: IntRat.self) }
@@ -89,5 +120,5 @@ final class BigRatTests: XCTestCase {
         ("testIntRatNaN", testIntRatNaN),
         ("testBigRatInf", testBigRatInf),
         ("testIntRatInf", testIntRatInf),
-        ]
+    ]
 }
