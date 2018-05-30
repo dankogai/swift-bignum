@@ -74,7 +74,7 @@ extension RationalType {
     public var nextUp:Self {
         return Self.zero
     }
-    public var isNormal: Bool       { return true }
+    public var isNormal: Bool       { return !self.isZero }
     public var isFinite: Bool       { return den != 0 }
     public var isZero: Bool         { return num == 0 && den != 0 }
     public var isSubnormal:Bool     { return false }
@@ -252,7 +252,13 @@ extension RationalType {
         lhs = lhs / rhs
     }
     public static func +(_ lhs:Self, _ rhs:Self)->Self {
-        return Self(
+        if lhs.isInfinite {
+            return rhs.isZero || rhs.sign == lhs.sign ? lhs : Self.nan
+        }
+        if rhs.isInfinite {
+            return lhs.isZero || lhs.sign == rhs.sign ? rhs : Self.nan
+        }
+         return Self(
             lhs.num * rhs.den + rhs.num * lhs.den,
             lhs.den * rhs.den
         )
