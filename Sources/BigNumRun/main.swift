@@ -1,34 +1,17 @@
 import BigNum
 
-let inf = BigRat(1, 0)
-print(inf)
-print(+BigRat(1)/inf)
-print(-BigRat(1)/inf)
-print(-BigRat(0))
-//print( BigRat(Double.pi) * BigRat(Double.pi) )
-//print(IntRat(-21.5).asDouble)
-////
-//let bq = BigRat(Double.pi)
-//print(BigRat.cos(bq))
-//print((bq*bq).asDouble == Double.pi*Double.pi)
-//import Foundation
-//
-//print(String(format:"%a", (bq * bq).asDouble))
-//
-//let bi = -BigInt(2).power(100)
-//print(bi >> 90)
+let bi = BigInt(1) << 128 - 1
+let bq = BigInt(1).over(bi)
+print(bi)
+print(bq)
 
-// public typealias Rat = FixRat<Int>
-// let q = Rational<Int>(Double.pi)
-//let l = -BigRat(BigInt(Int(q.num)), BigInt(Int(q.den)))
-//let r = BigRat(BigInt(Int(q.num)), BigInt(Int(q.den)))
-//let qq = (l * r).truncated(width:Int.bitWidth - 1)
-//print(Rational(Int(qq.num), Int(qq.den)))
+let bqpi = BigRat(Double.pi)
+var d = Double.pi
+d.formRemainder(dividingBy: 0.125)
+print(bqpi % BigRat(0.125))
+print(BigRat(d))
 
-//let bq = BigRat(2)
-//
-//print (BigRat.exp(BigRat(1)))
-//
-//print (1.over(2) > 1.over(3))
-
-// print( Rat(Double.pi) * Rat(Double.pi) )
+import Foundation
+let jd = try JSONEncoder().encode(bq)
+let js = String(data:jd, encoding:.utf8)!
+print(js)

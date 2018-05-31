@@ -53,12 +53,6 @@ extension RationalType {
     public var significand:Self {
         return sign == .minus ? -self : +self
     }
-    public mutating func formRemainder(dividingBy other: Self) {
-        fatalError()
-    }
-    public mutating func formTruncatingRemainder(dividingBy other: Self) {
-        fatalError()
-    }
     public func squareRoot()->Self {
         if self < 0 { return Self.nan }
         var n = self.num
@@ -69,10 +63,10 @@ extension RationalType {
         return Self(n.squareRoot(), d.squareRoot())
     }
     public mutating func formSquareRoot() {
-        fatalError()
+        self = self.squareRoot()
     }
     public var nextUp:Self {
-        return Self.zero
+        return self + ulp
     }
     public var isNormal: Bool       { return !self.isZero }
     public var isFinite: Bool       { return den != 0 }
@@ -115,10 +109,6 @@ extension RationalType {
     }
     public var magnitude: Self {
         return sign == .minus ? -self : +self
-    }
-    public var asMixed:(Element, Self) {
-        let (q, r) = self.num.quotientAndRemainder(dividingBy: self.den)
-        return (q, Self(r, self.den))
     }
     public func rounded(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Self {
         return Self(self.asDouble.rounded(rule))
@@ -243,7 +233,21 @@ extension RationalType {
     public func over(_ d:Element)->Self {
         return self.over(Self(d))
     }
-   public static func /(_ lhs:Self, _ rhs:Self)->Self {
+    public var asMixed:(Element, Self) {
+        let (q, r) = self.num.quotientAndRemainder(dividingBy: self.den)
+        return (q, Self(r, self.den))
+    }
+    public func quotientAndRemainder(dividingBy other: Self)->(Self, Self) {
+        let (q, r) = self.over(other).asMixed
+        return (Self(q), r * other)
+    }
+     public mutating func formRemainder(dividingBy other: Self) {
+        self = self.quotientAndRemainder(dividingBy: other).1
+    }
+    public mutating func formTruncatingRemainder(dividingBy other: Self) {
+        self = self.quotientAndRemainder(dividingBy: other).0
+    }
+    public static func /(_ lhs:Self, _ rhs:Self)->Self {
         return lhs.over(rhs)
     }
     public static func /(_ lhs:Self, _ rhs:Element)->Self {
@@ -255,6 +259,19 @@ extension RationalType {
     public static func /= (lhs: inout Self, rhs: Self) {
         lhs = lhs / rhs
     }
+    public static func %(_ lhs:Self, _ rhs:Self)->Self {
+        return lhs.quotientAndRemainder(dividingBy: rhs).1
+    }
+    public static func %(_ lhs:Self, _ rhs:Element)->Self {
+        return lhs % Self(rhs)
+    }
+    public static func %(_ lhs:Element, _ rhs:Self)->Self {
+        return Self(lhs) % rhs
+    }
+    public static func %= (lhs: inout Self, rhs: Self) {
+        lhs = lhs % rhs
+    }
+    //
     public static func +(_ lhs:Self, _ rhs:Self)->Self {
         if lhs.isInfinite {
             return rhs.isZero || rhs.sign == lhs.sign ? lhs : Self.nan
@@ -354,7 +371,8 @@ extension Rational : Codable where Element: Codable {
     }
 }
 
-public protocol FixedWidthRationalElement : RationalElement & FixedWidthInteger {}
+// Because FixedWidthInteger is Coda
+public protocol FixedWidthRationalElement : RationalElement & FixedWidthInteger & Codable {}
 
 extension Int:      FixedWidthRationalElement {}
 extension Int8:     FixedWidthRationalElement {}
@@ -362,14 +380,14 @@ extension Int16:    FixedWidthRationalElement {}
 extension Int32:    FixedWidthRationalElement {}
 extension Int64:    FixedWidthRationalElement {}
 
-
 extension FixedWidthRationalElement {
     public func over(_ den:Self)->FixedWidthRational<Self> {
         return FixedWidthRational(self, den)
     }
 }
 
-public protocol FixedWidthRationalType : RationalType where Element: FixedWidthRationalElement { }
+// FixedWidthRationalType is Codable
+public protocol FixedWidthRationalType : RationalType & Codable where Element: FixedWidthRationalElement { }
 
 extension FixedWidthRationalType {
     public static var max:Self {
@@ -410,20 +428,3 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRation
 }
 
 public typealias IntRat = FixedWidthRational<Int>
-
-extension FixedWidthRational : Codable where Element: Codable {
-    public enum CodingKeys : String, CodingKey {
-        public typealias RawValue = String
-        case num, den
-    }
-    public init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        self.num = try values.decode(Element.self, forKey: .num)
-        self.den = try values.decode(Element.self, forKey: .den)
-    }
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.num, forKey: .num)
-        try container.encode(self.den, forKey: .den)
-    }
-}
