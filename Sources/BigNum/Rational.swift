@@ -98,8 +98,11 @@ extension RationalType {
         return self.isLessThanOrEqualTo(other)
     }
     //
+    public mutating func addingProduct(_ lhs: Self, _ rhs: Self)->Self {
+        return self + lhs*rhs
+    }
     public mutating func addProduct(_ lhs: Self, _ rhs: Self) {
-        fatalError()
+        self = self.addingProduct(lhs, rhs)
     }
     public func distance(to other: Self) -> Self {
         return self - other
