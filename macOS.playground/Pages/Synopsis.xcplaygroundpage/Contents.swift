@@ -14,6 +14,27 @@ BigRat.cos(qpi)
 qpi.asMixed
 (qpi % 1.0).asDouble
 
+BigRat.E(precision:128)
+BigRat.E(precision:-128)
+BigRat.E()
+
+//BigRat.log(2, precision:256)
+
+//BigRat.log2(BigRat.exp(1, precision:128), precision:128).toFloatingPointString()
+
+BigRat(3, 1).sign
+BigRat(3, 1).exponent
+BigRat(3, 1).significand
+
+
+BigRat(-1, 3).sign
+BigRat(-1, 3).exponent
+BigRat(-1, 3).significand
+
+IntRat(-1, 3).sign
+IntRat(-1, 3).exponent
+IntRat(-1, 3).significand
+
 import Foundation
 let encoder = JSONEncoder()
 String(data:try encoder.encode(qpi), encoding:.utf8)
