@@ -55,7 +55,7 @@ extension RationalType {
         }
     }
     /// π/4 in precision `px`.  Bellard's Formula
-    public static func ATAN1(precision px:Int = Int64.bitWidth, verbose:Bool=false)->Self {
+    public static func ATAN1(precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
         return getSetConstant("ATAN1", precision: px) {
             let epsilon = BigInt(1).over(1 << px.magnitude)
             var p64 = Self(0)
@@ -73,8 +73,8 @@ extension RationalType {
                 }
                 p64 += i & 1 == 1 ? -t : t
                 // p64.truncate(px)
-                if verbose {
-                    print("ATAN1(precision:\(px)):i=\(i),t=\(t.asDouble)")
+                if debug {
+                    print("\(Self.self).ATAN1(precision:\(px)):i=\(i),t.bits=\(t.den.bitWidth)")
                 }
                 // t.truncate(px)
                 if t < Self(epsilon) { break }
@@ -248,7 +248,7 @@ extension RationalType {
             for i in 0...px {
                 let t = n / d
                 if debug {
-                    debugPrint("i:\(i) t.bitWidth:\(t.den.bitWidth)")
+                    print("\(Self.self).sincos: i=\(i),t.bits:\(t.den.bitWidth)")
                 }
                 if i & 1 == 0 {
                     c += i & 2 == 2 ? -t : +t
@@ -289,6 +289,56 @@ extension RationalType {
             return Self(Double.tan(x.asDouble))
         }
         return s / c
+    }
+    //
+    // cf. https://en.wikipedia.org/wiki/Inverse_trigonometric_functions#Infinite_series
+    /// arctan
+    public static func atan(_ x:Self, precision px:Int = 64)->Self {
+        if x.isInfinite || x.isNaN || x.isZero {
+            return Self(Double.atan(x.asDouble))
+        }
+        let atan1 = ATAN1(precision: px)
+        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+        let inner_atan:(Self)->Self = { x in
+            let x2 = x*x
+            let x2p1 = 1 + x2
+            var (t, r) = (Self(1), Self(1))
+            for i in 1...px {
+                t *= 2 * (Self(i) * x2) / (Self(2 * i + 1) * x2p1)
+                t.truncate(width:px * 2)
+                r += t
+                r.truncate(width:px * 2)
+                print("\(Self.self).atan: r.bits=\(r.den.bitWidth), t.sign=\(t.sign)")
+                if t < epsilon { break }
+            }
+            return r * x / x2p1
+        }
+        let ax = Swift.abs(x)
+        if ax == 1 { return x.sign == .minus ? -atan1 : atan1 }
+        var r = ax < 1 ? inner_atan(ax) : 2 * atan1 - inner_atan(1/ax)
+        // print("\(Self.self).atan: r=\(r.debugDescription)")
+        if 0 < px { r.truncate(width: px) }
+        return x.sign == .minus ? -r : +r
+    }
+    /// arccos
+    public static func acos(_ x:Self, precision px:Int = 64)->Self   {
+        if (x - 1).isZero || 1 < Swift.abs(x) {
+            return Self(Double.acos(x.asDouble))
+        }
+        // print("acos:", x)
+        return PI(precision: px)/2 - asin(x, precision:px)
+    }
+    /// arcsin
+    public static func asin(_ x:Self, precision px:Int = 64)->Self   {
+        if let dx = x as? Double { return Self(Double.asin(dx)) }
+        if x.isZero || 1 < Swift.abs(x) || x.isInfinite {
+            return Self(Double.asin(x.asDouble))
+        }
+        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+        let a = x / (1 + sqrt(1 - x * x))
+        if Swift.abs(a) < epsilon { return x }
+        // a.truncate(px)
+        return 2 * atan(a, precision:px)
     }
 }
 

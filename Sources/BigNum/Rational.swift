@@ -393,11 +393,11 @@ extension RationalType where Element == BigInt {
             i += i.sign == .minus ? -1 : +1
         }
         var s = String(i.magnitude, radix:radix)
+
         if self.magnitude < 1 {
-            s = "0." + s
-        } else {
-            s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
+            s = [String](repeating:"0", count: ndigits - s.count) + s
         }
+        s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
         while s.last == "0" { s.removeLast() }
         if s.last == "." { s.append("0") }
         return (self.sign == .minus ? "-" : "+") + s;
