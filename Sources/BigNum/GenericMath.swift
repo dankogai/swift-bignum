@@ -226,7 +226,7 @@ extension RationalType {
         return theta
     }
     /// - returns: `(sin(x), cos(x))`
-    public static func sincos(_ x:Self, precision px:Int = Int64.bitWidth)->(sin:Self, cos:Self) {
+    public static func sincos(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->(sin:Self, cos:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
             return (Self(Double.sin(x.asDouble)), Self(Double.cos(x.asDouble)))
         }
@@ -236,49 +236,55 @@ extension RationalType {
         }
         func inner(_ x:Self)->(Self, Self) {
             if 1 < Swift.abs(x) {
-                let (s, c) = inner(x/2)     // use double-angle formula to reduce x
+                var (s, c) = inner(x/2)     // use double-angle formula to reduce x
                 if c == s { return (0, 1) } // prevent error accumulation
-                return (2*s*c, c*c - s*s)
+                (s, c) = (2*s*c, c*c - s*s)
+                s.truncate(width:px*2)
+                c.truncate(width:px*2)
+                return (s, c)
             }
             var (c, s) = (Self(0), Self(0))
             var (n, d) = (Self(1), Self(1))
-            var breakNext = false
             for i in 0...px {
-                var t = n / d
-                t.truncate(width: px)
-                debugPrint("i:", i, "t:", t.asDouble)
+                let t = n / d
+                if debug {
+                    debugPrint("i:\(i) t.bitWidth:\(t.den.bitWidth)")
+                }
                 if i & 1 == 0 {
                     c += i & 2 == 2 ? -t : +t
+                    c.truncate(width: px*2)
                 } else {
                     s += i & 2 == 2 ? -t : +t
+                    s.truncate(width: px*2)
                 }
-                if breakNext { break }
-                if Swift.abs(t) < epsilon { breakNext = true }
+                if Swift.abs(t) < epsilon { break }
                 n *= x
+                n.truncate(width: px*2)
                 d *= Self(i+1)
-            }
-            if 0 < px {
-                s.truncate(width: px)
-                c.truncate(width: px)
             }
             return (s, c)
         }
-        return inner(Swift.abs(x) < 8 ? x : normalizeAngle(x))
+        var (s, c) = inner(Swift.abs(x) < 8 ? x : normalizeAngle(x))
+        if 0 < px {
+            s.truncate(width: px)
+            c.truncate(width: px)
+        }
+        return (s, c)
     }
     /// cos(x)
-    public static func cos(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        return sincos(x, precision:px).cos
+    public static func cos(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
+        return sincos(x, precision:px, debug:debug).cos
     }
     /// sin(x)
-    public static func sin(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        return sincos(x, precision:px).sin
+    public static func sin(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
+        return sincos(x, precision:px, debug:debug).sin
     }
     /// tan(x)
-    public static func tan(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func tan(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
         if x.isZero || x.isInfinite || x.isNaN {
             return Self(Double.tan(x.asDouble))
         }
-        let (s, c) = sincos(x, precision:px)
+        let (s, c) = sincos(x, precision:px, debug:debug)
         if s.isNaN || s.isInfinite || c.isNaN || c.isInfinite {
             return Self(Double.tan(x.asDouble))
         }
