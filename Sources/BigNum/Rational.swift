@@ -67,10 +67,12 @@ extension RationalType {
         if self.isZero { return Self.zero }
         var n = self.num
         var d = self.den
-        let w = 2 * max(n.bitWidth, d.bitWidth, px)
+        let w = 2 * max(n.bitWidth, d.bitWidth, Swift.abs(px))
         n <<= w
         d <<= w
-        return Self(n.squareRoot(), d.squareRoot())
+        var q = Self(n.squareRoot(), d.squareRoot())
+        if 0 < px { q.truncate(width: px) }
+        return q
     }
     public mutating func formSquareRoot(precision px:Int = Int64.bitWidth) {
         self = self.squareRoot(precision:px)

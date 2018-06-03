@@ -10,7 +10,7 @@ BigInt(-1).over(-2)
 let q:BigRat   = 1
 let qpi = BigRat(Double.pi)
 
-BigRat.cos(qpi)
+BigRat.cos(4).asDouble
 qpi.asMixed
 (qpi % 1.0).asDouble
 

@@ -8,7 +8,10 @@ import Darwin
 //print(BigRat.log(1024, precision:128).toFloatingPointString())
 //print(BigRat.normalizeAngle(BigRat.PI()*8))
 
-print(BigRat.sincos(1))
+let sc = BigRat.sincos(1)
+print(sc)
+print(sc.cos.toFloatingPointString())
+print(sc.sin.toFloatingPointString())
 print(BigNum.constants)
 
 exit(0)

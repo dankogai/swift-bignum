@@ -126,8 +126,8 @@ extension RationalType {
             r += t
             if t < epsilon { break }
         }
-        // debugPrint("r=\(r)")
-        return px < 0 ? Self(r) : Self(r).truncated(width:px)
+        if 0 < px { r.truncate(width:px) }
+        return Self(r)
     }
     /// exp(x) - 1
     public static func exp1m(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
@@ -234,46 +234,36 @@ extension RationalType {
         if x * x <= epsilon {
             return (x, 1)   // sin(x) == x below this point
         }
-        let atan1   = ATAN1(precision:px)
-        let sqrt1_2 = SQRT2(precision:px)/2
         func inner(_ x:Self)->(Self, Self) {
             if 1 < Swift.abs(x) {
-                let (c, s) = inner(x/2)     // use double-angle formula to reduce x
+                let (s, c) = inner(x/2)     // use double-angle formula to reduce x
                 if c == s { return (0, 1) } // prevent error accumulation
-                return (c*c - s*s, 2*s*c)
-            }
-            if Swift.abs(x) == atan1 {
-                return (x.sign == .minus ? -sqrt1_2 : +sqrt1_2, +sqrt1_2)
+                return (2*s*c, c*c - s*s)
             }
             var (c, s) = (Self(0), Self(0))
             var (n, d) = (Self(1), Self(1))
+            var breakNext = false
             for i in 0...px {
                 var t = n / d
-                t.truncate(width:px)
+                t.truncate(width: px)
+                debugPrint("i:", i, "t:", t.asDouble)
                 if i & 1 == 0 {
                     c += i & 2 == 2 ? -t : +t
-                    // c.truncate(px)
                 } else {
                     s += i & 2 == 2 ? -t : +t
-                    // s.truncate(px)
                 }
-                if Swift.abs(t) < epsilon {
-                    if i & 1 == 0 {
-                        s = (1 - c*c).squareRoot(precision: px)
-                    } else {
-                        c = (1 - s*s).squareRoot(precision: px)
-                    }
-                    break
-                }
+                if breakNext { break }
+                if Swift.abs(t) < epsilon { breakNext = true }
                 n *= x
                 d *= Self(i+1)
             }
-            return (c, s)
+            if 0 < px {
+                s.truncate(width: px)
+                c.truncate(width: px)
+            }
+            return (s, c)
         }
-        var (c, s) = inner(x)
-        c.truncate(width: px)
-        s.truncate(width: px)
-        return (s, c)
+        return inner(Swift.abs(x) < 8 ? x : normalizeAngle(x))
     }
     /// cos(x)
     public static func cos(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
@@ -283,7 +273,17 @@ extension RationalType {
     public static func sin(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
         return sincos(x, precision:px).sin
     }
-    //
+    /// tan(x)
+    public static func tan(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+        if x.isZero || x.isInfinite || x.isNaN {
+            return Self(Double.tan(x.asDouble))
+        }
+        let (s, c) = sincos(x, precision:px)
+        if s.isNaN || s.isInfinite || c.isNaN || c.isInfinite {
+            return Self(Double.tan(x.asDouble))
+        }
+        return s / c
+    }
 }
 
 public protocol DoubleConvertible {
