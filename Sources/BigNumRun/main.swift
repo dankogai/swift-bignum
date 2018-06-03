@@ -16,7 +16,7 @@ import Darwin
 
 print(BigRat.atan(0.5))
 
-exit(0)
+//exit(0)
 // print(BigRat.log2(BigRat.exp(1)))
 //print(q, BigRat.log(10))
 print(BigNum.constants)

@@ -395,7 +395,7 @@ extension RationalType where Element == BigInt {
         var s = String(i.magnitude, radix:radix)
 
         if self.magnitude < 1 {
-            s = [String](repeating:"0", count: ndigits - s.count) + s
+            s = [String](repeating:"0", count: ndigits - s.count + 1).joined() + s
         }
         s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
         while s.last == "0" { s.removeLast() }
