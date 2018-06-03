@@ -1,10 +1,19 @@
 import BigNum
 import Darwin
 
-let q = BigRat.log(2)
-print(q, q.toFloatingPointString())
+//print(BigRat.pow(1.5, 1.5).asDouble)
+//exit(0)
+//let q = BigRat.log(2)
+//print(q, q.toFloatingPointString())
+//print(BigRat.log(1024, precision:128).toFloatingPointString())
+//print(BigRat.normalizeAngle(BigRat.PI()*8))
+
+print(BigRat.sincos(1))
+print(BigNum.constants)
+
+exit(0)
 // print(BigRat.log2(BigRat.exp(1)))
-print(q, BigRat.log(10))
+//print(q, BigRat.log(10))
 print(BigNum.constants)
 print(BigRat.exp(1))
 print(BigRat.exp(2))

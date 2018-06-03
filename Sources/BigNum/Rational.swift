@@ -321,9 +321,6 @@ extension RationalType {
     }
     public var numerator:Element   { return num }
     public var denominator:Element { return den }
-}
-
-extension RationalType {
     public init(_ bq:BigRat) {
         self.init(Element(bq.num), Element(bq.den))
     }
@@ -332,76 +329,18 @@ extension RationalType {
         return BigInt(Element(self.num)).over(BigInt(Element(self.den)))
     }
     public func truncated(width:Int = Int64.bitWidth)->Self {
-        if width == 0 { return self }
-        let mb = max(self.num.bitWidth, self.den.bitWidth)
-        let w = width < 0 ? -width : +width
-        if mb <= w { return self }
-        let sb = mb - w
-        return Self(self.num >> sb, self.den >> sb)
+        var result = self
+        result.truncate(width: width)
+        return result
     }
     public mutating func truncate(width:Int) {
-        self = self.truncated(width: width)
-    }
-    public static func sqrt(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        return x.squareRoot(precision: px)
-    }
-    public static func exp(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        if x.isNaN      { return nan }
-        if x.isInfinite { return x.sign == .minus ? -infinity : +infinity }
-        if x.isZero     { return 1 }
-        if x.isLess(than:0)             { return 1/exp(-x, precision:px) }
-        if x.magnitude.isLess(than:1)   { return exp(1/x, precision:px) }
-        let epsilon = BigInt(1).over(1 << px.magnitude)
-        var (r, n, d) = (BigRat(1), BigRat(1), BigInt(1))
-        for i in 1 ... Int(px.magnitude) {
-            n *= x.asBigRat
-            d *= BigInt(i)
-            let t = n / d
-            r += t
-            if t < epsilon { break }
-        }
-        // debugPrint("r=\(r)")
-        return px < 0 ? Self(r) : Self(r).truncated(width:px)
-    }
-    /// binary log
-    public static func log2(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        if x.isNaN          { return nan }
-        if x.isLess(than:0) { return nan }
-        if x.isZero         { return -infinity }
-        if x.isInfinite     { return +infinity }
-        if x.isLess(than:1) { return -log2(1/x, precision:px) }
-        if x.isEqual(to:1)  { return zero }
-        var (ilog, t) = (x.exponent, x.significand)
-        if t < 1 { t *= Self(Self.radix); ilog -= 1 }
-        var  u = Element(0)
-        for _ in 0 ..< px.magnitude {
-            u <<= 1
-            t *= t
-            if 2 <= t {
-                u += 1
-                t /= 2
-            }
-            t.truncate(width:px)
-        }
-        let r = Self(ilog) + Self(u).over(1 << Swift.abs(px))
-        return px < 0 ? r : r.truncated(width:px)
-    }
-    /// natural log
-    public static func log(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        if x.isNaN          { return nan }
-        if x.isLess(than:0) { return nan }
-        if x.isZero         { return -infinity }
-        if x.isInfinite     { return +infinity }
-        let r = log2(x, precision:px) / LN2(precision:px * 2)
-        return px < 0 ? r : r.truncated(width:px)
-    }
-    /// log of base 10
-    public static func log10(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        if x.isNaN          { return nan }
-        if x.isLess(than:0) { return nan }
-        if x.isZero         { return -infinity }
-        if x.isInfinite     { return +infinity }
-        return log2(x, precision:px) / LB10(precision:px * 2)
+        if width == 0 { return }
+        let mb = max(self.num.bitWidth, self.den.bitWidth)
+        let w = width < 0 ? -width : +width
+        if mb <= w { return }
+        let sb = mb - w
+        num >>= sb
+        den >>= sb
     }
 }
 
@@ -410,74 +349,6 @@ extension RationalType where Element:FixedWidthInteger {}
 extension Double {
     public init<Q:RationalType>(_ q:Q) {
         self.init(q.asDouble)
-    }
-}
-
-extension BigNum {
-    public static var constants = [String:(value:Any,precision:Int)]()
-}
-extension RationalType {
-    public static var typeName:String {
-        return String(describing: type(of:Self.zero))
-    }
-    public static func getSetConstant(_ name:String, precision:Int, getter:(Int)->Self) -> Self {
-        let k = "\(Self.typeName).\(name)"
-        let px = Swift.abs(precision)
-        // debugPrint("\(k):\(px)")
-        if let v = BigNum.constants[k] {
-            if px <= v.precision { return (v.value as! Self).truncated(width: px)}
-        }
-        let v = getter(px)
-        BigNum.constants[k] = (value:v, precision:px)
-        return v
-    }
-    public static func E(precision px:Int = Int64.bitWidth)->Self {
-        return getSetConstant("E", precision:px) {
-            Self.exp(1, precision:$0)
-        }
-    }
-    public static func LN2(precision px:Int = Int64.bitWidth)->Self {
-        return getSetConstant("LN2", precision:px) {
-            Self.log2(Self.E(precision:$0), precision:$0)
-        }
-    }
-    public static func LB10(precision px:Int = Int64.bitWidth)->Self {
-        return getSetConstant("LB10", precision:px) {
-            Self.log2(10, precision:$0)
-        }
-    }
-    /// π/4 in precision `px`.  Bellard's Formula
-    public static func ATAN1(precision px:Int = Int64.bitWidth, verbose:Bool=false)->Self {
-        return getSetConstant("ATAN1", precision: px) {
-            let epsilon = BigInt(1).over(1 << px.magnitude)
-            var p64 = Self(0)
-            for i in 0..<Int($0.magnitude) {
-                var t = Self(0)
-                t -= Self(1<<5) / Self( 4 * i + 1)
-                t -= Self(1<<0) / Self( 4 * i + 3)
-                t += Self(1<<8) / Self(10 * i + 1)
-                t -= Self(1<<6) / Self(10 * i + 3)
-                t -= Self(1<<2) / Self(10 * i + 5)
-                t -= Self(1<<2) / Self(10 * i + 7)
-                t += Self(1<<0) / Self(10 * i + 9)
-                if 0 < i {
-                    t /= Self(BigInt(1) << (10 * i))
-                }
-                p64 += i & 1 == 1 ? -t : t
-                // p64.truncate(px)
-                if verbose {
-                    print("ATAN1(precision:\(px)):i=\(i),t=\(t.asDouble)")
-                }
-                // t.truncate(px)
-                if t < Self(epsilon) { break }
-            }
-            p64 /= Self(1<<8)
-            return p64.truncated(width: $0)
-        }
-    }
-    /// π in precision `px`.  4*atan(1)
-    public static func PI(precision px:Int = Int64.bitWidth)->Self {
-        return 4*ATAN1(precision:px)
     }
 }
 
@@ -505,6 +376,9 @@ extension RationalType where Element == BigInt {
         return IntRat(num:Int(q.num), den:Int(q.den))
     }
     public func toFloatingPointString(radix:Int = 10)->String {
+        if self.isNaN || self.isInfinite {
+            return self.asDouble.description
+        }
         let (iself, fself) = self.asMixed
         let sint = String(iself, radix:radix)
         let ilen = sint.count
@@ -516,7 +390,7 @@ extension RationalType where Element == BigInt {
         if 1 <= r.magnitude * 2 {
             i += i.sign == .minus ? -1 : +1
         }
-        var s = String(i, radix:radix)
+        var s = String(i.magnitude, radix:radix)
         if self.magnitude < 1 {
             s = "0." + s
         } else {
@@ -524,7 +398,7 @@ extension RationalType where Element == BigInt {
         }
         while s.last == "0" { s.removeLast() }
         if s.last == "." { s.append("0") }
-        return s;
+        return (self.sign == .minus ? "-" : "+") + s;
     }
 }
 
