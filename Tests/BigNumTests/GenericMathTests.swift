@@ -32,13 +32,14 @@ final class GenericMathTests: XCTestCase {
     func testSpecial() { runSpecial(forType: BigRat.self) }
 
     func runNormal<Q:RationalType>(forType T:Q.Type) {
-        func ok(_ l:Q, _ rhs:D, _ d:D)->Bool {
+        func ok(_ l:Q, _ rhs:D, _ d:D, inv:(D)->Bool = { _ in false })->Bool {
             let r = Q(rhs)
             if r.isNaN {
                 return l.isNaN || !d.isNaN
             }
             return l == r
                 || (l - r).magnitude / r <= 2 * Q(D.ulpOfOne)
+                || inv(rhs)
         }
         var list = (1...7).map{ D($0) }
         list += list.map { 1.0 / $0 }
