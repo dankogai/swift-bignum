@@ -64,7 +64,7 @@ extension RationalType {
     }
     public func squareRoot(precision px:Int = Int64.bitWidth)->Self {
         if self.isNaN || self.isLess(than:0) { return Self.nan }
-        if self.isZero { return Self.zero }
+        if self.isZero { return self }
         var n = self.num
         var d = self.den
         let w = 2 * max(n.bitWidth, d.bitWidth, Swift.abs(px))
@@ -173,7 +173,7 @@ extension RationalType {
             self.init(num:0, den:0)
         }
         else if r.isZero {
-            self.init(0, (r.sign == .minus ? -1 : +1))
+            self.init(num:0, den:(r.sign == .minus ? -1 : +1))
         }
         else if r.isInfinite {
             self.init((r.sign == .minus ? -1 : +1), 0)
@@ -382,7 +382,7 @@ extension RationalType where Element == BigInt {
             return self.asDouble.description
         }
         let (iself, fself) = self.asMixed
-        let sint = String(iself, radix:radix)
+        let sint = String(iself.magnitude, radix:radix)
         let ilen = sint.count
         if fself.isZero { return sint + ".0" }
         let bitsPerDigit = Double.log2(Double(radix))

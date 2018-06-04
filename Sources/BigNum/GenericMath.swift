@@ -26,7 +26,15 @@ extension RationalType {
     /// euler's constant
     public static func E(precision px:Int = Int64.bitWidth)->Self {
         return getSetConstant("E", precision:px) {
-            Self.exp(1, precision:$0)
+            let limit = BigInt(1) << $0.magnitude
+            var (e, d) = (Self(1), BigInt(1))
+            for i in 1 ... (px.magnitude) {
+                d *= BigInt(i)
+                e += 1 / Self(d)
+                if limit < d { break }
+            }
+            e.truncate(width: $0)
+            return e
         }
     }
     /// log(2)
@@ -94,6 +102,10 @@ extension RationalType {
     public static func sqrt(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
         return x.squareRoot(precision: px)
     }
+    /// sqrt(x*x + y*y)
+    public static func hypot(_ x:Self, _ y:Self, precision px:Int = Int64.bitWidth)->Self  {
+        return (x*x + y*y).squareRoot(precision: px)
+    }
     /// x ** y
     public static func pow(_ x:Self, _ y:Self, precision px:Int = Int64.bitWidth)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
@@ -102,6 +114,9 @@ extension RationalType {
         if x.magnitude.isLess(than:1)   { return pow(1/x, y, precision:px) }
         if y.isLess(than:0)             { return 1/pow(x, -y, precision:px) }
         let (iy, fy) = y.asMixed
+        if Int.max <= iy.magnitude {
+            return iy < 0 ? 0 : infinity
+        }
         let ir = BigInt(x.num).power(Int(iy)).over(BigInt(x.den).power(Int(iy)))
         if fy.isZero {
             return px < 0 ? Self(ir) : Self(ir).truncated(width:px)
@@ -113,25 +128,36 @@ extension RationalType {
     /// e ** x
     public static func exp(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
         if x.isNaN      { return nan }
-        if x.isInfinite { return x.sign == .minus ? -infinity : +infinity }
+        if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
         if x.isZero     { return 1 }
         if x.isLess(than:0) { return 1/exp(-x, precision:px) }
-        if 1 < x.magnitude  { return exp(1/x, precision:px) }
-        let epsilon = BigInt(1).over(1 << px.magnitude)
-        var (r, n, d) = (BigRat(1), BigRat(1), BigInt(1))
-        for i in 1 ... Int(px.magnitude) {
-            n *= x.asBigRat
-            d *= BigInt(i)
-            let t = n / d
-            r += t
-            if t < epsilon { break }
+        let e = E(precision: px * 2)
+        let (ix, fx) = x.asMixed
+        var (ir, fr) = (pow(e, Self(ix)), Self(1))
+        if !fr.isZero {
+            let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+            var (n, d) = (Self(1), Self(1))
+            for i in 1 ... Int(px.magnitude) {
+                n *= fx
+                d *= Self(i)
+                let t = n / d
+                fr += t
+                if t < epsilon { break }
+            }
         }
+        print(x, ix, fx)
+        var r = ir * fr
         if 0 < px { r.truncate(width:px) }
         return Self(r)
     }
     /// exp(x) - 1
-    public static func exp1m(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        return exp(x, precision:px) - 1
+    public static func expm1(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+        if x.isNaN      { return nan }
+        if x.isInfinite { return x.sign == .minus ? -1 : +infinity }
+        if x.isZero     { return x }
+        return exp(x,precision:px) - 1
+        //let t = tanh(x/2, precision:px)
+        //return 2 / (1 - t)
     }
     /// binary log (base 2) -- steady but slow algorithm. use log2
     static func binaryLog(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
@@ -206,7 +232,12 @@ extension RationalType {
     }
     /// log(1 + x)
     public static func log1p(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
-        return log(1 + x, precision:px)
+        if x.isNaN                  { return nan }
+        if x.isZero                 { return x }
+        if x.isInfinite             { return x.sign == .minus ? nan : +infinity }
+        if (x + 1).isLess(than:0)   { return nan }
+        if (x + 1).isZero           { return -infinity }
+        return 2*atanh(x/(x+2), precision:px)
     }
     /// normalize `x` to ±π
     public static func normalizeAngle(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
@@ -214,7 +245,7 @@ extension RationalType {
         let onepi = PI(precision:px)
         if theta < -2*onepi || +2*onepi < theta {
             let precision = px + Int(theta.exponent)
-            print("\(Self.self).wrapAngle: precision=", precision)
+            // print("\(Self.self).wrapAngle: precision=", precision)
             let twopi = 2*PI(precision:precision)
             // print("before:", angle)
             theta = theta % twopi
@@ -293,11 +324,10 @@ extension RationalType {
     //
     // cf. https://en.wikipedia.org/wiki/Inverse_trigonometric_functions#Infinite_series
     /// arctan
-    public static func atan(_ x:Self, precision px:Int = 64)->Self {
-        if x.isInfinite || x.isNaN || x.isZero {
-            return Self(Double.atan(x.asDouble))
-        }
+    public static func atan(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
+        if x.isNaN || x.isZero { return x }
         let atan1 = ATAN1(precision: px)
+        if x.isInfinite { return x.sign == .minus ? -2*atan1 : +2*atan1 }
         let epsilon = Self(BigInt(1).over(1 << px.magnitude))
         let inner_atan:(Self)->Self = { x in
             let x2 = x*x
@@ -308,7 +338,9 @@ extension RationalType {
                 t.truncate(width:px * 2)
                 r += t
                 r.truncate(width:px * 2)
-                print("\(Self.self).atan: r.bits=\(r.den.bitWidth), t.sign=\(t.sign)")
+                if debug {
+                    print("\(Self.self).atan:i=\(i) r.bits=\(r.den.bitWidth), t.sign=\(t.sign)")
+                }
                 if t < epsilon { break }
             }
             return r * x / x2p1
@@ -316,7 +348,6 @@ extension RationalType {
         let ax = Swift.abs(x)
         if ax == 1 { return x.sign == .minus ? -atan1 : atan1 }
         var r = ax < 1 ? inner_atan(ax) : 2 * atan1 - inner_atan(1/ax)
-        // print("\(Self.self).atan: r=\(r.debugDescription)")
         if 0 < px { r.truncate(width: px) }
         return x.sign == .minus ? -r : +r
     }
@@ -334,11 +365,91 @@ extension RationalType {
         if x.isZero || 1 < Swift.abs(x) || x.isInfinite {
             return Self(Double.asin(x.asDouble))
         }
-        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
         let a = x / (1 + sqrt(1 - x * x))
-        if Swift.abs(a) < epsilon { return x }
-        // a.truncate(px)
         return 2 * atan(a, precision:px)
+    }
+    /// - returns: `(sinh(x), cosh(x))`
+    public static func sinhcosh(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->(sinh:Self, cosh:Self) {
+        if x.isZero || x.isInfinite || x.isNaN {
+            return (Self(Double.sinh(x.asDouble)), Self(Double.cosh(x.asDouble)))
+        }
+        if 1 < x.magnitude {
+            let ep = exp(x)
+            let em = 1/ep
+            return ((ep - em)/2, (ep + em)/2)
+        }
+        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+        if x * x <= epsilon {
+            return (x, 1)   // sinh(x) == x below this point
+        }
+        func inner(_ x:Self)->(Self, Self) {
+            var (c, s) = (Self(0), Self(0))
+            var (n, d) = (Self(1), Self(1))
+            for i in 0...px {
+                let t = n / d
+                if debug {
+                    print("\(Self.self).sincos: i=\(i),t.bits:\(t.den.bitWidth)")
+                }
+                if i & 1 == 0 {
+                    c += t
+                    c.truncate(width: px*2)
+                } else {
+                    s += t
+                    s.truncate(width: px*2)
+                }
+                if Swift.abs(t) < epsilon { break }
+                n *= x
+                n.truncate(width: px*2)
+                d *= Self(i+1)
+            }
+            return (s, c)
+        }
+        var (s, c) = inner(x)
+        if 0 < px {
+            s.truncate(width: px)
+            c.truncate(width: px)
+        }
+        return (s, c)
+    }
+    /// hyperbolic cosine
+    public static func cosh(_ x:Self, precision px:Int = 64)->Self   {
+        return sinhcosh(x, precision:px).cosh
+    }
+    /// hyperbolic sine
+    public static func sinh(_ x:Self, precision px:Int = 64)->Self   {
+        return sinhcosh(x, precision:px).sinh
+    }
+    /// hyperbolic tangent
+    public static func tanh(_ x:Self, precision px:Int = 64)->Self   {
+        if x.isZero || x.isInfinite || x.isNaN {
+            return Self(Double.tanh(x.asDouble))
+        }
+        let (s, c) = sinhcosh(x, precision:px)
+        if s.isInfinite {
+            return x.sign == .minus ? -1 : +1
+        }
+        var t = s / c
+        t.truncate(width: px)
+        return t
+    }
+    /// acosh
+    public static func acosh(_ x:Self, precision px:Int = 64)->Self   {
+        if x.isLess(than: 1) { return nan }
+        let a = x + sqrt(x * x - 1, precision:px)
+        return log(a, precision:px)
+    }
+    /// asinh
+    public static func asinh(_ x:Self, precision px:Int = 64)->Self   {
+        if x.isZero || x.isInfinite { return x }
+        let h = hypot(x, 1, precision:px)
+        if h.isInfinite { return x.sign == .minus ? -infinity : +infinity }
+        return log(x + h, precision:px)
+    }
+    /// atanh
+    public static func atanh(_ x:Self, precision px:Int = 64)->Self   {
+        if x.isZero { return x }
+        if 1 < x.magnitude { return nan }
+        return (log(1 + x, precision:px) - log(1 - x, precision:px)) / 2
     }
 }
 
