@@ -62,24 +62,6 @@ extension RationalType {
     public var magnitude: Self {
         return sign == .minus ? -self : +self
     }
-    public func squareRoot(precision px:Int = Int64.bitWidth)->Self {
-        if self.isNaN || self.isLess(than:0) { return Self.nan }
-        if self.isZero { return self }
-        var n = self.num
-        var d = self.den
-        let w = 2 * max(n.bitWidth, d.bitWidth, Swift.abs(px))
-        n <<= w
-        d <<= w
-        var q = Self(n.squareRoot(), d.squareRoot())
-        if 0 < px { q.truncate(width: px) }
-        return q
-    }
-    public mutating func formSquareRoot(precision px:Int = Int64.bitWidth) {
-        self = self.squareRoot(precision:px)
-    }
-    public mutating func formSquareRoot() {
-        self = self.squareRoot(precision:Int64.bitWidth)
-    }
     public var nextUp:Self {
         return self + ulp
     }
@@ -119,6 +101,25 @@ extension RationalType {
     public mutating func addProduct(_ lhs: Self, _ rhs: Self) {
         self = self.addingProduct(lhs, rhs)
     }
+    public func squareRoot(precision px:Int = Int64.bitWidth)->Self {
+        if self.isNaN || self.isLess(than:0) { return Self.nan }
+        if self.isZero { return self }
+        var n = self.num
+        var d = self.den
+        let w = 2 * max(n.bitWidth, d.bitWidth, Swift.abs(px))
+        n <<= w
+        d <<= w
+        var q = Self(n.squareRoot(), d.squareRoot())
+        if 0 < px { q.truncate(width: px) }
+        return q
+    }
+    public mutating func formSquareRoot(precision px:Int = Int64.bitWidth) {
+        self = self.squareRoot(precision:px)
+    }
+    public mutating func formSquareRoot() {
+        self = self.squareRoot(precision:Int64.bitWidth)
+    }
+    //
     public func distance(to other: Self) -> Self {
         return self - other
     }
@@ -199,15 +200,7 @@ extension RationalType {
         if self.isInfinite {
             return self.sign == .minus ? -Double.infinity : +Double.infinity
         }
-        var n = self.num
-        var d = self.den
-        let w = max(n.bitWidth, d.bitWidth) - Int64.bitWidth
-        // print("n=\(n),d=\(d),w=\(w)")
-        if w > 0 {
-            n >>= w
-            d >>= w
-        }
-        return Double(Int64(n)) / Double(Int64(d))
+        return Double(BigInt(self.num)) / Double(BigInt(self.den))
     }
     public init(_ q:Self) {
         self.init(q.num, q.den)
@@ -331,18 +324,15 @@ extension RationalType {
         return BigInt(Element(self.num)).over(BigInt(Element(self.den)))
     }
     public func truncated(width:Int = Int64.bitWidth)->Self {
-        var result = self
-        result.truncate(width: width)
-        return result
+        if width == 0 { return self }
+        let mb = min(self.num.bitWidth, self.den.bitWidth)
+        let w = width < 0 ? -width : +width
+        if mb <= w { return self }
+        let sb = mb - w
+        return Self(num >> sb, den >> sb)
     }
     public mutating func truncate(width:Int) {
-        if width == 0 { return }
-        let mb = max(self.num.bitWidth, self.den.bitWidth)
-        let w = width < 0 ? -width : +width
-        if mb <= w { return }
-        let sb = mb - w
-        num >>= sb
-        den >>= sb
+        self = truncated(width: width)
     }
 }
 

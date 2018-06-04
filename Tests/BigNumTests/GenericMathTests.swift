@@ -3,6 +3,7 @@ import XCTest
 
 final class GenericMathTests: XCTestCase {
     private typealias D = Double
+    private typealias Q = BigRat
     func runSpecial<Q:RationalType>(forType T:Q.Type) {
         for q in [T.nan, -T.infinity, +T.infinity, -T.zero, +T.zero] {
             let d = q.asDouble
@@ -47,8 +48,8 @@ final class GenericMathTests: XCTestCase {
         list += list.map{ -$0 }
         list = list.sorted().reduce([]){ $0.contains($1) ? $0 : $0 + [$1] }
         print(list)
-        for q in (list.map{ Q($0) }) {
-            let d = q.asDouble
+        for d in list {
+            let q = T.init(d)
             XCTAssert(ok(T.exp  (q), D.exp  (d), d), "\(q, T.exp  (q).asDouble, D.exp  (d))")
             XCTAssert(ok(T.expm1(q), D.expm1(d), d), "\(q, T.expm1(q).asDouble, D.expm1(d))")
             XCTAssert(ok(T.log  (q), D.log  (d), d), "\(q, T.log  (q).asDouble, D.log  (d))")
@@ -72,7 +73,7 @@ final class GenericMathTests: XCTestCase {
          }
     }
     func testNormal() { runNormal(forType: BigRat.self) }
-    
+
     static var testAll = [
         ("testSpecial", testSpecial),
         ("testNormal",  testNormal),

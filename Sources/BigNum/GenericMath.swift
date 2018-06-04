@@ -435,15 +435,15 @@ extension RationalType {
     /// acosh
     public static func acosh(_ x:Self, precision px:Int = 64)->Self   {
         if x.isLess(than: 1) { return nan }
-        let a = x + sqrt(x * x - 1, precision:px)
+        let a = x + sqrt(x * x - 1, precision:px*2)
         return log(a, precision:px)
     }
     /// asinh
     public static func asinh(_ x:Self, precision px:Int = 64)->Self   {
         if x.isZero || x.isInfinite { return x }
-        let h = hypot(x, 1, precision:px)
-        if h.isInfinite { return x.sign == .minus ? -infinity : +infinity }
-        return log(x + h, precision:px)
+        if x.isLess(than:0){ return -asinh(-x, precision:px) }
+        let a = x + sqrt(x * x + 1, precision:px*2)
+        return log(a, precision:px)
     }
     /// atanh
     public static func atanh(_ x:Self, precision px:Int = 64)->Self   {
