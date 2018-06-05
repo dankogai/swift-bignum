@@ -1,24 +1,13 @@
 import BigNum
+#if os(Linux)
+import Glibc
+#else
 import Darwin
+#endif
 
-//print(BigRat.pow(1.5, 1.5).asDouble)
-//exit(0)
-//let q = BigRat.log(2)
-//print(q, q.toFloatingPointString())
-//print(BigRat.log(1024, precision:128).toFloatingPointString())
-//print(BigRat.normalizeAngle(BigRat.PI()*8))
+print(BigRat.atan(BigRat.PI()))
 
-//let sc = BigRat.sincos(1)
-//print(sc)
-//print(sc.cos.toFloatingPointString())
-//print(sc.sin.toFloatingPointString())
-//print(BigNum.constants)
-
-//print(BigRat.atan(0.5))
-//print(BigRat.exp(2.0).asDouble)
-//print(BigRat.exp(-2.0).asDouble)
-//print(BigRat.exp(0.5).asDouble)
-//print(BigRat.exp(-0.5).asDouble)
+#if false
 print(BigRat.tanh(BigRat(1.0/Double.greatestFiniteMagnitude)))
 exit(0)
 // print(BigRat.log2(BigRat.exp(1)))
@@ -60,3 +49,4 @@ print(BigRat(1.0/Double(Int.max)).toFloatingPointString())
     }
 })()
 print(Int.max.over(-1).toFloatingPointString())
+#endif
