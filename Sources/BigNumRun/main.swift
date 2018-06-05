@@ -15,11 +15,11 @@ import Darwin
 //print(BigNum.constants)
 
 //print(BigRat.atan(0.5))
-print(BigRat.exp(2.0).asDouble)
-print(BigRat.exp(-2.0).asDouble)
-print(BigRat.exp(0.5).asDouble)
-print(BigRat.exp(-0.5).asDouble)
-
+//print(BigRat.exp(2.0).asDouble)
+//print(BigRat.exp(-2.0).asDouble)
+//print(BigRat.exp(0.5).asDouble)
+//print(BigRat.exp(-0.5).asDouble)
+print(BigRat.tanh(BigRat(1.0/Double.greatestFiniteMagnitude)))
 exit(0)
 // print(BigRat.log2(BigRat.exp(1)))
 //print(q, BigRat.log(10))

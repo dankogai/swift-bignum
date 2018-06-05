@@ -32,6 +32,7 @@ public protocol RationalType : CustomStringConvertible, FloatingPoint, Expressib
     var num:Element { get set }
     var den:Element { get set }
     init(num:Element, den:Element)
+    static var maxExponent:Element { get }
 }
 
 extension RationalType {
@@ -323,6 +324,7 @@ extension RationalType {
         if Self.self == BigRat.self { return self as! BigRat }
         return BigInt(Element(self.num)).over(BigInt(Element(self.den)))
     }
+    /// return the truncated version of `self` with significand to `width` bits
     public func truncated(width:Int = Int64.bitWidth)->Self {
         if self.isNaN || self.isZero || self.isInfinite { return self }
         if width == 0       { return self }
@@ -335,10 +337,11 @@ extension RationalType {
         let n = (num * d / den) >> t    // shift to discard lower bits
         return Self(n << t, d)          // and shift back
     }
+    /// truncate significand to `width` bits
     public mutating func truncate(width:Int) {
         self = truncated(width: width)
     }
-}
+ }
 
 extension RationalType where Element:FixedWidthInteger {}
 
@@ -361,6 +364,12 @@ public struct Rational<I:RationalElement> : RationalType {
     }
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
+    }
+    /// maximum magnitude of the argument to exponential functions.
+    /// if smaller than `-maxExponent` 0 is returned
+    /// anything larger than `+maxExponent` +infinity is returned
+    public static var maxExponent:I {
+        return I(Int16.max)
     }
 }
 
@@ -476,6 +485,12 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRation
     }
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
+    }
+    /// maximum magnitude of the argument to exponential functions.
+    /// if smaller than `-maxExponent` 0 is returned
+    /// anything larger than `+maxExponent` +infinity is returned
+    public static var maxExponent:I {
+        return I(I.bitWidth - 1)
     }
 }
 

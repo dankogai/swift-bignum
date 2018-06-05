@@ -111,21 +111,27 @@ extension RationalType {
         if self.isNaN || self.isInfinite || self.isZero {
             return Self(Double.pow(self.asDouble, Self(y).asDouble))
         }
+        if Self.maxExponent < Swift.abs(y) {
+            return y < 0 ? 0 : +Self.infinity
+        }
         if y == 0 { return 1 }
         if y < 0  { return 1/self.power(-y, precision:px) }
         var (i, r, x) = (y, Self(1), self)
         while i != 0 {
             if i & 1 == 1 { r *= x }
             x *= x
-            x.truncate(width:px * 2)
+            x.truncate(width: px*2)
             i >>= 1
         }
-        return r.truncated(width: px)
+        return r.truncated(width:px)
     }
     /// x ** y
     public static func pow(_ x:Self, _ y:Self, precision px:Int = Int64.bitWidth)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
             return Self(Double.pow(x.asDouble, y.asDouble))
+        }
+        if Self(maxExponent) < y.magnitude {
+            return y.sign == .minus ? 0 : +Self.infinity
         }
         if x.magnitude.isLess(than:1)   { return pow(1/x, y, precision:px) }
         if y.isLess(than:0)             { return 1/pow(x, -y, precision:px) }
@@ -135,17 +141,21 @@ extension RationalType {
         }
         let ir = x.power(iy, precision:px)
         if fy.isZero {
-            return px < 0 ? Self(ir) : Self(ir).truncated(width:px)
+            return px < 0 ? ir : ir.truncated(width:px)
         } else {
             if x.isLess(than:0) { return nan }
         }
-        return exp(log(x, precision:px) * y, precision:px)
+        let fr = exp(log(x, precision:px*2) * fy, precision:px*2)
+        return px < 0 ? ir * fr : (ir * fr).truncated(width: px)
     }
     /// e ** x
     public static func exp(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
         if x.isZero     { return 1 }
+        if Self(maxExponent) < x.magnitude {
+            return x.sign == .minus ? 0 : +Self.infinity
+        }
         if x.isLess(than:0) { return 1/exp(-x, precision:px) }
         let e = E(precision: px * 2)
         let (ix, fx) = x.asMixed
@@ -154,11 +164,12 @@ extension RationalType {
             let epsilon = Self(BigInt(1).over(1 << px.magnitude))
             var (n, d) = (Self(1), Self(1))
             for i in 1 ... px.magnitude {
-                n = (n * fx).truncated(width: px*2)
+                n *= fx
                 d *= Self(i)
                 let t = n / d
                 fr += t
                 if t < epsilon { break }
+                n.truncate(width: px * 2)
                 fr.truncate(width: px * 2)
             }
         }
@@ -170,9 +181,24 @@ extension RationalType {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? -1 : +infinity }
         if x.isZero     { return x }
-        return exp(x,precision:px) - 1
-        //let t = tanh(x/2, precision:px)
-        //return 2 / (1 - t)
+        if Self(maxExponent) < x.magnitude {
+            return x.sign == .minus ? -1 : +Self.infinity
+        }
+        if LN2(precision: px) <= x.magnitude {
+            return exp(x, precision:px) - 1
+        }
+        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+        var (n, d, r) = (Self(1), Self(1), Self(0))
+        for i in 1 ... px.magnitude {
+            n *= x
+            d *= Self(i)
+            let t = n / d
+            r += t
+            if t < epsilon { break }
+            n.truncate(width: px * 2)
+            r.truncate(width: px * 2)
+        }
+        return  0 < px ? Self(r) : Self(r).truncated(width:px)
     }
     /// binary log (base 2) -- steady but slow algorithm. use log2
     static func binaryLog(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
@@ -194,9 +220,8 @@ extension RationalType {
             }
             t.truncate(width:px)
         }
-        var r = Self(ilog) + Self(u).over(1 << Swift.abs(px))
-        if 0 < px { r.truncate(width: px) }
-        return r
+        let r = Self(ilog) + Self(u).over(1 << Swift.abs(px))
+        return 0 < px ? r : r.truncated(width: px)
     }
     // binary log
     public static func log2(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
@@ -204,9 +229,8 @@ extension RationalType {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        var r =  log(x, precision:px) / LN2(precision:px * 2)
-        if 0 < px { r.truncate(width: px) }
-        return r
+        let r =  log(x, precision:px) / LN2(precision:px * 2)
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// natural log (base e)
     public static func log(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
@@ -241,7 +265,7 @@ extension RationalType {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        var r =  log(x, precision:px) / LN10(precision:px * 2)
+        var r =  log(x, precision:px) / LN10(precision:px*2)
         if 0 < px { r.truncate(width: px) }
         return r
     }
@@ -344,6 +368,7 @@ extension RationalType {
         let atan1 = ATAN1(precision: px)
         if x.isInfinite { return x.sign == .minus ? -2*atan1 : +2*atan1 }
         let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+        if x * x < epsilon { return x } // atan(x) == x below this point
         let inner_atan:(Self)->Self = { x in
             let x2 = x*x
             let x2p1 = 1 + x2
@@ -443,9 +468,7 @@ extension RationalType {
         if s.isInfinite {
             return x.sign == .minus ? -1 : +1
         }
-        var t = s / c
-        t.truncate(width: px)
-        return t
+        return s / c
     }
     /// acosh
     public static func acosh(_ x:Self, precision px:Int = 64)->Self   {
@@ -457,6 +480,10 @@ extension RationalType {
     public static func asinh(_ x:Self, precision px:Int = 64)->Self   {
         if x.isZero || x.isInfinite { return x }
         if x.isLess(than:0){ return -asinh(-x, precision:px) }
+        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+        if x * x <= epsilon {
+            return x    // asinh(x) == x blow this point
+        }
         let a = x + sqrt(x * x + 1, precision:px*2)
         return log(a, precision:px)
     }
@@ -464,6 +491,10 @@ extension RationalType {
     public static func atanh(_ x:Self, precision px:Int = 64)->Self   {
         if x.isZero { return x }
         if 1 < x.magnitude { return nan }
+        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
+        if x * x <= epsilon {
+            return x    // asinh(x) == x blow this point
+        }
         return (log(1 + x, precision:px) - log(1 - x, precision:px)) / 2
     }
 }
