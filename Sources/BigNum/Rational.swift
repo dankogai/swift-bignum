@@ -324,12 +324,16 @@ extension RationalType {
         return BigInt(Element(self.num)).over(BigInt(Element(self.den)))
     }
     public func truncated(width:Int = Int64.bitWidth)->Self {
-        if width == 0 { return self }
-        let mb = min(self.num.bitWidth, self.den.bitWidth)
+        if self.isNaN || self.isZero || self.isInfinite { return self }
+        if width == 0       { return self }
+        if self.den == 1    { return self }
         let w = width < 0 ? -width : +width
-        if mb <= w { return self }
-        let sb = mb - w
-        return Self(num >> sb, den >> sb)
+        if den.bitWidth <= w    { return self }
+        let s = max(den.bitWidth - 1, w)    // -1 for sign bit
+        let d = Element(1) << s
+        let t = s - w
+        let n = (num * d / den) >> t    // shift to discard lower bits
+        return Self(n << t, d)          // and shift back
     }
     public mutating func truncate(width:Int) {
         self = truncated(width: width)

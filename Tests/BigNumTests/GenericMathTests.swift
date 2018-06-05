@@ -1,44 +1,48 @@
 import XCTest
 @testable import BigNum
 
+import Foundation
+
 final class GenericMathTests: XCTestCase {
     private typealias D = Double
     private typealias Q = BigRat
-    func runBigRat<Q:RationalType>(forType T:Q.Type) {
-        func ok(_ d:D, _ fd:(D)->D, _ fq:(Q)->Q, inv:(D)->Bool = { _ in false })->Bool {
-            let (rd, rq) = (fd(d), fq(Q(d)))
-            print(rd, rq)
-            return Q(rd).isIdentical(to: rq)
+    
+    func testBigRat () {
+        func ok(_ d:D, _ q:Q, _ name:String="")->Bool {
+            if d.isNaN      { return q.isNaN }
+            if Q(d) == q    { return true }
+            let err = (Q(d) - q).magnitude / q
+            if err < 2 * Q(D.ulpOfOne) { return true }
+            print("d=\(d), q=\(q), err=\(err.asDouble)");
+            return false
         }
-        var doubles = (0...62).map{ D(1 << $0) }
+        var doubles = (0...2).map{ D(1 << $0) }  // + [D.greatestFiniteMagnitude]
         doubles += doubles.map { 1.0 / $0 }
-        doubles += [D.ulpOfOne, D.greatestFiniteMagnitude, D(Float.ulpOfOne), D(Float.greatestFiniteMagnitude)]
         doubles += doubles.map{ -$0 }
         doubles = doubles.sorted().reduce([]){ $0.contains($1) ? $0 : $0 + [$1] }
         for d in [D.nan, -0.0, +0.0, -D.infinity, +D.infinity] + doubles {
-            // print("testing \(d)")
-            XCTAssert(ok(d, D.exp,   T.exp),   "\(d)")
-            XCTAssert(ok(d, D.expm1, T.expm1), "\(d)")
-            XCTAssert(ok(d, D.log,   T.log  ), "\(d)")
-            XCTAssert(ok(d, D.log2,  T.log2 ), "\(d)")
-            XCTAssert(ok(d, D.log10, T.log10), "\(d)")
-            XCTAssert(ok(d, D.log1p, T.log1p), "\(d)")
-            XCTAssert(ok(d, D.sin,   T.sin  ), "\(d)")
-            XCTAssert(ok(d, D.cos,   T.cos  ), "\(d)")
-            XCTAssert(ok(d, D.tan,   T.tan  ), "\(d)")
-            XCTAssert(ok(d, D.asin,  T.asin ), "\(d)")
-            XCTAssert(ok(d, D.acos,  T.acos ), "\(d)")
-            XCTAssert(ok(d, D.atan,  T.atan ), "\(d)")
-            XCTAssert(ok(d, D.sinh,  T.sinh ), "\(d)")
-            XCTAssert(ok(d, D.cosh,  T.cosh ), "\(d)")
-            XCTAssert(ok(d, D.tanh,  T.tanh ), "\(d)")
-            XCTAssert(ok(d, D.asinh, T.asinh), "\(d)")
-            XCTAssert(ok(d, D.acosh, T.acosh), "\(d)")
-            XCTAssert(ok(d, D.atanh, T.atanh), "\(d)")
-         }
+            let q = Q(d); var (rd, rq):(D, Q)
+            print("exp(\(d))"  ); (rd, rq) = (D.exp(d),  Q.exp(q)  ); XCTAssert(ok(rd, rq), "\(d)")
+            print("exp1m(\(d))"); (rd, rq) = (D.expm1(d),Q.expm1(q)); XCTAssert(ok(rd, rq), "\(d)")
+            print("log(\(d))"  ); (rd, rq) = (D.log(d),  Q.log(q)  ); XCTAssert(ok(rd, rq), "\(d)")
+            print("log2(\(d))" ); (rd, rq) = (D.log2(d), Q.log2(q) ); XCTAssert(ok(rd, rq), "\(d)")
+            print("log10(\(d))"); (rd, rq) = (D.log10(d),Q.log10(q)); XCTAssert(ok(rd, rq), "\(d)")
+            print("log1p(\(d))"); (rd, rq) = (D.log1p(d),Q.log1p(q)); XCTAssert(ok(rd, rq), "\(d)")
+            print("sin(\(d))"  ); (rd, rq) = (D.sin(d),  Q.sin(q)  ); XCTAssert(ok(rd, rq), "\(d)")
+            print("cos(\(d))"  ); (rd, rq) = (D.cos(d),  Q.cos(q)  ); XCTAssert(ok(rd, rq), "\(d)")
+            print("tan(\(d))"  ); (rd, rq) = (D.tan(d),  Q.tan(q)  ); XCTAssert(ok(rd, rq), "\(d)")
+            print("asin(\(d))" ); (rd, rq) = (D.asin(d), Q.asin(q) ); XCTAssert(ok(rd, rq), "\(d)")
+            print("acos(\(d))" ); (rd, rq) = (D.acos(d), Q.acos(q) ); XCTAssert(ok(rd, rq), "\(d)")
+            print("atan(\(d))" ); (rd, rq) = (D.atan(d), Q.atan(q) ); XCTAssert(ok(rd, rq), "\(d)")
+            print("sinh(\(d))" ); (rd, rq) = (D.sinh(d), Q.sinh(q) ); XCTAssert(ok(rd, rq), "\(d)")
+            print("cosh(\(d))" ); (rd, rq) = (D.cosh(d), Q.cosh(q) ); XCTAssert(ok(rd, rq), "\(d)")
+            print("tanh(\(d))" ); (rd, rq) = (D.tanh(d), Q.tanh(q) ); XCTAssert(ok(rd, rq), "\(d)")
+            print("asinh(\(d))"); (rd, rq) = (D.asinh(d),Q.asinh(q)); XCTAssert(ok(rd, rq), "\(d)")
+            print("acosh(\(d))"); (rd, rq) = (D.acosh(d),Q.acosh(q)); XCTAssert(ok(rd, rq), "\(d)")
+            print("atanh(\(d))"); (rd, rq) = (D.atanh(d),Q.atanh(q)); XCTAssert(ok(rd, rq), "\(d)")
+        }
     }
-    func testBigRat() { runBigRat(forType: BigRat.self) }
-
+    
     static var testAll = [
         ("testBigRat", testBigRat),
     ]

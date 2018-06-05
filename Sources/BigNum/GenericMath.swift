@@ -106,6 +106,22 @@ extension RationalType {
     public static func hypot(_ x:Self, _ y:Self, precision px:Int = Int64.bitWidth)->Self  {
         return (x*x + y*y).squareRoot(precision: px)
     }
+    /// self ** n where n is an integer
+    public func power(_ y:Element, precision px:Int = Int64.bitWidth)->Self  {
+        if self.isNaN || self.isInfinite || self.isZero {
+            return Self(Double.pow(self.asDouble, Self(y).asDouble))
+        }
+        if y == 0 { return 1 }
+        if y < 0  { return 1/self.power(-y, precision:px) }
+        var (i, r, x) = (y, Self(1), self)
+        while i != 0 {
+            if i & 1 == 1 { r *= x }
+            x *= x
+            x.truncate(width:px * 2)
+            i >>= 1
+        }
+        return r.truncated(width: px)
+    }
     /// x ** y
     public static func pow(_ x:Self, _ y:Self, precision px:Int = Int64.bitWidth)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
@@ -117,7 +133,7 @@ extension RationalType {
         if Int.max <= iy.magnitude {
             return iy < 0 ? 0 : infinity
         }
-        let ir = BigInt(x.num).power(Int(iy)).over(BigInt(x.den).power(Int(iy)))
+        let ir = x.power(iy, precision:px)
         if fy.isZero {
             return px < 0 ? Self(ir) : Self(ir).truncated(width:px)
         } else {
@@ -133,22 +149,21 @@ extension RationalType {
         if x.isLess(than:0) { return 1/exp(-x, precision:px) }
         let e = E(precision: px * 2)
         let (ix, fx) = x.asMixed
-        var (ir, fr) = (pow(e, Self(ix)), Self(1))
+        var (ir, fr) = (e.power(ix, precision:px*2), Self(1))
         if !fr.isZero {
             let epsilon = Self(BigInt(1).over(1 << px.magnitude))
             var (n, d) = (Self(1), Self(1))
-            for i in 1 ... Int(px.magnitude) {
-                n *= fx
+            for i in 1 ... px.magnitude {
+                n = (n * fx).truncated(width: px*2)
                 d *= Self(i)
                 let t = n / d
                 fr += t
                 if t < epsilon { break }
+                fr.truncate(width: px * 2)
             }
         }
-        print(x, ix, fx)
-        var r = ir * fr
-        if 0 < px { r.truncate(width:px) }
-        return Self(r)
+        let r = ir * fr
+        return  0 < px ? Self(r) : Self(r).truncated(width:px)
     }
     /// exp(x) - 1
     public static func expm1(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
