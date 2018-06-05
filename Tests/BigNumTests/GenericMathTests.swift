@@ -50,7 +50,7 @@ final class GenericMathTests: XCTestCase {
         }
     }
     
-    static var testAll = [
+    static var allTests = [
         ("testBigRat", testBigRat),
     ]
 }

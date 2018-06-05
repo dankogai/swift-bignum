@@ -107,7 +107,7 @@ final class BigRatTests: XCTestCase {
     func testBigRatInf() { runRatInf(forType: BigRat.self) }
     func testIntRatInf() { runRatInf(forType: IntRat.self) }
     //
-    static var testAll = [
+    static var allTests = [
         ("testBigRatBasic", testBigRatBasic),
         ("testIntRatBasic", testIntRatBasic),
         ("testBigRatNaN", testBigRatNaN),
