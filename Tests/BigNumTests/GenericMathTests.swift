@@ -29,6 +29,8 @@ final class GenericMathTests: XCTestCase {
         print(doubles)
         for d in doubles {
             let q = Q(d); var (rd, rq):(D, Q)
+            (rd, rq) = (D.sqrt(d), Q.sqrt(q) ); XCTAssert(ok(d, rd, rq, "sqrt" ){ D(rq*rq)     == d }, "\(d)")
+            (rd, rq) = (D.cbrt(d), Q.cbrt(q) ); XCTAssert(ok(d, rd, rq, "cbrt" ){ D(rq*rq*rq)  == d }, "\(d)")
             (rd, rq) = (D.exp(d),  Q.exp(q)  ); XCTAssert(ok(d, rd, rq, "exp"  ){ D.log  (D(rq))==d }, "\(d)")
             (rd, rq) = (D.expm1(d),Q.expm1(q)); XCTAssert(ok(d, rd, rq, "exp1m"){ D.log1p(D(rq))==d }, "\(d)")
             (rd, rq) = (D.log(d),  Q.log(q)  ); XCTAssert(ok(d, rd, rq, "log"  ){ D.exp  (D(rq))==d }, "\(d)")

@@ -110,8 +110,8 @@ extension RationalType {
         let w = 2 * max(n.bitWidth, d.bitWidth, Swift.abs(px))
         n <<= w
         d <<= w
-        var q = Self(n.squareRoot(), d.squareRoot())
-        if 0 < px { q.truncate(width: px) }
+        let q = Self(n.squareRoot(), d.squareRoot())
+        // if 0 < px { q.truncate(width: px) }
         return q
     }
     public mutating func formSquareRoot(precision px:Int = Int64.bitWidth) {

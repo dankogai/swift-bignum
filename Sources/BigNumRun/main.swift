@@ -6,7 +6,8 @@ import Darwin
 #endif
 
 print(BigRat.atan(BigRat.PI()))
-
+print(BigRat(1000).nthroot(3).asDouble)
+print(BigRat(10000).nthroot(4).asDouble)
 #if false
 print(BigRat.tanh(BigRat(1.0/Double.greatestFiniteMagnitude)))
 exit(0)

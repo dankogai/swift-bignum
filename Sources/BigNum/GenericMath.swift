@@ -18,13 +18,13 @@ extension RationalType {
         return v
     }
     /// √2
-    public static func SQRT2(precision px:Int = Int64.bitWidth)->Self {
+    public static func SQRT2(precision px:Int = 64)->Self {
         return getSetConstant("SQRT2", precision:px) {
             Self(2.0).squareRoot(precision: $0)
         }
     }
     /// euler's constant
-    public static func E(precision px:Int = Int64.bitWidth)->Self {
+    public static func E(precision px:Int = 64)->Self {
         return getSetConstant("E", precision:px) {
             let limit = BigInt(1) << $0.magnitude
             var (e, d) = (Self(1), BigInt(1))
@@ -38,7 +38,7 @@ extension RationalType {
         }
     }
     /// log(2)
-    public static func LN2(precision px:Int = Int64.bitWidth, debug:Bool = false)->Self {
+    public static func LN2(precision px:Int = 64, debug:Bool = false)->Self {
         return getSetConstant("LN2", precision:px) {
             let epsilon = 1 / Self(BigInt(1) << px)
             var (t, r) = (Self(1, 3), Self(1, 3))
@@ -57,13 +57,13 @@ extension RationalType {
         }
     }
     /// log(10)
-    public static func LN10(precision px:Int = Int64.bitWidth)->Self {
+    public static func LN10(precision px:Int = 64)->Self {
         return getSetConstant("LN10", precision:px) {
             Self.log(10, precision:$0)
         }
     }
     /// π/4 in precision `px`.  Bellard's Formula
-    public static func ATAN1(precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
+    public static func ATAN1(precision px:Int = 64, debug:Bool=false)->Self {
         return getSetConstant("ATAN1", precision: px) {
             let epsilon = BigInt(1).over(1 << px.magnitude)
             var p64 = Self(0)
@@ -92,22 +92,22 @@ extension RationalType {
         }
     }
     /// π in precision `px`.  4*atan(1)
-    public static func PI(precision px:Int = Int64.bitWidth)->Self {
+    public static func PI(precision px:Int = 64)->Self {
         return 4*ATAN1(precision:px)
     }
 }
 // tgmath for RationalType
 extension RationalType {
     /// √x
-    public static func sqrt(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func sqrt(_ x:Self, precision px:Int = 64)->Self {
         return x.squareRoot(precision: px)
     }
     /// sqrt(x*x + y*y)
-    public static func hypot(_ x:Self, _ y:Self, precision px:Int = Int64.bitWidth)->Self  {
+    public static func hypot(_ x:Self, _ y:Self, precision px:Int = 64)->Self  {
         return (x*x + y*y).squareRoot(precision: px)
     }
     /// self ** n where n is an integer
-    public func power(_ y:Element, precision px:Int = Int64.bitWidth)->Self  {
+    public func power(_ y:Element, precision px:Int = 64)->Self  {
         if self.isNaN || self.isInfinite || self.isZero {
             return Self(Double.pow(self.asDouble, Self(y).asDouble))
         }
@@ -126,15 +126,14 @@ extension RationalType {
         return r.truncated(width:px)
     }
     /// x ** y
-    public static func pow(_ x:Self, _ y:Self, precision px:Int = Int64.bitWidth)->Self  {
+    public static func pow(_ x:Self, _ y:Self, precision px:Int = 64)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
             return Self(Double.pow(x.asDouble, y.asDouble))
         }
         if Self(maxExponent) < y.magnitude {
             return y.sign == .minus ? 0 : +Self.infinity
         }
-        if x.magnitude.isLess(than:1)   { return pow(1/x, y, precision:px) }
-        if y.isLess(than:0)             { return 1/pow(x, -y, precision:px) }
+        if x.magnitude.isLess(than:1)   { return 1/pow(1/x, y, precision:px) }
         let (iy, fy) = y.asMixed
         if Int.max <= iy.magnitude {
             return iy < 0 ? 0 : infinity
@@ -148,8 +147,21 @@ extension RationalType {
         let fr = exp(log(x, precision:px*2) * fy, precision:px*2)
         return px < 0 ? ir * fr : (ir * fr).truncated(width: px)
     }
+    /// nth root of self
+    public func nthroot(_ n:Element, precision px:Int = 64)->Self {
+        if self.isNaN  { return Self.nan }
+        if self.isZero { return self }
+        if self == 1   { return 1 }
+        if self <  0   { return -(-self).nthroot(n, precision:px) }
+        return Self.pow(self, Self(1, n), precision:px)
+    }
+    /// cube root of self
+    public static func cbrt(_ x:Self, precision px:Int = 64)->Self {
+        return x.nthroot(3, precision: px)
+
+    }
     /// e ** x
-    public static func exp(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func exp(_ x:Self, precision px:Int = 64)->Self {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
         if x.isZero     { return 1 }
@@ -177,7 +189,7 @@ extension RationalType {
         return  0 < px ? Self(r) : Self(r).truncated(width:px)
     }
     /// exp(x) - 1
-    public static func expm1(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func expm1(_ x:Self, precision px:Int = 64)->Self {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? -1 : +infinity }
         if x.isZero     { return x }
@@ -201,7 +213,7 @@ extension RationalType {
         return  0 < px ? Self(r) : Self(r).truncated(width:px)
     }
     /// binary log (base 2) -- steady but slow algorithm. use log2
-    static func binaryLog(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    static func binaryLog(_ x:Self, precision px:Int = 64)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
@@ -224,7 +236,7 @@ extension RationalType {
         return 0 < px ? r : r.truncated(width: px)
     }
     // binary log
-    public static func log2(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func log2(_ x:Self, precision px:Int = 64)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
@@ -233,7 +245,7 @@ extension RationalType {
         return 0 < px ? r : r.truncated(width: px)
     }
     /// natural log (base e)
-    public static func log(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func log(_ x:Self, precision px:Int = 64)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
@@ -260,7 +272,7 @@ extension RationalType {
         return r
     }
     /// common log (base 10)
-    public static func log10(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func log10(_ x:Self, precision px:Int = 64)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
@@ -270,7 +282,7 @@ extension RationalType {
         return r
     }
     /// log(1 + x)
-    public static func log1p(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func log1p(_ x:Self, precision px:Int = 64)->Self {
         if x.isNaN                  { return nan }
         if x.isZero                 { return x }
         if x.isInfinite             { return x.sign == .minus ? nan : +infinity }
@@ -279,7 +291,7 @@ extension RationalType {
         return 2*atanh(x/(x+2), precision:px)
     }
     /// normalize `x` to ±π
-    public static func normalizeAngle(_ x:Self, precision px:Int = Int64.bitWidth)->Self {
+    public static func normalizeAngle(_ x:Self, precision px:Int = 64)->Self {
         var theta = x
         let onepi = PI(precision:px)
         if theta < -2*onepi || +2*onepi < theta {
@@ -296,7 +308,7 @@ extension RationalType {
         return theta
     }
     /// - returns: `(sin(x), cos(x))`
-    public static func sincos(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->(sin:Self, cos:Self) {
+    public static func sincos(_ x:Self, precision px:Int = 64, debug:Bool=false)->(sin:Self, cos:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
             return (Self(Double.sin(x.asDouble)), Self(Double.cos(x.asDouble)))
         }
@@ -342,15 +354,15 @@ extension RationalType {
         return (s, c)
     }
     /// cos(x)
-    public static func cos(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
+    public static func cos(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
         return sincos(x, precision:px, debug:debug).cos
     }
     /// sin(x)
-    public static func sin(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
+    public static func sin(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
         return sincos(x, precision:px, debug:debug).sin
     }
     /// tan(x)
-    public static func tan(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->Self {
+    public static func tan(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
         if x.isZero || x.isInfinite || x.isNaN {
             return Self(Double.tan(x.asDouble))
         }
@@ -409,7 +421,7 @@ extension RationalType {
         return 2 * atan(a, precision:px)
     }
     /// - returns: `(sinh(x), cosh(x))`
-    public static func sinhcosh(_ x:Self, precision px:Int = Int64.bitWidth, debug:Bool=false)->(sinh:Self, cosh:Self) {
+    public static func sinhcosh(_ x:Self, precision px:Int = 64, debug:Bool=false)->(sinh:Self, cosh:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
             return (Self(Double.sinh(x.asDouble)), Self(Double.cosh(x.asDouble)))
         }
