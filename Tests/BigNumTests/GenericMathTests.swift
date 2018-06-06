@@ -8,7 +8,7 @@ final class GenericMathTests: XCTestCase {
     private typealias Q = BigRat
     func testBigRat () {
         func ok(_ d:D, _ rd:D, _ rq:Q, _ name:String="", check:()->Bool = { false })->Bool {
-            print("\(name)(\(d)): ", terminator: "")
+            print("\(name)(\(d.debugDescription)): ", terminator: "")
             if rd.isNaN     { print("NaN");   return rq.isNaN  }
             if Q(rd) == rq  { print("==");    return true }
             if check()      { print("inv()"); return true }
@@ -26,7 +26,7 @@ final class GenericMathTests: XCTestCase {
         doubles += doubles.map{ -$0 }
         doubles =  doubles.sorted().reduce([]){ $0.contains($1) ? $0 : $0 + [$1] }
         doubles =  [D.nan, -0.0, +0.0, -D.infinity, +D.infinity] + doubles
-        print(doubles)
+        // print(doubles)
         for d in doubles {
             let q = Q(d); var (rd, rq):(D, Q)
             (rd, rq) = (D.sqrt(d), Q.sqrt(q) ); XCTAssert(ok(d, rd, rq, "sqrt" ){ D(rq*rq)     == d }, "\(d)")
