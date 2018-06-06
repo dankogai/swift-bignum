@@ -366,7 +366,7 @@ extension RationalType {
         if x.isZero || x.isInfinite || x.isNaN {
             return Self(Double.tan(x.asDouble))
         }
-        let (s, c) = sincos(x, precision:px, debug:debug)
+        let (s, c) = sincos(x, precision:px*2, debug:debug)
         if s.isNaN || s.isInfinite || c.isNaN || c.isInfinite {
             return Self(Double.tan(x.asDouble))
         }
@@ -426,7 +426,7 @@ extension RationalType {
             return (Self(Double.sinh(x.asDouble)), Self(Double.cosh(x.asDouble)))
         }
         if 1 < x.magnitude {
-            let ep = exp(x)
+            let ep = exp(x, precision:px)
             let em = 1/ep
             return ((ep - em)/2, (ep + em)/2)
         }
@@ -476,7 +476,7 @@ extension RationalType {
         if x.isZero || x.isInfinite || x.isNaN {
             return Self(Double.tanh(x.asDouble))
         }
-        let (s, c) = sinhcosh(x, precision:px)
+        let (s, c) = sinhcosh(x, precision:px*2)
         if s.isInfinite {
             return x.sign == .minus ? -1 : +1
         }
