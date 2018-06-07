@@ -34,15 +34,9 @@ final class GenericMathTests: XCTestCase {
         doubles =  doubles.sorted().reduce([]){ $0.contains($1) ? $0 : $0 + [$1] }
         doubles =  [D.nan, -0.0, +0.0, -D.infinity, +D.infinity] + doubles
         // print(doubles)
-        for d in [-1.5, -1.25, 1.25, 1.5] {
+        for d in doubles {
             let q = Q(d); var (rd, rq):(D, Q)
             _ = d.isNaN ? XCTAssertEqual(d.isNaN, q.isNaN) : XCTAssertEqual(d, q.asDouble) // very basic test
-            (rd, rq) = (D.lgamma(d), Q.lgamma(q) );
-            if !rd.isNaN && !rd.isInfinite {
-                // XCTAssertEqual(rd, rq.asDouble, "\(rd, rq)")
-                print(d, q, rd, rq.asDouble)
-            }
-            continue;
             (rd, rq) = (D.sqrt(d), Q.sqrt(q) ); XCTAssert(ok(d, rd, rq, "sqrt" ){d==D(rq)*D(rq)      }, "\(d)")
             (rd, rq) = (D.cbrt(d), Q.cbrt(q) ); XCTAssert(ok(d, rd, rq, "cbrt" ){d==D(rq)*D(rq)*D(rq)}, "\(d)")
             (rd, rq) = (D.exp(d),  Q.exp(q)  ); XCTAssert(ok(d, rd, rq, "exp"  ){
