@@ -5,6 +5,27 @@ import Glibc
 import Darwin
 #endif
 
+//for i in (2...10) {
+//    print(BigNum.bernoulliNumber(i) / BigRat(i * (i-1)))
+//}
+//print(BigRat.lgamma(-0x1.ffffffffffffp-52, precision:64).asDouble)
+print("BigRat.lgamma:", BigRat.lgamma(0.195).asDouble)
+print("Double.lgamma:", Double.lgamma(0.195))
+print("BigRat.lgamma:", BigRat.lgamma(-0.195).asDouble)
+print("Double.lgamma:", Double.lgamma(-0.195))
+exit(0)
+//for i in (0...29) {
+//    print(i, BigNum.bernoulliNumber(i))
+//    print(i, BigNum.factorial(i))
+//}
+
+//for n in (0...10) {
+//    for k in (0...n) {
+//        print(BigNum.binominalCoefficient(BigInt(n), BigInt(k)), terminator:" ")
+//    }
+//    print()
+//}
+
 print(BigRat.atan(BigRat.PI()))
 print(BigRat(1000).nthroot(3).asDouble)
 print(BigRat(10000).nthroot(4).asDouble)

@@ -4,5 +4,6 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 else
     inc=""
 fi
+bd=".build/release"
 swift build -c release -Xswiftc -enable-testing \
-    && swift ${inc} -I.build/debug -L.build/debug -lBigInt -lBigNum
+    && swift ${inc} -I${bd} -L${bd} -lBigInt -lBigNum

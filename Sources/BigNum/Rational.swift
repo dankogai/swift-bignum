@@ -201,6 +201,10 @@ extension RationalType {
         if self.isInfinite {
             return self.sign == .minus ? -Double.infinity : +Double.infinity
         }
+        if 1024 < self.den.bitWidth { // for subnormal small numbers
+            let offset = Swift.min(self.den.trailingZeroBitCount, self.den.bitWidth - 1024)
+            return Double(BigInt(self.num)) / Double(BigInt(self.den >> offset)) / Double(BigInt(1) << offset)
+        }
         return Double(BigInt(self.num)) / Double(BigInt(self.den))
     }
     public init(_ q:Self) {
