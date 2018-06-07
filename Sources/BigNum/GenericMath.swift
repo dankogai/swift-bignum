@@ -127,6 +127,21 @@ extension RationalType {
         }
         return r.truncated(width:px)
     }
+    /// atan2
+    public static func atan2(_ y:Self, _ x:Self, precision px:Int = 64)->Self  {
+        // cf. https://en.wikipedia.org/wiki/Atan2
+        if x.isNaN || y.isNaN { return nan }
+        // let us follow Double.atan2 for these special cases
+        if x.isZero || y.isZero || x.isInfinite || y.isInfinite {
+            return Self(Double.atan2(y.asDouble, x.asDouble))
+        }
+        // print("\(Self.self).atan2: y/x =\(y)/\(x)=\(y_x)")
+        if x < 0 {
+            return atan(y/x, precision:px) + (y < 0 ? -PI(precision:px) : +PI(precision:px))
+        } else {
+            return atan(y/x, precision:px)
+        }
+    }
     /// x ** y
     public static func pow(_ x:Self, _ y:Self, precision px:Int = 64)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {

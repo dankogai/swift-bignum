@@ -6,7 +6,7 @@ import Foundation
 final class GenericMathTests: XCTestCase {
     private typealias D = Double
     private typealias Q = BigRat
-    func testBigRat () {
+    func testUnary () {
         var count = 0
         func ok(_ d:D, _ rd:D, _ rq:Q, _ name:String="", check:()->Bool = { false })->Bool {
             count += 1
@@ -34,6 +34,7 @@ final class GenericMathTests: XCTestCase {
         doubles =  doubles.sorted().reduce([]){ $0.contains($1) ? $0 : $0 + [$1] }
         doubles =  [D.nan, -0.0, +0.0, -D.infinity, +D.infinity] + doubles
         // print(doubles)
+        doubles = []
         for d in doubles {
             let q = Q(d); var (rd, rq):(D, Q)
             _ = d.isNaN ? XCTAssertEqual(d.isNaN, q.isNaN) : XCTAssertEqual(d, q.asDouble) // very basic test
@@ -62,10 +63,19 @@ final class GenericMathTests: XCTestCase {
             (rd, rq) = (D.acosh(d),Q.acosh(q)); XCTAssert(ok(d, rd, rq, "acosh"){d==D.cosh (D(rq))}, "\(d)")
             (rd, rq) = (D.atanh(d),Q.atanh(q)); XCTAssert(ok(d, rd, rq, "atanh"){d==D.tanh (D(rq))}, "\(d)")
         }
-        print("testBigRat:checked \(count) cases")
+        print("testUnary:checked \(count) cases")
     }
-    
+    func testAtan2() {
+        let doubles = [-1/0.0, -1.0, -0.0, +0.0, +1.0, +1/0.0]
+        debugPrint(doubles)
+        for y in doubles {
+            for x in doubles {
+                XCTAssertEqual(D(Q.atan2(Q(y), Q(x))), D.atan2(y, x), "\(x, y, Q.atan2(Q(y), Q(x)))")
+            }
+        }
+    }
     static var allTests = [
-        ("testBigRat", testBigRat),
+        ("testUnary", testUnary),
+        ("testAtan2", testAtan2),
     ]
 }
