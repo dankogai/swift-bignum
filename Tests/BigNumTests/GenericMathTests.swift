@@ -34,7 +34,7 @@ final class GenericMathTests: XCTestCase {
         doubles =  doubles.sorted().reduce([]){ $0.contains($1) ? $0 : $0 + [$1] }
         doubles =  [D.nan, -0.0, +0.0, -D.infinity, +D.infinity] + doubles
         // print(doubles)
-        doubles = []
+        // doubles = []
         for d in doubles {
             let q = Q(d); var (rd, rq):(D, Q)
             _ = d.isNaN ? XCTAssertEqual(d.isNaN, q.isNaN) : XCTAssertEqual(d, q.asDouble) // very basic test
