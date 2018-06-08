@@ -27,7 +27,7 @@ extension RationalElement {
 import FloatingPointMath
 
 /// Rational number type whose numerator and denominator are `RationalElement`
-public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral, FloatingPointMath {
+public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral, FloatingPointMath{
     associatedtype Element:RationalElement
     var num:Element { get set }
     var den:Element { get set }
@@ -53,12 +53,43 @@ extension RationalType {
         ? num < 0 ? .minus : .plus
         : den < 0 ? .minus : .plus
     }
-    public var exponent:Element {
-        return Element(num.bitWidth - den.bitWidth)
+    /// decompose to sign, exponent and significand
+    /// - sign:        .minus or .plus
+    /// - exponent:    exponent in radix 2
+    /// - significand: normalized to range  [1, 2)
+    public var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:Self) {
+        if self.isNaN || self.isInfinite {
+            return (sign:self.sign, exponent:Exponent(Int.max), significand:Swift.abs(self))
+        }
+        if self.isZero {
+            return (sign:self.sign, exponent:Exponent(-Int.max), significand:Swift.abs(self))
+        }
+        // cf. http://blog.livedoor.jp/dankogai/archives/51231722.html
+        func msb(of n:Element)->Int {
+            if n is BigInt { return n.bitWidth - 2 }    // sign bit and minimum bit
+            var u = UInt64(bitPattern: Int64(n < 0 ? -n : +n))
+            for i in 0..<UInt64.bitWidth {
+                if u == 0 { return i }
+                u >>= 1
+            }
+            return 0
+        }
+        if Swift.abs(self.den) == 1 {
+            let e = msb(of:num)
+            return (sign:self.sign, exponent:Exponent(e), significand:Self(num, den << e))
+        }
+        var e = msb(of:num) - msb(of:den)
+        print("e=", e, msb(of:num), msb(of:den))
+        var s = e < 0 ? Self(num << -e, den) : Self(num, den << e)
+        if       s.magnitude < 1 { s *= 2 ; e -= 1 } // too small
+        else if 2 <= s.magnitude { s /= 2 ; e += 1 } // too large
+        return (sign:self.sign, exponent:Exponent(e), significand:Swift.abs(s))
+    }
+    public var exponent:Exponent {
+        return self.decomposed.exponent
     }
     public var significand:Self {
-        let e = self.exponent
-        return e < 0 ? Self(num << -e, den) : Self(num, den << e)
+        return self.decomposed.significand
     }
     public var magnitude: Self {
         return sign == .minus ? -self : +self
@@ -151,21 +182,21 @@ extension RationalType {
     public init?<T>(exactly source: T) where T : BinaryInteger {
         self.init(num: Element(exactly:source)!, den:1)
     }
-    public init(sign: FloatingPointSign, exponent: Element, significand: Self) {
-        var n = Element(sign == .minus ? -1 : +1)
-        var d = Element(1)
+    public init(sign:FloatingPointSign, exponent:Element, significand:Self) {
+        var q = Self(1)
         if exponent < 0 {
-            d <<= exponent
+            q.den <<= exponent
         } else {
-            n <<= exponent
+            q.num <<= exponent
         }
-        self.init(num:n * significand.num, den:d * significand.den)
+        self = (sign == .minus ? -1 : +1) * q * Swift.abs(significand)
     }
     public init(signOf: Self, magnitudeOf: Self) {
-        self.init(num:(signOf.sign == .minus ? -1 : +1) * magnitudeOf.num, den:magnitudeOf.den)
+        let q = Self(signOf.sign == .minus ? -1 : +1) * magnitudeOf
+        self = q
     }
     public init<BI:BinaryInteger>(_ value: BI)  {
-        self.init(num:Element(value), den:Element(1))
+        self.init(Element(value))
     }
     public init(_ n:Element) {
         self.init(num:n, den:1)

@@ -35,8 +35,7 @@ extension RationalType {
                 e += 1 / Self(d)
                 if limit < d { break }
             }
-            e.truncate(width: $0)
-            return e
+            return e.truncated(width: $0)
         }
     }
     /// log(2)
@@ -46,16 +45,13 @@ extension RationalType {
             var (t, r) = (Self(1, 3), Self(1, 3))
             for i in 1...px {
                 t *= Self(1, 9)
-                t.truncate(width: $0)
-                r += t / Self(2 * i + 1)
-                if debug {
-                    print("\(typeName).LN2: i=\(i), r=~\(r.asDouble)")
-                }
-                r.truncate(width: $0)
+                if debug { print("\(typeName).LN2: i=\(i), r=~\(r.asDouble)") }
                 if t < epsilon { break }
+                r += t / Self(2 * i + 1)
+                r.truncate(width: $0)
+                t.truncate(width: $0)
             }
-            r.truncate(width: $0)
-            return 2*r
+            return (2*r).truncated(width: $0)
         }
     }
     /// log(10)
@@ -278,15 +274,14 @@ extension RationalType {
         var fr = t
         for i in 1...px {
             t *= t2
-            t.truncate(width: px)
+            if t < epsilon { break }
             fr += t / Self(2*i + 1)
             // print("POReal#log: i=\(i), t=~\(t.asDouble), r=~\(r.asDouble)")
+            t.truncate(width: px)
             fr.truncate(width: px)
-            if t < epsilon { break }
         }
-        var r = ir + 2 * fr
-        if 0 < px { r.truncate(width: px) }
-        return r
+        let r = ir + 2 * fr
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// common log (base 10)
     public static func log10(_ x:Self, precision px:Int = 64)->Self {
@@ -294,9 +289,8 @@ extension RationalType {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        var r =  log(x, precision:px) / LN10(precision:px*2)
-        if 0 < px { r.truncate(width: px) }
-        return r
+        let r =  log(x, precision:px) / LN10(precision:px*2)
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// log(1 + x)
     public static func log1p(_ x:Self, precision px:Int = 64)->Self {
