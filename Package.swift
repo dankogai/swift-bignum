@@ -16,7 +16,7 @@ let package = Package(
         url: "https://github.com/dankogai/swift-floatingpointmath.git", .branch("master")
       ),
       .package(
-        url: "https://github.com/dankogai/BigInt.git", .branch("master")
+        url: "https://github.com/attaswift/BigInt.git", from:"3.1.0"
       )
     ],
     targets: [
