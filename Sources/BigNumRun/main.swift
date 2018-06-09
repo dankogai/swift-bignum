@@ -5,6 +5,12 @@ import Glibc
 import Darwin
 #endif
 
+var (x, y) = (BigRat(0), BigRat(0))
+for i in (0...1000) {
+    x = BigRat.log2(BigRat(i), precision:128)
+    y = BigRat.binaryLog(BigRat(i), precision:128)
+}
+exit(0)
 //for i in (2...10) {
 //    print(BigNum.bernoulliNumber(i) / BigRat(i * (i-1)))
 //}

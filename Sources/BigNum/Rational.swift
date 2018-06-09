@@ -79,7 +79,7 @@ extension RationalType {
             return (sign:self.sign, exponent:Exponent(e), significand:Self(num, den << e))
         }
         var e = msb(of:num) - msb(of:den)
-        print("e=", e, msb(of:num), msb(of:den))
+        // print("e=", e, msb(of:num), msb(of:den))
         var s = e < 0 ? Self(num << -e, den) : Self(num, den << e)
         if       s.magnitude < 1 { s *= 2 ; e -= 1 } // too small
         else if 2 <= s.magnitude { s /= 2 ; e += 1 } // too large
