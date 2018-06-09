@@ -8,6 +8,10 @@ extension BigInt:   RationalElement {}
 extension RationalElement {
     /// - returns: the greatest common divisor of `self`
     public func greatestCommonDivisor(with n:Self)->Self {
+        if Self.self == BigInt.self {
+            return Self(BigInt(self).greatestCommonDivisor(with:BigInt(n)))
+        }
+        // print("\(Self.self).greatestCommonDivisor: slow version")
         var r = self < 0 ? -self : +self
         var q =    n < 0 ?    -n : +n
         if r < q { (r, q) = (q, r) }
@@ -21,6 +25,12 @@ extension RationalElement {
     }
     public func squareRoot()->Self {
         return Self(BigInt(self).squareRoot())
+    }
+}
+
+extension RationalElement where Self == BigInt {
+    public func greatestCommonDivisor(with n:Self)->Self {
+         return Self(BigInt(self).greatestCommonDivisor(with:BigInt(n)))
     }
 }
 
