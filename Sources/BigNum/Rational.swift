@@ -225,11 +225,15 @@ extension RationalType {
         if self.isInfinite {
             return self.sign == .minus ? -Double.infinity : +Double.infinity
         }
-        if 1024 < self.den.bitWidth { // for subnormal small numbers
-            let offset = Swift.min(self.den.trailingZeroBitCount, self.den.bitWidth - 1024)
-            return Double(BigInt(self.num)) / Double(BigInt(self.den >> offset)) / Double(BigInt(1) << offset)
+        let r = Double(BigInt(num)) / Double(BigInt(den))
+        if r.isZero {       // we know it is not zero so try again with subnormal handling
+            let w = Swift.min(den.trailingZeroBitCount, den.bitWidth - 1024)
+            return Double(BigInt(num)) / Double(BigInt(den >> w)) / Double(BigInt(1) << w)
         }
-        return Double(BigInt(self.num)) / Double(BigInt(self.den))
+        if r.isInfinite {   // we know it is not infinite so try with integral part
+            return Double(BigInt(self.asMixed.0))
+        }
+        return r
     }
     public init(_ q:Self) {
         self.init(q.num, q.den)
