@@ -501,12 +501,9 @@ extension RationalType {
     /// atanh
     public static func atanh(_ x:Self, precision px:Int = 64)->Self   {
         if x.isZero { return x }
-        if 1 < x.magnitude { return nan }
-        let epsilon = Self(BigInt(1).over(1 << px.magnitude))
-        if x * x <= epsilon {
-            return x    // asinh(x) == x blow this point
-        }
-        return (log(1 + x, precision:px) - log(1 - x, precision:px)) / 2
+        if 1 <  x.magnitude { return nan }
+        if 1 == x.magnitude { return x.sign == .minus ? -infinity : +infinity }
+        return log((1 + x)/(1 - x), precision:px)  / 2
     }
 }
 
