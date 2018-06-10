@@ -114,7 +114,7 @@ extension BigFloatingPoint {
         return px < 0 ? r : r.truncated(width: px)
     }
     /// self ** n where n is an integer
-    public func power(_ y:BigInt, precision px:Int = defaultPrecision)->Self  {
+    public func power(_ y:IntType, precision px:Int = defaultPrecision)->Self  {
         if self.isNaN || self.isInfinite || self.isZero {
             return Self(Double.pow(self.asDouble, Self(y).asDouble))
         }
