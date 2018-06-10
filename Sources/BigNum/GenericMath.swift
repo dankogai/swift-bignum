@@ -4,12 +4,9 @@ extension BigNum {
 }
 
 // constants
-extension RationalType {
-    public static var typeName:String {
-        return String(describing: type(of:Self.zero))
-    }
+extension BigRationalType {
     public static func getSetConstant(_ name:String, precision:Int, getter:(Int)->Self) -> Self {
-        let k = "\(Self.typeName).\(name)"
+        let k = "\(Self.self).\(name)"
         let px = Swift.abs(precision)
         // debugPrint("\(k):\(px)")
         if let v = BigNum.constants[k] {
@@ -22,7 +19,7 @@ extension RationalType {
     /// √2
     public static func SQRT2(precision px:Int = 64)->Self {
         return getSetConstant("SQRT2", precision:px) {
-            Self(2.0).squareRoot(precision: $0)
+            Self(Double(2.0)).squareRoot(precision: $0)
         }
     }
     /// euler's constant
@@ -45,7 +42,7 @@ extension RationalType {
             var (t, r) = (Self(1, 3), Self(1, 3))
             for i in 1...px {
                 t *= Self(1, 9)
-                if debug { print("\(typeName).LN2: i=\(i), r=~\(r.asDouble)") }
+                if debug { print("\(Self.self).LN2: i=\(i), r=~\(r.asDouble)") }
                 if t < epsilon { break }
                 r += t / Self(2 * i + 1)
                 r.truncate(width: $0)
@@ -63,7 +60,7 @@ extension RationalType {
     /// π/4 in precision `px`.  Bellard's Formula
     public static func ATAN1(precision px:Int = 64, debug:Bool=false)->Self {
         return getSetConstant("ATAN1", precision: px) {
-            let epsilon = BigInt(1).over(1 << px.magnitude)
+            let epsilon = Self(BigInt(1).over(1 << px.magnitude))
             var p64 = Self(0)
             for i in 0..<Int($0.magnitude) {
                 var t = Self(0)
@@ -94,8 +91,8 @@ extension RationalType {
         return 4*ATAN1(precision:px)
     }
 }
-// tgmath for RationalType
-extension RationalType {
+// tgmath for BigRationalType
+extension BigRationalType {
     /// √x
     public static func sqrt(_ x:Self, precision px:Int = 64)->Self {
         return x.squareRoot(precision: px)

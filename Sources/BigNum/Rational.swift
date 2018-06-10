@@ -3,8 +3,6 @@ public protocol RationalElement : SignedInteger {
     init(_:Int)
 }
 
-extension BigInt:   RationalElement {}
-
 extension RationalElement {
     /// - returns: the greatest common divisor of `self`
     public func greatestCommonDivisor(with n:Self)->Self {
@@ -43,6 +41,34 @@ public protocol RationalType : CustomStringConvertible, FloatingPoint, Expressib
     var den:Element { get set }
     init(num:Element, den:Element)
     static var maxExponent:Element { get }
+}
+
+public protocol BigRationalType : RationalType & BigFloatingPoint {}
+
+extension BigInt: RationalElement {
+    public func over(_ den:BigInt)->BigRational {
+        return BigRational(self, den)
+    }
+}
+
+extension BigRationalType {
+    /// return the truncated version of `self` with significand to `width` bits
+    public func truncated(width:Int = Int64.bitWidth)->Self {
+        if self.isNaN || self.isZero || self.isInfinite { return self }
+        if width == 0       { return self }
+        if self.den == 1    { return self }
+        let w = width < 0 ? -width : +width
+        if den.bitWidth <= w    { return self }
+        let s = max(den.bitWidth - 1, w)    // -1 for sign bit
+        let d = Element(1) << s
+        let t = s - w
+        let n = (num * d / den) >> t    // shift to discard lower bits
+        return Self(n << t, d)          // and shift back
+    }
+    /// truncate significand to `width` bits
+    public mutating func truncate(width:Int) {
+        self = truncated(width: width)
+    }
 }
 
 extension RationalType {
@@ -363,25 +389,8 @@ extension RationalType {
         self.init(Element(bq.num), Element(bq.den))
     }
     public var asBigRat:BigRat {
-        if Self.self == BigRat.self { return self as! BigRat }
-        return BigInt(Element(self.num)).over(BigInt(Element(self.den)))
-    }
-    /// return the truncated version of `self` with significand to `width` bits
-    public func truncated(width:Int = Int64.bitWidth)->Self {
-        if self.isNaN || self.isZero || self.isInfinite { return self }
-        if width == 0       { return self }
-        if self.den == 1    { return self }
-        let w = width < 0 ? -width : +width
-        if den.bitWidth <= w    { return self }
-        let s = max(den.bitWidth - 1, w)    // -1 for sign bit
-        let d = Element(1) << s
-        let t = s - w
-        let n = (num * d / den) >> t    // shift to discard lower bits
-        return Self(n << t, d)          // and shift back
-    }
-    /// truncate significand to `width` bits
-    public mutating func truncate(width:Int) {
-        self = truncated(width: width)
+        if self is BigRat { return self as! BigRat }
+        return BigRat(Int64(self.num), Int64(self.den))
     }
  }
 
@@ -415,9 +424,34 @@ public struct Rational<I:RationalElement> : RationalType {
     }
 }
 
-public typealias BigRat = Rational<BigInt>
+public struct BigRational : BigRationalType {
+    public typealias IntegerLiteralType = Int
+    public typealias FloatLiteralType =   Double
+    public typealias Element = BigInt
+    public var (num, den):(Element, Element)
+    public init(num n:Element, den d:Element) {
+        (num, den) = (n, d)
+    }
+    public init<I:FixedWidthInteger>(_ n:I, _ d:I) {
+        self.init(Element(n), Element(d))
+    }
+    public init(integerLiteral: IntegerLiteralType) {
+        self.init(Element(integerLiteral))
+    }
+    public init(floatLiteral: FloatLiteralType) {
+        self.init(floatLiteral)
+    }
+    /// maximum magnitude of the argument to exponential functions.
+    /// if smaller than `-maxExponent` 0 is returned
+    /// anything larger than `+maxExponent` +infinity is returned
+    public static var maxExponent:Element {
+        return Element(Int16.max)
+    }
+}
 
-extension RationalType where Element == BigInt {
+public typealias BigRat = BigRational
+
+extension BigRational {
     public var asIntRat:IntRat {
         let q = self.truncated(width: Int.bitWidth - 1)
         return IntRat(num:Int(q.num), den:Int(q.den))
@@ -441,7 +475,7 @@ extension RationalType where Element == BigInt {
         let bitsPerDigit = Double.log2(Double(radix))
         let bitWidth = Swift.max(fself.num.bitWidth, fself.den.bitWidth, Int64.bitWidth)
         let ndigits = Int(Double(bitWidth) / bitsPerDigit) + 1
-        var (i, r) = (self * Self(BigInt(radix).power(ndigits))).asMixed
+        var (i, r) = (self * BigInt(radix).power(ndigits)).asMixed
         if 1 <= r.magnitude * 2 {
             i += i.sign == .minus ? -1 : +1
         }
@@ -502,7 +536,7 @@ extension FixedWidthRationalType {
         return Self(-Element.max, 1)
     }
     public var asBigRat:BigRat {
-        return BigInt(Int(self.num)).over(BigInt(Int(self.den)))
+        return BigRat(self.num, self.den)
     }
     public var exponent:Element {
         return Element(self.asDouble.exponent)
