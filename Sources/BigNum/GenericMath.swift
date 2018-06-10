@@ -139,16 +139,21 @@ extension RationalType {
     /// atan2
     public static func atan2(_ y:Self, _ x:Self, precision px:Int = 64)->Self  {
         // cf. https://en.wikipedia.org/wiki/Atan2
+        //     https://www.freebsd.org/cgi/man.cgi?query=atan2
         if x.isNaN || y.isNaN { return nan }
-        // let us follow Double.atan2 for these special cases
-        if x.isZero || y.isZero || x.isInfinite || y.isInfinite {
-            return Self(Double.atan2(y.asDouble, x.asDouble))
+        let ysgn  = Self(y.sign == .minus ? -1 : +1)
+        let xsgn  = Self(x.sign == .minus ? -1 : +1)
+        let y_x   = x.isInfinite && y.isInfinite ? ysgn * xsgn : y/x // avoid nan for ±inf/±inf
+        if 0 < x {
+            return atan(y_x, precision:px)
         }
-        // print("\(Self.self).atan2: y/x =\(y)/\(x)=\(y_x)")
         if x < 0 {
-            return atan(y/x, precision:px) + (y < 0 ? -PI(precision:px) : +PI(precision:px))
-        } else {
-            return atan(y/x, precision:px)
+            return ysgn * (PI(precision:px) - atan(Swift.abs(y_x), precision:px))
+        }
+        else {  // x.isZero
+            return ysgn * (
+                y.isZero ? (x.sign == .minus ? PI(precision:px) : 0) : PI(precision: px)/2
+            )
         }
     }
     /// x ** y
