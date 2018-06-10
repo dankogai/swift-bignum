@@ -5,12 +5,14 @@ import Glibc
 import Darwin
 #endif
 
-var (x, y) = (BigRat(0), BigRat(0))
-for i in (0...1000) {
-    x = BigRat.log2(BigRat(i), precision:128)
-    y = BigRat.binaryLog(BigRat(i), precision:128)
-}
-exit(0)
+print(Float80.asinh(5.5626846462680035e-309, debug:true))
+
+//var (x, y) = (BigRat(0), BigRat(0))
+//for i in (0...1000) {
+//    x = BigRat.log2(BigRat(i), precision:128)
+//    y = BigRat.binaryLog(BigRat(i), precision:128)
+//}
+//exit(0)
 //for i in (2...10) {
 //    print(BigNum.bernoulliNumber(i) / BigRat(i * (i-1)))
 //}
@@ -19,7 +21,7 @@ exit(0)
 //print("Double.lgamma:", Double.lgamma(0.195))
 //print("BigRat.lgamma:", BigRat.lgamma(-0.195).asDouble)
 //print("Double.lgamma:", Double.lgamma(-0.195))
-//exit(0)
+exit(0)
 //for i in (0...29) {
 //    print(i, BigNum.bernoulliNumber(i))
 //    print(i, BigNum.factorial(i))

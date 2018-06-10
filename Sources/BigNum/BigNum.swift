@@ -15,10 +15,12 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
     init(_:Double)
     init(_:BigInt)
     init(_:IntType)
+    init(_:BigRat)
     var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:Self) { get }
     static var maxExponent:Int { get }
     var asDouble:Double { get }
-    var asMixed:(BigInt, Self) { get }
+    var asMixed:(IntType, Self) { get }
+    var asBigRat:BigRat { get }
     static func %(_:Self,_:Self)->Self
     static var defaultPrecision:Int { get }
     static func getEpsilon(precision: Int)->Self

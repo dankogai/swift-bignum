@@ -385,14 +385,7 @@ extension RationalType {
     }
     public var numerator:Element   { return num }
     public var denominator:Element { return den }
-    public init(_ bq:BigRat) {
-        self.init(Element(bq.num), Element(bq.den))
-    }
-    public var asBigRat:BigRat {
-        if self is BigRat { return self as! BigRat }
-        return BigRat(Int64(self.num), Int64(self.den))
-    }
- }
+}
 
 extension RationalType where Element:FixedWidthInteger {}
 
@@ -447,6 +440,7 @@ public struct BigRational : BigRationalType {
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
     }
+    public var asBigRat:BigRational { return self }
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-maxExponent` 0 is returned
     /// anything larger than `+maxExponent` +infinity is returned
