@@ -52,22 +52,18 @@ extension BigInt: RationalElement {
 }
 
 extension BigRationalType {
-    /// return the truncated version of `self` with significand to `width` bits
-    public func truncated(width:Int = Int64.bitWidth)->Self {
-        if self.isNaN || self.isZero || self.isInfinite { return self }
-        if width == 0       { return self }
-        if self.den == 1    { return self }
+    /// truncate significand to `width` bits
+    public mutating func truncate(width:Int) {
+        if self.isNaN || self.isZero || self.isInfinite { return }
+        if width == 0       { return }
+        if self.den == 1    { return }
         let w = width < 0 ? -width : +width
-        if den.bitWidth <= w    { return self }
+        if den.bitWidth <= w    { return }
         let s = max(den.bitWidth - 1, w)    // -1 for sign bit
         let d = Element(1) << s
         let t = s - w
         let n = (num * d / den) >> t    // shift to discard lower bits
-        return Self(n << t, d)          // and shift back
-    }
-    /// truncate significand to `width` bits
-    public mutating func truncate(width:Int) {
-        self = truncated(width: width)
+        self = Self(n << t, d)          // and shift back
     }
 }
 

@@ -1,41 +1,12 @@
 /// conforming to BigFloatingPoint
 extension Float80: BigFloatingPoint {
     public typealias IntType = Int
-    /// does nothing since it is fixed-width
-    public func truncated(width:Int)->Float80 { return self }
-    /// does nothing since it is fixed-width
-    public mutating func truncate(width:Int) {}
-    /// just returns sign, exponent, and significand all at once
-    public var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:Float80) {
-        return (sign:self.sign, exponent:self.exponent, significand:self.significand)
-    }
-    /// max exponent is 16383 = 0x3fff
-    public static let maxExponent = 0x3fff
     /// BigRat -> Float80
     public init(_ bq: BigRat) { self = bq.asFloat80 }
     /// Float80 -> Double
     public var asDouble:Double { return Double(self) }
     /// Float80 -> BigRat
     public var asBigRat:BigRat { return BigRat(self) }
-    /// Truncating Remainder
-    public static func %(_ lhs:Float80, _ rhs:Float80)->Float80 {
-        return lhs.truncatingRemainder(dividingBy: rhs)
-    }
-    /// breaks it down to int part and float part
-    public var asMixed:(IntType, Float80) {
-        let rem = self.truncatingRemainder(dividingBy: 1.0)
-        return (IntType(self - rem), rem)
-    }
-    /// default precision = 63
-    public static var defaultPrecision:Int { return 63 }
-    /// get epsilon for math functions.  always smaller than 63
-    public static func getEpsilon(precision px: Int)->Float80 {
-        return 1.0 / Float80(1 << min(63, px.magnitude))
-    }
-    /// √self . currently delegated to BigRat
-    public func squareRoot(precision px: Int) -> Float80 {
-        return self.asBigRat.squareRoot(precision: px).asFloat80
-    }
 }
 /// Float80-related extension
 extension BigRat {
