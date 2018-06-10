@@ -38,30 +38,30 @@ final class GenericMathTests: XCTestCase {
         for d in doubles {
             let q = Q(d); var (rd, rq):(D, Q)
             _ = d.isNaN ? XCTAssertEqual(d.isNaN, q.isNaN) : XCTAssertEqual(d, q.asDouble) // very basic test
-            (rd, rq) = (D.sqrt(d), Q.sqrt(q) ); XCTAssert(ok(d, rd, rq, "sqrt" ){d==D(rq)*D(rq)      }, "\(d)")
-            (rd, rq) = (D.cbrt(d), Q.cbrt(q) ); XCTAssert(ok(d, rd, rq, "cbrt" ){d==D(rq)*D(rq)*D(rq)}, "\(d)")
-            (rd, rq) = (D.exp(d),  Q.exp(q)  ); XCTAssert(ok(d, rd, rq, "exp"  ){
+            (rd, rq)=(D.sqrt(d), Q.sqrt(q,precision:64) ); XCTAssert(ok(d, rd, rq, "sqrt" ){d==D(rq)*D(rq)      }, "\(d)")
+            (rd, rq)=(D.cbrt(d), Q.cbrt(q,precision:64) ); XCTAssert(ok(d, rd, rq, "cbrt" ){d==D(rq)*D(rq)*D(rq)}, "\(d)")
+            (rd, rq)=(D.exp(d),  Q.exp(q,precision:64)  ); XCTAssert(ok(d, rd, rq, "exp"  ){
                 lgfm < d.magnitude || d==D.log  (D(rq)) }, "\(d)")
-            (rd, rq) = (D.expm1(d),Q.expm1(q)); XCTAssert(ok(d, rd, rq, "exp1m"){
+            (rd, rq)=(D.expm1(d),Q.expm1(q)); XCTAssert(ok(d, rd, rq, "exp1m"){
                 lgfm < d.magnitude || d==D.log1p(D(rq)) }, "\(d)")
-            (rd, rq) = (D.log(d),  Q.log(q)  ); XCTAssert(ok(d, rd, rq, "log"  ){d==D.exp  (D(rq))}, "\(d)")
-            (rd, rq) = (D.log2(d), Q.log2(q) ); XCTAssert(ok(d, rd, rq, "log2" ){d==D.pow( 2,D(rq))}, "\(d)")
-            (rd, rq) = (D.log10(d),Q.log10(q)); XCTAssert(ok(d, rd, rq, "log10"){d==D.pow(10,D(rq))}, "\(d)")
-            (rd, rq) = (D.log1p(d),Q.log1p(q)); XCTAssert(ok(d, rd, rq, "log1p"){d==D.expm1(D(rq))}, "\(d)")
-            (rd, rq) = (D.sin(d),  Q.sin(q)  ); XCTAssert(ok(d, rd, rq, "sin"  ){d==D.asin (D(rq))}, "\(d)")
-            (rd, rq) = (D.cos(d),  Q.cos(q)  ); XCTAssert(ok(d, rd, rq, "cos"  ){d==D.acos (D(rq))}, "\(d)")
-            (rd, rq) = (D.tan(d),  Q.tan(q)  ); XCTAssert(ok(d, rd, rq, "tan"  ){d==D.atan (D(rq))}, "\(d)")
-            (rd, rq) = (D.asin(d), Q.asin(q) ); XCTAssert(ok(d, rd, rq, "asin" ){d==D.tan  (D(rq))}, "\(d)")
-            (rd, rq) = (D.acos(d), Q.acos(q) ); XCTAssert(ok(d, rd, rq, "acos" ){d==D.cos  (D(rq))}, "\(d)")
-            (rd, rq) = (D.atan(d), Q.atan(q) ); XCTAssert(ok(d, rd, rq, "atan" ){d==D.tan  (D(rq))}, "\(d)")
-            (rd, rq) = (D.sinh(d), Q.sinh(q) ); XCTAssert(ok(d, rd, rq, "sinh" ){
+            (rd, rq)=(D.log(d),  Q.log(q,precision:64)  ); XCTAssert(ok(d, rd, rq, "log"  ){d==D.exp  (D(rq))}, "\(d)")
+            (rd, rq)=(D.log2(d), Q.log2(q,precision:64) ); XCTAssert(ok(d, rd, rq, "log2" ){d==D.pow( 2,D(rq))}, "\(d)")
+            (rd, rq)=(D.log10(d),Q.log10(q,precision:64)); XCTAssert(ok(d, rd, rq, "log10"){d==D.pow(10,D(rq))}, "\(d)")
+            (rd, rq)=(D.log1p(d),Q.log1p(q,precision:64)); XCTAssert(ok(d, rd, rq, "log1p"){d==D.expm1(D(rq))}, "\(d)")
+            (rd, rq)=(D.sin(d),  Q.sin(q,precision:64)  ); XCTAssert(ok(d, rd, rq, "sin"  ){d==D.asin (D(rq))}, "\(d)")
+            (rd, rq)=(D.cos(d),  Q.cos(q,precision:64)  ); XCTAssert(ok(d, rd, rq, "cos"  ){d==D.acos (D(rq))}, "\(d)")
+            (rd, rq)=(D.tan(d),  Q.tan(q,precision:64)  ); XCTAssert(ok(d, rd, rq, "tan"  ){d==D.atan (D(rq))}, "\(d)")
+            (rd, rq)=(D.asin(d), Q.asin(q,precision:64) ); XCTAssert(ok(d, rd, rq, "asin" ){d==D.tan  (D(rq))}, "\(d)")
+            (rd, rq)=(D.acos(d), Q.acos(q,precision:64) ); XCTAssert(ok(d, rd, rq, "acos" ){d==D.cos  (D(rq))}, "\(d)")
+            (rd, rq)=(D.atan(d), Q.atan(q,precision:64) ); XCTAssert(ok(d, rd, rq, "atan" ){d==D.tan  (D(rq))}, "\(d)")
+            (rd, rq)=(D.sinh(d), Q.sinh(q,precision:64) ); XCTAssert(ok(d, rd, rq, "sinh" ){
                 lgfm < d.magnitude || d==D.asinh(D(rq)) }, "\(d)")
-            (rd, rq) = (D.cosh(d), Q.cosh(q) ); XCTAssert(ok(d, rd, rq, "cosh" ){
+            (rd, rq)=(D.cosh(d), Q.cosh(q) ); XCTAssert(ok(d, rd, rq, "cosh" ){
                 lgfm < d.magnitude || d==D.acosh(D(rq)) }, "\(d)")
-            (rd, rq) = (D.tanh(d), Q.tanh(q) ); XCTAssert(ok(d, rd, rq, "tanh" ){d==D.atanh(D(rq))}, "\(d)")
-            (rd, rq) = (D.asinh(d),Q.asinh(q)); XCTAssert(ok(d, rd, rq, "asinh"){d==D.sinh (D(rq))}, "\(d)")
-            (rd, rq) = (D.acosh(d),Q.acosh(q)); XCTAssert(ok(d, rd, rq, "acosh"){d==D.cosh (D(rq))}, "\(d)")
-            (rd, rq) = (D.atanh(d),Q.atanh(q)); XCTAssert(ok(d, rd, rq, "atanh"){d==D.tanh (D(rq))}, "\(d)")
+            (rd, rq)=(D.tanh(d), Q.tanh(q,precision:64) ); XCTAssert(ok(d, rd, rq, "tanh" ){d==D.atanh(D(rq))}, "\(d)")
+            (rd, rq)=(D.asinh(d),Q.asinh(q,precision:64)); XCTAssert(ok(d, rd, rq, "asinh"){d==D.sinh (D(rq))}, "\(d)")
+            (rd, rq)=(D.acosh(d),Q.acosh(q,precision:64)); XCTAssert(ok(d, rd, rq, "acosh"){d==D.cosh (D(rq))}, "\(d)")
+            (rd, rq)=(D.atanh(d),Q.atanh(q,precision:64)); XCTAssert(ok(d, rd, rq, "atanh"){d==D.tanh (D(rq))}, "\(d)")
         }
         print("testUnary:checked \(count) cases")
     }
@@ -70,7 +70,7 @@ final class GenericMathTests: XCTestCase {
         debugPrint(doubles)
         for y in doubles {
             for x in doubles {
-                XCTAssertEqual(D(Q.atan2(Q(y), Q(x))), D.atan2(y, x), "\(x, y, Q.atan2(Q(y), Q(x)))")
+                XCTAssertEqual(D(Q.atan2(Q(y), Q(x),precision:64)), D.atan2(y, x), "\(x, y, Q.atan2(Q(y), Q(x)))")
             }
         }
     }

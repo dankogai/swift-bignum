@@ -37,10 +37,11 @@ import FloatingPointMath
 /// Rational number type whose numerator and denominator are `RationalElement`
 public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral, FloatingPointMath{
     associatedtype Element:RationalElement
+    associatedtype IntType:RationalElement
     var num:Element { get set }
     var den:Element { get set }
     init(num:Element, den:Element)
-    static var maxExponent:Element { get }
+    static var maxExponent:Int { get }
 }
 
 public protocol BigRationalType : RationalType & BigFloatingPoint {}
@@ -311,9 +312,9 @@ extension RationalType {
     public func over(_ d:Element)->Self {
         return self.over(Self(d))
     }
-    public var asMixed:(Element, Self) {
+    public var asMixed:(IntType, Self) {
         let (q, r) = self.num.quotientAndRemainder(dividingBy: self.den)
-        return (q, Self(r, self.den))
+        return (q, Self(r, self.den)) as! (Self.IntType, Self)
     }
     public func quotientAndRemainder(dividingBy other: Self)->(Self, Self) {
         let (q, r) = self.over(other).asMixed
@@ -406,6 +407,7 @@ public struct Rational<I:RationalElement> : RationalType {
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType =   Double
     public typealias Element = I
+    public typealias IntType = I
     public var (num, den):(I, I)
     public init(num n:I, den d:I) {
         (num, den) = (n, d)
@@ -419,8 +421,8 @@ public struct Rational<I:RationalElement> : RationalType {
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-maxExponent` 0 is returned
     /// anything larger than `+maxExponent` +infinity is returned
-    public static var maxExponent:I {
-        return I(Int16.max)
+    public static var maxExponent:Int {
+        return Int(Int16.max)
     }
 }
 
@@ -428,6 +430,7 @@ public struct BigRational : BigRationalType {
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType =   Double
     public typealias Element = BigInt
+    public typealias IntType = BigInt
     public var (num, den):(Element, Element)
     public init(num n:Element, den d:Element) {
         (num, den) = (n, d)
@@ -444,8 +447,8 @@ public struct BigRational : BigRationalType {
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-maxExponent` 0 is returned
     /// anything larger than `+maxExponent` +infinity is returned
-    public static var maxExponent:Element {
-        return Element(Int16.max)
+    public static var maxExponent:Int {
+        return Int(Int16.max)
     }
 }
 
@@ -560,6 +563,7 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRation
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType   = Double
     public typealias Element = I
+    public typealias IntType = I
     public var (num, den):(I, I)
     public init(num n:I, den d:I) {
         (num, den) = (n, d)
@@ -573,8 +577,8 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRation
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-maxExponent` 0 is returned
     /// anything larger than `+maxExponent` +infinity is returned
-    public static var maxExponent:I {
-        return I(I.bitWidth - 1)
+    public static var maxExponent:Int {
+        return I.bitWidth - 1
     }
 }
 
