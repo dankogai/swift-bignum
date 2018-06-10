@@ -1,5 +1,6 @@
 import BigInt
 @_exported import struct BigInt.BigInt  // re-export BigInt
+import FloatingPointMath
 
 ///
 /// Placeholder for utility functions and values
@@ -19,6 +20,8 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
     var asDouble:Double { get }
     var asMixed:(BigInt, Self) { get }
     static func %(_:Self,_:Self)->Self
+    static var defaultPrecision:Int { get }
+    static func getEpsilon(precision: Int)->Self
 }
 
 public protocol DoubleConvertible {

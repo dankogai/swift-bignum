@@ -16,28 +16,28 @@ extension BigFloatingPoint {
         return v
     }
     /// √2
-    public static func SQRT2(precision px:Int = 64)->Self {
+    public static func SQRT2(precision px:Int = defaultPrecision)->Self {
         return getSetConstant("SQRT2", precision:px) {
             Self(Double(2.0)).squareRoot(precision: $0)
         }
     }
     /// euler's constant
-    public static func E(precision px:Int = 64)->Self {
+    public static func E(precision px:Int = defaultPrecision)->Self {
         return getSetConstant("E", precision:px) {
-            let limit = Self(sign:.plus, exponent:Exponent($0), significand:1)
+            let epsilon = getEpsilon(precision: px)
             var (e, d) = (Self(1), Self(1))
             for i in 1 ... (px.magnitude) {
                 d *= Self(i)
                 e += Self(1) / (d)
-                if limit < d { break }
+                if 1/d < epsilon { break }
             }
             return e.truncated(width: $0)
         }
     }
     /// log(2)
-    public static func LN2(precision px:Int = 64, debug:Bool = false)->Self {
+    public static func LN2(precision px:Int = defaultPrecision, debug:Bool = false)->Self {
         return getSetConstant("LN2", precision:px) {
-            let epsilon = 1 / Self(IntType(1) << px)
+            let epsilon = getEpsilon(precision: px)
             var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
             for i in 1...px {
                 t *= Self(1)/Self(9)
@@ -51,15 +51,15 @@ extension BigFloatingPoint {
         }
     }
     /// log(10)
-    public static func LN10(precision px:Int = 64)->Self {
+    public static func LN10(precision px:Int = defaultPrecision)->Self {
         return getSetConstant("LN10", precision:px) {
             Self.log(10, precision:$0)
         }
     }
     /// π/4 in precision `px`.  Bellard's Formula
-    public static func ATAN1(precision px:Int = 64, debug:Bool=false)->Self {
+    public static func ATAN1(precision px:Int = defaultPrecision, debug:Bool=false)->Self {
         return getSetConstant("ATAN1", precision: px) {
-            let epsilon = Self(1)/Self(sign:.plus, exponent:Exponent($0.magnitude), significand:1)
+            let epsilon = getEpsilon(precision: px)
             var p64 = Self(0)
             for i in 0..<Int($0.magnitude) {
                 var t = Self(0)
@@ -86,22 +86,22 @@ extension BigFloatingPoint {
         }
     }
     /// π in precision `px`.  4*atan(1)
-    public static func PI(precision px:Int = 64)->Self {
+    public static func PI(precision px:Int = defaultPrecision)->Self {
         return 4*ATAN1(precision:px)
     }
 }
 extension BigFloatingPoint {
     /// √x
-    public static func sqrt(_ x:Self, precision px:Int = 64)->Self {
+    public static func sqrt(_ x:Self, precision px:Int = defaultPrecision)->Self {
         return x.squareRoot(precision: px)
     }
     /// sqrt(x*x + y*y)
-    public static func hypot(_ x:Self, _ y:Self, precision px:Int = 64)->Self  {
+    public static func hypot(_ x:Self, _ y:Self, precision px:Int = defaultPrecision)->Self  {
         // return (x*x + y*y).squareRoot(precision: px)
         var (r, l) = (x < 0 ? -x : x, y < 0 ? -y : y)
         if r < l { (r, l) = (l, r) }
         if l == 0 { return r }
-        let epsilon = 1 / Self(IntType(1) << px.magnitude)
+        let epsilon = getEpsilon(precision: px)
         while epsilon < l {
             var t = l / r
             t *= t
@@ -114,7 +114,7 @@ extension BigFloatingPoint {
         return px < 0 ? r : r.truncated(width: px)
     }
     /// self ** n where n is an integer
-    public func power(_ y:BigInt, precision px:Int = 64)->Self  {
+    public func power(_ y:BigInt, precision px:Int = defaultPrecision)->Self  {
         if self.isNaN || self.isInfinite || self.isZero {
             return Self(Double.pow(self.asDouble, Self(y).asDouble))
         }
@@ -132,7 +132,7 @@ extension BigFloatingPoint {
         return r.truncated(width:px)
     }
     /// atan2
-    public static func atan2(_ y:Self, _ x:Self, precision px:Int = 64)->Self  {
+    public static func atan2(_ y:Self, _ x:Self, precision px:Int = defaultPrecision)->Self  {
         // cf. https://en.wikipedia.org/wiki/Atan2
         //     https://www.freebsd.org/cgi/man.cgi?query=atan2
         if x.isNaN || y.isNaN { return nan }
@@ -152,7 +152,7 @@ extension BigFloatingPoint {
         }
     }
     /// x ** y
-    public static func pow(_ x:Self, _ y:Self, precision px:Int = 64)->Self  {
+    public static func pow(_ x:Self, _ y:Self, precision px:Int = defaultPrecision)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
             return Self(Double.pow(x.asDouble, y.asDouble))
         }
@@ -174,7 +174,7 @@ extension BigFloatingPoint {
         return px < 0 ? ir * fr : (ir * fr).truncated(width: px)
     }
     /// nth root of self
-    public func nthroot(_ n:IntType, precision px:Int = 64)->Self {
+    public func nthroot(_ n:IntType, precision px:Int = defaultPrecision)->Self {
         if self.isNaN  { return Self.nan }
         if self.isZero { return self }
         if self == 1   { return 1 }
@@ -182,11 +182,11 @@ extension BigFloatingPoint {
         return Self.pow(self, Self(1)/Self(n), precision:px)
     }
     /// cube root of self
-    public static func cbrt(_ x:Self, precision px:Int = 64)->Self {
+    public static func cbrt(_ x:Self, precision px:Int = defaultPrecision)->Self {
         return x.nthroot(3, precision: px)
     }
     /// e ** x
-    public static func exp(_ x:Self, precision px:Int = 64)->Self {
+    public static func exp(_ x:Self, precision px:Int = defaultPrecision)->Self {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
         if x.isZero     { return 1 }
@@ -198,7 +198,7 @@ extension BigFloatingPoint {
         let (ix, fx) = x.asMixed
         var (ir, fr) = (e.power(ix, precision:px), Self(1))
         if !fr.isZero {
-            let epsilon = 1 / Self(IntType(1) << px.magnitude)
+            let epsilon = getEpsilon(precision: px)
             var (n, d) = (Self(1), Self(1))
             for i in 1 ... px.magnitude {
                 n = (n * fx).truncated(width: px)
@@ -212,7 +212,7 @@ extension BigFloatingPoint {
         return  0 < px ? r : r.truncated(width:px)
     }
     /// exp(x) - 1
-    public static func expm1(_ x:Self, precision px:Int = 64)->Self {
+    public static func expm1(_ x:Self, precision px:Int = defaultPrecision)->Self {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? -1 : +infinity }
         if x.isZero     { return x }
@@ -222,7 +222,7 @@ extension BigFloatingPoint {
         if LN2(precision: px) <=  Swift.abs(x)  {
             return exp(x, precision:px) - 1
         }
-        let epsilon = 1 / Self(IntType(1) << px.magnitude)
+        let epsilon = getEpsilon(precision: px)
         var (n, d, r) = (Self(1), Self(1), Self(0))
         for i in 1 ... px.magnitude {
             n *= x
@@ -236,7 +236,7 @@ extension BigFloatingPoint {
         return  0 < px ? r : r.truncated(width:px)
     }
     /// binary log (base 2) -- steady but slow algorithm. use log2
-    public static func binaryLog(_ x:Self, precision px:Int = 64)->Self {
+    public static func binaryLog(_ x:Self, precision px:Int = defaultPrecision)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
@@ -258,7 +258,7 @@ extension BigFloatingPoint {
         return 0 < px ? r : r.truncated(width: px)
     }
     /// binary log
-    public static func log2(_ x:Self, precision px:Int = 64)->Self {
+    public static func log2(_ x:Self, precision px:Int = defaultPrecision)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
@@ -267,14 +267,14 @@ extension BigFloatingPoint {
         return 0 < px ? r : r.truncated(width: px)
     }
     /// natural log (base e)
-    public static func log(_ x:Self, precision px:Int = 64)->Self {
+    public static func log(_ x:Self, precision px:Int = defaultPrecision)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
         if x.isLess(than:1) { return -log(1/x, precision:px) }
         if x.isEqual(to:1)  { return 0 }
-        let epsilon = 1 / Self(IntType(1) << px.magnitude)
+        let epsilon = getEpsilon(precision: px)
         let (_, ix, fx) = x.decomposed
         var t = (fx - 1) / (fx + 1)
         let t2 = t * t
@@ -288,7 +288,7 @@ extension BigFloatingPoint {
         return 0 < px ? r : r.truncated(width: px)
     }
     /// common log (base 10)
-    public static func log10(_ x:Self, precision px:Int = 64)->Self {
+    public static func log10(_ x:Self, precision px:Int = defaultPrecision)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
@@ -297,7 +297,7 @@ extension BigFloatingPoint {
         return 0 < px ? r : r.truncated(width: px)
     }
     /// log(1 + x)
-    public static func log1p(_ x:Self, precision px:Int = 64)->Self {
+    public static func log1p(_ x:Self, precision px:Int = defaultPrecision)->Self {
         if x.isNaN                  { return nan }
         if x.isZero                 { return x }
         if x.isInfinite             { return x.sign == .minus ? nan : +infinity }
@@ -306,7 +306,7 @@ extension BigFloatingPoint {
         return 2*atanh(x/(x+2), precision:px)
     }
     /// normalize `x` to ±π
-    public static func normalizeAngle(_ x:Self, precision px:Int = 64)->Self {
+    public static func normalizeAngle(_ x:Self, precision px:Int = defaultPrecision)->Self {
         var theta = x
         let onepi = PI(precision:px)
         if theta < -2*onepi || +2*onepi < theta {
@@ -323,11 +323,11 @@ extension BigFloatingPoint {
         return theta
     }
     /// - returns: `(sin(x), cos(x))`
-    public static func sincos(_ x:Self, precision px:Int = 64, debug:Bool=false)->(sin:Self, cos:Self) {
+    public static func sincos(_ x:Self, precision px:Int = defaultPrecision, debug:Bool=false)->(sin:Self, cos:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
             return (Self(Double.sin(x.asDouble)), Self(Double.cos(x.asDouble)))
         }
-        let epsilon = 1 / Self(IntType(1) << px.magnitude)
+        let epsilon = getEpsilon(precision: px)
         if x * x <= epsilon {
             return (x, 1)   // sin(x) == x below this point
         }
@@ -360,15 +360,15 @@ extension BigFloatingPoint {
         return 0 < px ? (s, c) : (s.truncated(width: px), c.truncated(width: px))
     }
     /// cos(x)
-    public static func cos(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
+    public static func cos(_ x:Self, precision px:Int = defaultPrecision, debug:Bool=false)->Self {
         return sincos(x, precision:px, debug:debug).cos
     }
     /// sin(x)
-    public static func sin(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
+    public static func sin(_ x:Self, precision px:Int = defaultPrecision, debug:Bool=false)->Self {
         return sincos(x, precision:px, debug:debug).sin
     }
     /// tan(x)
-    public static func tan(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
+    public static func tan(_ x:Self, precision px:Int = defaultPrecision, debug:Bool=false)->Self {
         if x.isZero || x.isInfinite || x.isNaN {
             return Self(Double.tan(x.asDouble))
         }
@@ -381,11 +381,11 @@ extension BigFloatingPoint {
     //
     // cf. https://en.wikipedia.org/wiki/Inverse_trigonometric_functions#Infinite_series
     /// arctan
-    public static func atan(_ x:Self, precision px:Int = 64, debug:Bool=false)->Self {
+    public static func atan(_ x:Self, precision px:Int = defaultPrecision, debug:Bool=false)->Self {
         if x.isNaN || x.isZero { return x }
         let atan1 = ATAN1(precision: px)
         if x.isInfinite { return x.sign == .minus ? -2*atan1 : +2*atan1 }
-        let epsilon = 1 / Self(IntType(1) << px.magnitude)
+        let epsilon = getEpsilon(precision: px)
         if x * x < epsilon { return x } // atan(x) == x below this point
         let inner_atan:(Self)->Self = { x in
             let x2 = x*x
@@ -410,7 +410,7 @@ extension BigFloatingPoint {
         return x.sign == .minus ? -r : +r
     }
     /// arccos
-    public static func acos(_ x:Self, precision px:Int = 64)->Self   {
+    public static func acos(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         if (x - 1).isZero || 1 < Swift.abs(x) {
             return Self(Double.acos(x.asDouble))
         }
@@ -418,7 +418,7 @@ extension BigFloatingPoint {
         return PI(precision: px)/2 - asin(x, precision:px)
     }
     /// arcsin
-    public static func asin(_ x:Self, precision px:Int = 64)->Self   {
+    public static func asin(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         if let dx = x as? Double { return Self(Double.asin(dx)) }
         if x.isZero || 1 < Swift.abs(x) || x.isInfinite {
             return Self(Double.asin(x.asDouble))
@@ -427,7 +427,7 @@ extension BigFloatingPoint {
         return 2 * atan(a, precision:px)
     }
     /// - returns: `(sinh(x), cosh(x))`
-    public static func sinhcosh(_ x:Self, precision px:Int = 64, debug:Bool=false)->(sinh:Self, cosh:Self) {
+    public static func sinhcosh(_ x:Self, precision px:Int = defaultPrecision, debug:Bool=false)->(sinh:Self, cosh:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
             return (Self(Double.sinh(x.asDouble)), Self(Double.cosh(x.asDouble)))
         }
@@ -436,7 +436,7 @@ extension BigFloatingPoint {
             let em = 1/ep
             return ((ep - em)/2, (ep + em)/2)
         }
-        let epsilon = 1 / Self(IntType(1) << px.magnitude)
+        let epsilon = getEpsilon(precision: px)
         if x * x <= epsilon {
             return (x, 1)   // sinh(x) == x below this point
         }
@@ -463,15 +463,15 @@ extension BigFloatingPoint {
         return 0 < px ? (s, c) : (s.truncated(width: px), c.truncated(width: px))
     }
     /// hyperbolic cosine
-    public static func cosh(_ x:Self, precision px:Int = 64)->Self   {
+    public static func cosh(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         return sinhcosh(x, precision:px).cosh
     }
     /// hyperbolic sine
-    public static func sinh(_ x:Self, precision px:Int = 64)->Self   {
+    public static func sinh(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         return sinhcosh(x, precision:px).sinh
     }
     /// hyperbolic tangent
-    public static func tanh(_ x:Self, precision px:Int = 64)->Self   {
+    public static func tanh(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         if x.isZero || x.isInfinite || x.isNaN {
             return Self(Double.tanh(x.asDouble))
         }
@@ -482,16 +482,16 @@ extension BigFloatingPoint {
         return s / c
     }
     /// acosh
-    public static func acosh(_ x:Self, precision px:Int = 64)->Self   {
+    public static func acosh(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         if x.isLess(than: 1) { return nan }
         let a = x + sqrt(x * x - 1, precision:px)
         return log(a, precision:px)
     }
     /// asinh
-    public static func asinh(_ x:Self, precision px:Int = 64)->Self   {
+    public static func asinh(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         if x.isZero || x.isInfinite { return x }
         if x.isLess(than:0){ return -asinh(-x, precision:px) }
-        let epsilon = 1 / Self(IntType(1) << px.magnitude)
+        let epsilon = getEpsilon(precision: px)
         if x * x <= epsilon {
             return x    // asinh(x) == x blow this point
         }
@@ -499,7 +499,7 @@ extension BigFloatingPoint {
         return log(a, precision:px)
     }
     /// atanh
-    public static func atanh(_ x:Self, precision px:Int = 64)->Self   {
+    public static func atanh(_ x:Self, precision px:Int = defaultPrecision)->Self   {
         if x.isZero { return x }
         if 1 <  x.magnitude { return nan }
         if 1 == x.magnitude { return x.sign == .minus ? -infinity : +infinity }

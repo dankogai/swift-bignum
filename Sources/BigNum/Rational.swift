@@ -32,10 +32,9 @@ extension RationalElement where Self == BigInt {
     }
 }
 
-import FloatingPointMath
 
 /// Rational number type whose numerator and denominator are `RationalElement`
-public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral, FloatingPointMath{
+public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral {
     associatedtype Element:RationalElement
     associatedtype IntType:RationalElement
     var num:Element { get set }
@@ -428,9 +427,13 @@ public struct Rational<I:RationalElement> : RationalType {
 
 public struct BigRational : BigRationalType {
     public typealias IntegerLiteralType = Int
-    public typealias FloatLiteralType =   Double
+    public typealias FloatLiteralType = Double
     public typealias Element = BigInt
     public typealias IntType = BigInt
+    public static var defaultPrecision = 64
+    public static func getEpsilon(precision px:Int)->BigRational {
+        return 1 / BigRational(IntType(1) << px.magnitude)
+    }
     public var (num, den):(Element, Element)
     public init(num n:Element, den d:Element) {
         (num, den) = (n, d)
