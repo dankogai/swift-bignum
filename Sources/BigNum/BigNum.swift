@@ -7,23 +7,26 @@ import FloatingPointMath
 ///
 public class BigNum {}
 
+///
+/// BigFloatingPoint protocol.
+///
 public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
     associatedtype IntType:SignedInteger
-    func truncated(width:Int)->Self
-    mutating func truncate(width:Int)
     func squareRoot(precision: Int)->Self
-    init(_:Double)
+    func truncated(width:Int)->Self
     init(_:BigInt)
-    init(_:IntType)
     init(_:BigRat)
-    var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:Self) { get }
+    init(_:Double)
+    init(_:IntType)
+    mutating func truncate(width:Int)
+    static func %(_:Self,_:Self)->Self
+    static func getEpsilon(precision: Int)->Self
+    static var defaultPrecision:Int { get }
     static var maxExponent:Int { get }
+    var asBigRat:BigRat { get }
     var asDouble:Double { get }
     var asMixed:(IntType, Self) { get }
-    var asBigRat:BigRat { get }
-    static func %(_:Self,_:Self)->Self
-    static var defaultPrecision:Int { get }
-    static func getEpsilon(precision: Int)->Self
+    var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:Self) { get }
 }
 
 public protocol DoubleConvertible {
