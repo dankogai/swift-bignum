@@ -20,3 +20,17 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
     var asMixed:(BigInt, Self) { get }
     static func %(_:Self,_:Self)->Self
 }
+
+public protocol DoubleConvertible {
+    init(_:Double)
+    var asDouble:Double { get }
+}
+
+extension Double: DoubleConvertible {}
+extension Float:  DoubleConvertible {}
+
+extension DoubleConvertible {
+    init<T:BigFloatingPoint>(_ bf:T) {
+        self = Self(bf.asDouble)
+    }
+}
