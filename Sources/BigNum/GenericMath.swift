@@ -1,70 +1,68 @@
-// placeholder
-extension BigNum {
-    public static var constants = [String:(value:Any,precision:Int)]()
-}
 // constants
 extension BigFloatingPoint {
-    public static func getSetConstant(_ name:String, precision:Int, getter:(Int)->Self) -> Self {
-        let k = "\(Self.self).\(name)"
-        let px = Swift.abs(precision)
-        // debugPrint("\(k):\(px)")
-        if let v = BigNum.constants[k] {
-            if px <= v.precision { return (v.value as! Self).truncated(width: px)}
-        }
-        let v = getter(px)
-        BigNum.constants[k] = (value:v, precision:px)
-        return v
-    }
     /// √2
     public static func SQRT2(precision px:Int=defaultPrecision, debug:Bool=false)->Self {
-        return getSetConstant("SQRT2", precision:px) {
-            Self(Double(2.0)).squareRoot(precision: $0)
-        }
+        let apx = Swift.abs(px)
+        if apx <= SQRT2.precision { return SQRT2.value.truncated(width: apx) }
+        SQRT2.precision = apx
+        SQRT2.value = Self(2).squareRoot(precision: apx)
+        return SQRT2.value
     }
     /// euler's constant
     public static func E(precision px:Int=defaultPrecision, debug:Bool=false)->Self {
-        return getSetConstant("E", precision:px) {
+        let apx = Swift.abs(px)
+        if apx <= E.precision { return E.value.truncated(width: apx) }
+        E.precision = apx
+        E.value = {
             let epsilon = getEpsilon(precision: px)
             var (e, d) = (Self(1), Self(1))
-            for i in 1 ... (px.magnitude) {
+            for i in 1 ... apx {
                 d *= Self(i)
                 e += Self(1) / (d)
                 if 1/d < epsilon { break }
             }
-            return e.truncated(width: $0)
-        }
+            return e.truncated(width: apx)
+        }()
+        return E.value
     }
     /// log(2)
     public static func LN2(precision px:Int = defaultPrecision, debug:Bool = false)->Self {
-        return getSetConstant("LN2", precision:px) {
+        let apx = Swift.abs(px)
+        if apx <= LN2.precision { return LN2.value.truncated(width: apx) }
+        LN2.precision = apx
+        LN2.value = {
             let epsilon = getEpsilon(precision: px)
             var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
             for i in 1...px {
                 t *= Self(1)/Self(9)
                 if debug { print("\(Self.self).LN2: i=\(i), r=~\(r)") }
                 if t < epsilon { break }
-                r += t / Self(2 * i + 1)
-                r.truncate(width: $0)
-                t.truncate(width: $0)
+                r = (r + t / Self(2 * i + 1)).truncated(width:px)
             }
-            return (2*r).truncated(width: $0)
-        }
+            return (2*r).truncated(width: apx)
+        }()
+        return LN2.value
     }
     /// log(10)
     public static func LN10(precision px:Int=defaultPrecision, debug:Bool=false)->Self {
-        return getSetConstant("LN10", precision:px) {
-            Self.log(10, precision:$0)
-        }
+        let apx = Swift.abs(px)
+        if apx <= LN10.precision { return LN10.value.truncated(width: apx) }
+        LN10.precision = apx
+        LN10.value = Self.log(10, precision:apx)
+        return LN10.value
     }
     /// π/4 in precision `px`.  Bellard's Formula
     public static func ATAN1(precision px:Int = defaultPrecision, debug:Bool=false)->Self {
         if leastNormalMagnitude != 0 {  // FIXME: this trick is dirty
             return Self.pi / 4
         }
-        return getSetConstant("ATAN1", precision: px) {
+        let apx = Swift.abs(px)
+        if apx <= ATAN1.precision { return ATAN1.value.truncated(width: apx) }
+        ATAN1.precision = apx
+        ATAN1.value = {
             let epsilon = getEpsilon(precision: px)
             var p64 = Self(0)
-            for i in 0..<Int($0.magnitude) {
+            for i in 0..<Int(apx.magnitude) {
                 var t = Self(0)
                 t -= Self(1<<5) / Self( 4 * i + 1)
                 t -= Self(1<<0) / Self( 4 * i + 3)
@@ -85,15 +83,13 @@ extension BigFloatingPoint {
                 if t < epsilon { break }
             }
             p64 /= Self(1<<8)
-            return p64.truncated(width: $0)
-        }
+            return p64.truncated(width: apx)
+        }()
+        return ATAN1.value
     }
     /// π in precision `px`.  4*atan(1)
     public static func PI(precision px:Int=defaultPrecision, debug:Bool=false)->Self {
-        if leastNormalMagnitude != 0 {  // FIXME: this trick is dirty
-            return Self.pi
-        }
-        return 4*ATAN1(precision:px)
+        return ATAN1(precision: Swift.abs(px)) * 4
     }
 }
 

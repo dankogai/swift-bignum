@@ -1,6 +1,13 @@
 /// conforming to BigFloatingPoint
 extension Float80: BigFloatingPoint {
+    /// Corresponding integer type
     public typealias IntType = Int
+    /// constants
+    public static var ATAN1 = (precision:0, value:nan)
+    public static var E     = (precision:0, value:nan)
+    public static var SQRT2 = (precision:0, value:nan)
+    public static var LN2   = (precision:0, value:nan)
+    public static var LN10  = (precision:0, value:nan)
     /// BigRat -> Float80
     public init(_ bq: BigRat) { self = bq.asFloat80 }
     /// Float80 -> Double

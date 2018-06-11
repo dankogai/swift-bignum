@@ -420,6 +420,12 @@ public struct BigRational : BigRationalType {
     public typealias Element = BigInt
     public typealias IntType = BigInt
     public static var defaultPrecision = 64
+    public static var ATAN1 = (precision:0, value:nan)
+    public static var E     = (precision:0, value:nan)
+    public static var SQRT2 = (precision:0, value:nan)
+    public static var LN2   = (precision:0, value:nan)
+    public static var LN10  = (precision:0, value:nan)
+    
     public static func getEpsilon(precision px:Int)->BigRational {
         return 1 / BigRational(IntType(1) << px.magnitude)
     }

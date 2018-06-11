@@ -26,6 +26,11 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
     var asDouble:Double { get }
     var asMixed:(IntType, Self) { get }
     var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:Self) { get }
+    static var ATAN1:(precision: Int, value:Self) { get set }
+    static var E:    (precision: Int, value:Self) { get set }
+    static var SQRT2:(precision: Int, value:Self) { get set }
+    static var LN2:  (precision: Int, value:Self) { get set }
+    static var LN10: (precision: Int, value:Self) { get set }
 }
 extension BigFloatingPoint {
     public func truncated(width px: Int)->Self {
