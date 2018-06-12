@@ -25,13 +25,13 @@ final class GenericMathTests: XCTestCase {
             }
         }
         let lgfm = D.log(D.greatestFiniteMagnitude) // log of the greatest finite double == 709.78271289338397
-        var doubles = [1.0] + [D.ulpOfOne, D.greatestFiniteMagnitude]
+        var doubles = [D(1.0)] + [D.ulpOfOne, D.greatestFiniteMagnitude]
         doubles += (1...52).map{ 1 + 1/D(1<<$0)}
         doubles += (1...10).map{ D(1 << $0) }
         doubles += doubles.map { 1.0 / $0 }
         doubles += doubles.map{ -$0 }
         doubles =  doubles.sorted().reduce([]){ $0.contains($1) ? $0 : $0 + [$1] }
-        doubles =  [D.nan, -0.0, +0.0, -D.infinity, +D.infinity] + doubles
+        doubles =  [D.nan, -D(0.0), +D(0.0), -D.infinity, +D.infinity] + doubles
         // print(doubles)
         // doubles = []
         for d in doubles {
@@ -79,7 +79,7 @@ final class GenericMathTests: XCTestCase {
     func testUnaryFloat80() { runUnary(forType: Float80.self, ulp:2) }
 
     func runAtan2<R:BigFloatingPoint>(forType T:R.Type) {
-        let doubles = [-1/0.0, -1.0, -0.0, +0.0, +1.0, +1/0.0]
+        let doubles:[Double] = [-1/0.0, -1.0, -0.0, +0.0, +1.0, +1/0.0]
         debugPrint(doubles)
         for y in doubles {
             for x in doubles {
