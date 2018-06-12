@@ -129,7 +129,7 @@ extension RationalType {
     public var nextUp:Self {
         return self + ulp
     }
-    public var isNormal: Bool       { return !self.isZero }
+    public var isNormal: Bool       { return !self.isZero || !self.isInfinite || !self.isNaN }
     public var isFinite: Bool       { return den != 0 }
     public var isZero: Bool         { return num == 0 && den != 0 }
     public var isSubnormal:Bool     { return false }
