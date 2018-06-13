@@ -1,5 +1,4 @@
-import BigInt
-@_exported import struct BigInt.BigInt  // re-export BigInt
+@_exported import BigInt // imported and re-exported
 import FloatingPointMath
 
 ///
@@ -17,7 +16,7 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
     init(_:BigRat)
     init(_:Double)
     init(_:IntType)
-    mutating func truncate(width:Int)
+    mutating func truncate(width:Int, round:FloatingPointRoundingRule)
     static func %(_:Self,_:Self)->Self
     static func getEpsilon(precision: Int)->Self
     static var defaultPrecision:Int { get }
@@ -33,10 +32,16 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
     static var LN10: (precision: Int, value:Self) { get set }
 }
 extension BigFloatingPoint {
-    public func truncated(width px: Int)->Self {
+    public mutating func truncate(width px:Int) {
+        self.truncate(width:px, round:.toNearestOrAwayFromZero)
+    }
+    public func truncated(width px: Int, round rule:FloatingPointRoundingRule)->Self {
         var result = self
-        result.truncate(width: px)
+        result.truncate(width:px, round:rule)
         return result
+    }
+    public func truncated(width px: Int)->Self {
+        return self.truncated(width:px, round:.toNearestOrAwayFromZero)
     }
 }
 extension BigFloatingPoint where Self:BinaryFloatingPoint {
@@ -45,7 +50,7 @@ extension BigFloatingPoint where Self:BinaryFloatingPoint {
         return (sign:self.sign, exponent:self.exponent, significand:self.significand)
     }
     /// truncate does nothing for BinaryFloatingPoint
-    public mutating func truncate(width:Int) {}
+    public mutating func truncate(width:Int, round:FloatingPointRoundingRule) {}
     /// breaks it down to int part and float part
     public var asMixed:(IntType, Self) {
         let rem = self.truncatingRemainder(dividingBy: 1.0)

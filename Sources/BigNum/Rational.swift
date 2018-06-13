@@ -30,8 +30,19 @@ extension RationalElement where Self == BigInt {
     public func greatestCommonDivisor(with n:Self)->Self {
          return Self(BigInt(self).greatestCommonDivisor(with:BigInt(n)))
     }
+    public mutating func truncate(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
+        let w = Swift.abs(width)
+        if self.bitWidth - 1 < w { return }
+        let t = self.bitWidth - 1 - w
+        let n = BigRat(self >> t).rounded(round).num
+        self = Self(n) << t
+    }
+    public func truncated(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero)->Self {
+        var result = self
+        result.truncate(width:width, round:round)
+        return result
+    }
 }
-
 
 /// Rational number type whose numerator and denominator are `RationalElement`
 public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral {
@@ -57,32 +68,23 @@ extension BigRationalType {
         if self.isNaN || self.isZero || self.isInfinite { return }
         if width == 0       { return }
         let w = width < 0 ? -width : +width
-        if den.bitWidth <= w    { return }
         let s = max(den.bitWidth - 1, w)    // -1 for sign bit
-        let d = Element(1) << s
         let t = s - w
-        let n = (num * d / den) >> t    // shift to discard lower bits
-        self = Self(n << t, d)          // and shift back
-//        if den >> den.trailingZeroBitCount == 1 { // already power of two
-//            if num.trailingZeroBitCount < w {
-//                print("w = \(w) < \(num.trailingZeroBitCount)")
-//                let n = num & ((1 << w) - 1)
-//                let q = n.over(1 << w).rounded(round)
-//                print(n, 1 << w, q)
-//
-//
-//            } else {
-//                print("w = \(w) < \(num.trailingZeroBitCount)")
-//            }
-//        } else {
-//            var (n, r) = (num * d).quotientAndRemainder(dividingBy: den)
-//            let ro = r.over(den).rounded(round)
-//            print(ro)
-//            if !ro.isZero {
-//                n += ro.asMixed.0
-//            }
-//            self = Self((num >> t) << t, d)   // shift down and back up to discard lower bits
-//        }
+        if den >> den.trailingZeroBitCount == 1 { // already power of two
+            if w < (num.bitWidth - 1) - num.trailingZeroBitCount { // has significant bits to truncate
+                num = Element(BigInt(num).truncated(width:w, round:round))
+            }
+            let gcd = num.greatestCommonDivisor(with: den)
+            if gcd != 1 {
+                num /= gcd; den /= gcd
+            }
+        } else {
+            let d = Element(1) << s
+            var (n, r) = (num * d).quotientAndRemainder(dividingBy: den)
+            let ro = r.over(den).rounded(round)
+            n += ro.asMixed.0
+            self = Self((n >> t) << t, d)   // shift down and back up to discard lower bits
+        }
     }
 }
 
@@ -209,7 +211,6 @@ extension RationalType {
     public mutating func round(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
         if self.isZero || self.isInfinite || self.isNaN { return }
         var (i, r) = self.asMixed
-        print(i, r)
         let a = Swift.abs(r)
         let s = self.sign == .minus ? IntType(-1) : IntType(+1)
         switch rule {
@@ -574,16 +575,6 @@ extension FixedWidthRationalType {
     }
     public var exponent:Element {
         return Element(self.asDouble.exponent)
-    }
-    public static func *(_ lhs:Self, _ rhs:Self)->Self {
-        let q = (lhs.asBigRat * rhs.asBigRat).truncated(width:Element.bitWidth - 1)
-        return Self(Element(Int(q.num)), Element(Int(q.den)))
-    }
-    public static func *(_ lhs:Self, _ rhs:Element)->Self {
-        return lhs * Self(rhs)
-    }
-    public static func *(_ lhs:Element, _ rhs:Self)->Self {
-        return Self(lhs) * rhs
     }
     public func toFloatingPointString(radix:Int = 10)->String {
         return self.asBigRat.toFloatingPointString(radix:radix)

@@ -1,3 +1,6 @@
+/// Skip iOS and watchOS
+#if os(iOS) || os(watchOS)
+#else
 /// conforming to BigFloatingPoint
 extension Float80: BigFloatingPoint {
     /// Corresponding integer type
@@ -60,3 +63,4 @@ extension BigRat {
         return r
     }
 }
+#endif
