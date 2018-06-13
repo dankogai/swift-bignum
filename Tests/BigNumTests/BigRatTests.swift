@@ -3,7 +3,7 @@ import XCTest
 
 final class BigRatTests: XCTestCase {
     //
-    func runRatBasic<Q:RationalType>(forType T:Q.Type) {
+    func runBasic<Q:RationalType>(forType T:Q.Type) {
         XCTAssertEqual(T.init(+2, +4), T.init(+1, +2))
         XCTAssertEqual(T.init(-2, +4), T.init(-1, +2))
         XCTAssertEqual(T.init(-2, +4), T.init(-1, +2))
@@ -15,10 +15,10 @@ final class BigRatTests: XCTestCase {
         XCTAssertEqual( T.init(+Double.pi).asDouble, +Double.pi)
         XCTAssertEqual( T.init(-Double.pi).asDouble, -Double.pi)
     }
-    func testBigRatBasic() { runRatBasic(forType: BigRat.self) }
-    func testIntRatBasic() { runRatBasic(forType: IntRat.self) }
+    func testBigRatBasic() { runBasic(forType: BigRat.self) }
+    func testIntRatBasic() { runBasic(forType: IntRat.self) }
     //
-    func runRatNaN<Q:RationalType>(forType T:Q.Type) {
+    func runNaN<Q:RationalType>(forType T:Q.Type) {
         let nan = T.nan
         let one = T.init(1)
         XCTAssertTrue (nan.isNaN)
@@ -37,12 +37,12 @@ final class BigRatTests: XCTestCase {
         XCTAssertTrue (nan.squareRoot().isNaN)
     }
     func testBigRatNaN() {
-        runRatNaN(forType: BigRat.self)
+        runNaN(forType: BigRat.self)
         XCTAssertTrue (BigRat.exp(BigRat.nan).isNaN)
     }
-    func testIntRatNaN() { runRatNaN(forType: IntRat.self) }
+    func testIntRatNaN() { runNaN(forType: IntRat.self) }
     //
-    func runRatInf<Q:RationalType>(forType T:Q.Type) {
+    func runInf<Q:RationalType>(forType T:Q.Type) {
         let zero = T.init(0)
         let one  = T.init(1)
         let two  = one + one
@@ -104,8 +104,25 @@ final class BigRatTests: XCTestCase {
             XCTAssertEqual (-inf + -q, -inf)
         }
     }
-    func testBigRatInf() { runRatInf(forType: BigRat.self) }
-    func testIntRatInf() { runRatInf(forType: IntRat.self) }
+    func testBigRatInf() { runInf(forType: BigRat.self) }
+    func testIntRatInf() { runInf(forType: IntRat.self) }
+    //
+    func runRound<Q:RationalType>(forType T:Q.Type) {
+        var doubles = [0.0, 4.0, 4.2, 4.5, 4.8, 5.0, 5.2, 5.5]
+        doubles += doubles.map{ -$0 }
+        for d in doubles {
+            let q = Q(d)
+            // https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md
+            let allRules:[FloatingPointRoundingRule] = [
+                .awayFromZero, .down, .toNearestOrAwayFromZero, .toNearestOrEven, .towardZero, .up
+            ]
+            for rule in allRules {
+                XCTAssertEqual(q.rounded(rule).asDouble, d.rounded(rule), "\(d, rule)")
+            }
+        }
+    }
+    func testBigRatRound() { runRound(forType: BigRat.self) }
+
     //
     static var allTests = [
         ("testBigRatBasic", testBigRatBasic),

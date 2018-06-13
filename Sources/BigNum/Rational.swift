@@ -184,11 +184,21 @@ extension RationalType {
     public func advanced(by n: Self) -> Self {
         return self + n
     }
-     public func rounded(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Self {
-        return Self(self.asDouble.rounded(rule))
+    public func signum()->Self {
+        return  self.sign == .minus ? -Self(1) : +Self(1)
     }
     public mutating func round(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
-        self = self.rounded(rule)
+        var (q, r) = self.asMixed
+        let ar = Swift.abs(r)
+        switch rule {
+        case .toNearestOrAwayFromZero:  q += (0.5 <= ar) ? q.signum() : 0
+        case .toNearestOrEven:          q += (0.5 < ar || 0.5 == ar && q & 1 == 1) ? q.signum() : 0
+        case .awayFromZero:             q += (0.0 < ar) ? q.signum() : 0
+        case .down:                     q += (r < 0.0) ? -1 : 0
+        case .up:                       q += (0.0 < r) ? +1 : 0
+        case .towardZero:               q += 0
+        }
+        self = Self(q)
     }
     public init(_ n:Element, _ d:Element) {
         var (num, den) = d < 0 ? (-n, -d) : (n, d)
