@@ -108,7 +108,7 @@ final class BigRatTests: XCTestCase {
     func testIntRatInf() { runInf(forType: IntRat.self) }
     //
     func runRound<Q:RationalType>(forType T:Q.Type) {
-        var doubles = [0.0, 4.0, 4.2, 4.5, 4.8, 5.0, 5.2, 5.5]
+        var doubles = [0.0, 0.2, 0.5, 0.8, 1.0, 1.2, 1.5, 1.8]
         doubles += doubles.map{ -$0 }
         for d in doubles {
             let q = Q(d)
@@ -117,12 +117,12 @@ final class BigRatTests: XCTestCase {
                 .awayFromZero, .down, .toNearestOrAwayFromZero, .toNearestOrEven, .towardZero, .up
             ]
             for rule in allRules {
-                XCTAssertEqual(q.rounded(rule).asDouble, d.rounded(rule), "\(d, rule)")
+                XCTAssertEqual(q.rounded(rule), Q(d.rounded(rule)), "\(d, rule)")
             }
         }
     }
     func testBigRatRound() { runRound(forType: BigRat.self) }
-
+    func testIntRatRound() { runRound(forType: IntRat.self) }
     //
     static var allTests = [
         ("testBigRatBasic", testBigRatBasic),
@@ -131,5 +131,7 @@ final class BigRatTests: XCTestCase {
         ("testIntRatNaN", testIntRatNaN),
         ("testBigRatInf", testBigRatInf),
         ("testIntRatInf", testIntRatInf),
+        ("testBigRatRound", testBigRatRound),
+        ("testIntRatRound", testIntRatRound)
     ]
 }

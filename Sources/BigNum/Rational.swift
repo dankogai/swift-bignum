@@ -53,10 +53,9 @@ extension BigInt: RationalElement {
 
 extension BigRationalType {
     /// truncate significand to `width` bits
-    public mutating func truncate(width:Int) {
+    public mutating func truncate(width:Int, round:FloatingPointRoundingRule) {
         if self.isNaN || self.isZero || self.isInfinite { return }
         if width == 0       { return }
-        if self.den == 1    { return }
         let w = width < 0 ? -width : +width
         if den.bitWidth <= w    { return }
         let s = max(den.bitWidth - 1, w)    // -1 for sign bit
@@ -64,6 +63,26 @@ extension BigRationalType {
         let t = s - w
         let n = (num * d / den) >> t    // shift to discard lower bits
         self = Self(n << t, d)          // and shift back
+//        if den >> den.trailingZeroBitCount == 1 { // already power of two
+//            if num.trailingZeroBitCount < w {
+//                print("w = \(w) < \(num.trailingZeroBitCount)")
+//                let n = num & ((1 << w) - 1)
+//                let q = n.over(1 << w).rounded(round)
+//                print(n, 1 << w, q)
+//
+//
+//            } else {
+//                print("w = \(w) < \(num.trailingZeroBitCount)")
+//            }
+//        } else {
+//            var (n, r) = (num * d).quotientAndRemainder(dividingBy: den)
+//            let ro = r.over(den).rounded(round)
+//            print(ro)
+//            if !ro.isZero {
+//                n += ro.asMixed.0
+//            }
+//            self = Self((num >> t) << t, d)   // shift down and back up to discard lower bits
+//        }
     }
 }
 
@@ -153,10 +172,10 @@ extension RationalType {
         return l < r
     }
     public func isLessThanOrEqualTo(_ other: Self) -> Bool {
-        return self.isEqual(to:other) || self.isLess(than:other)
+        return self.isLess(than:other) || self.isEqual(to:other)
     }
     public func isTotallyOrdered(belowOrEqualTo other: Self) -> Bool {
-        return self.isLessThanOrEqualTo(other)
+        return self.isNaN || other.isNaN || self.isLessThanOrEqualTo(other)
     }
     //
     public mutating func addingProduct(_ lhs: Self, _ rhs: Self)->Self {
@@ -188,17 +207,20 @@ extension RationalType {
         return  self.sign == .minus ? -Self(1) : +Self(1)
     }
     public mutating func round(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
-        var (q, r) = self.asMixed
-        let ar = Swift.abs(r)
+        if self.isZero || self.isInfinite || self.isNaN { return }
+        var (i, r) = self.asMixed
+        print(i, r)
+        let a = Swift.abs(r)
+        let s = self.sign == .minus ? IntType(-1) : IntType(+1)
         switch rule {
-        case .toNearestOrAwayFromZero:  q += (0.5 <= ar) ? q.signum() : 0
-        case .toNearestOrEven:          q += (0.5 < ar || 0.5 == ar && q & 1 == 1) ? q.signum() : 0
-        case .awayFromZero:             q += (0.0 < ar) ? q.signum() : 0
-        case .down:                     q += (r < 0.0) ? -1 : 0
-        case .up:                       q += (0.0 < r) ? +1 : 0
-        case .towardZero:               q += 0
+        case .toNearestOrAwayFromZero:  i += 0.5 <= a ? s : 0
+        case .toNearestOrEven:          i += 0.5 < a || 0.5 == a && i & 1 == 1 ? s : 0
+        case .awayFromZero:             i += 0.0 < a ?  s : 0
+        case .down:                     i += r < 0.0 ? -1 : 0
+        case .up:                       i += 0.0 < r ? +1 : 0
+        case .towardZero:               i += 0
         }
-        self = Self(q)
+        self = Self(i)
     }
     public init(_ n:Element, _ d:Element) {
         var (num, den) = d < 0 ? (-n, -d) : (n, d)
