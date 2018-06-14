@@ -447,7 +447,7 @@ public struct Rational<I:RationalElement> : RationalType {
     }
 }
 
-public struct BigRational : BigRationalType {
+public struct BigRational : BigRationalType & Codable {
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType = Double
     public typealias Element = BigInt
