@@ -9,7 +9,7 @@ public class BigNum {}
 ///
 /// BigFloatingPoint protocol.
 ///
-public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral {
+public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral, FloatingPointMath {
     associatedtype IntType:SignedInteger
     func squareRoot(precision: Int)->Self
     init(_:BigInt)
