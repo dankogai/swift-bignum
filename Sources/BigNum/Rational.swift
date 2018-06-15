@@ -168,16 +168,36 @@ extension RationalType {
             :  self.isIdentical(to: other)
     }
     public func isLess(than other: Self) -> Bool {
+        if self.isEqual(to: other) { return false }
         if self.isNaN || other.isNaN { return false }
+        if self.isInfinite {
+            return self.sign == .minus
+        }
+        if other.isInfinite {
+            return other.sign == .plus
+        }
         let l = self.num * other.den
         let r = other.num * self.den
-        return l < r
+        return self.den.signum() * other.den.signum() < 0 ? r < l : l < r
+        // return (self - other).sign == .minus
     }
     public func isLessThanOrEqualTo(_ other: Self) -> Bool {
-        return self.isLess(than:other) || self.isEqual(to:other)
+        if self.isNaN || other.isNaN { return false }
+        if self.isInfinite  {
+            return self.sign == .minus || other == +Self.infinity
+        }
+        if other.isInfinite {
+            return other.sign == .plus
+        }
+        let l = self.num * other.den
+        let r = other.num * self.den
+        return self.den.signum() * other.den.signum() < 0 ? r <= l : l <= r
+        // return self.isLess(than:other) || self.isEqual(to:other)
     }
     public func isTotallyOrdered(belowOrEqualTo other: Self) -> Bool {
-        return self.isNaN || other.isNaN || self.isLessThanOrEqualTo(other)
+        return self.isNaN ? other.isNaN
+            : self.isZero && other.isZero ? self.sign == .minus || other.sign == .plus
+            : self.isLessThanOrEqualTo(other)
     }
     //
     public mutating func addingProduct(_ lhs: Self, _ rhs: Self)->Self {

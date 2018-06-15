@@ -210,8 +210,6 @@ extension BigFloat {
 }
 /// comparison.  Now we need infinity and isInfinite
 extension BigFloat : Comparable {
-    
-
     public static func +(_ lhs:BigFloat, _ rhs:BigFloat)->BigFloat {
         return nan
     }
