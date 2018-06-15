@@ -2,6 +2,4 @@
 
 import BigNum
 
-BigFloat.infinity
-
 //: [Next](@next)

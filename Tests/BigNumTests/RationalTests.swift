@@ -134,8 +134,11 @@ final class RationalTests: XCTestCase {
                 XCTAssertEqual(Q(x) <  Q(y), x <  y, "\(x) <  \(y)")
                 XCTAssertEqual(Q(x) >= Q(y), x >= y, "\(x) >= \(y)")
                 XCTAssertEqual(Q(x) >  Q(y), x >  y, "\(x) >  \(y)")
-                XCTAssertEqual(Q(x).isTotallyOrdered(belowOrEqualTo:Q(y)), x.isTotallyOrdered(belowOrEqualTo:y), "\(x).isTotallyOrdered(belowOrEqualTo:(\(y))")
-                
+                XCTAssertEqual(
+                    Q(x).isTotallyOrdered(belowOrEqualTo:Q(y)),
+                    x.isTotallyOrdered(belowOrEqualTo:y),
+                    "\(x).isTotallyOrdered(belowOrEqualTo:(\(y))"
+                )
             }
         }
     }
