@@ -18,24 +18,24 @@ extension BigFloat {
         return BigFloat(scale:Int.max, mantissa:+1)
     }
     public var isNaN:Bool {
-        return Swift.abs(scale) == Int.max && mantissa == +1
+        return scale != -Int.max-1 && Swift.abs(scale) == Int.max && mantissa == +1
     }
     public static var signalingNaN:BigFloat {
         return BigFloat(scale:Int.max, mantissa:-1)
     }
     public var isSignalingNaN:Bool {
-        return Swift.abs(scale) == Int.max && mantissa == -1
+        return scale != -Int.max-1 && Swift.abs(scale) == Int.max && mantissa == -1
     }
     public static var infinity:BigFloat {
         return BigFloat(scale:Int.max, mantissa:0)
     }
     public var isInfinite:Bool {
-        return Swift.abs(self.scale) == Int.max && mantissa == 0
+        return scale != -Int.max-1 && Swift.abs(self.scale) == Int.max && mantissa == 0
     }
     public static var zero:BigFloat         { return BigFloat(scale:0, mantissa:0) }
     public static var negativeZero:BigFloat { return BigFloat(scale:-Int.max-1, mantissa:0) }
     public var isZero:Bool {
-        return  mantissa == 0 && Swift.abs(scale) != Int.max
+        return  mantissa == 0 && scale == 0 || scale == -Int.max-1
     }
     public var sign: FloatingPointSign {
         return 0 < mantissa ? .plus
@@ -43,7 +43,7 @@ extension BigFloat {
             :    scale  < 0 ? .minus : .plus    // ±0 and inifinity
     }
     public mutating func negate() {
-        if Swift.abs(scale) == Int.max {
+        if scale != -Int.max-1 && Swift.abs(scale) == Int.max {
             scale.negate()
         }
         else if mantissa == 0 {
@@ -65,6 +65,8 @@ extension BigFloat {
         return scale - (mantissa.bitWidth-1)
     }
     public var significand:BigFloat {
+        // print("\(#line)", self)
+        if self.isNaN || self.isSignalingNaN || self.isZero || self.isInfinite { return self }
         return BigFloat(scale: self.scale - (mantissa.bitWidth + 2), mantissa:self.mantissa)
     }
     public var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:BigFloat) {
@@ -94,22 +96,32 @@ extension BinaryFloatingPoint {
 /// BigFloat -> Double
 extension Double {
     public init(_ bf:BigFloat) { // tailored becaused it is the most frequently used
-        let offset = Swift.max(bf.mantissa.bitWidth-1 - 64, 0)
-        self.init(
-            sign:bf.sign,
-            exponent:Exponent(bf.scale - offset),
-            significand:Double(bf.mantissa.magnitude >> offset)
-        )
+        if bf.mantissa.bitWidth-1 < 64 {
+            self.init(sign:bf.sign, exponent:Exponent(bf.scale), significand:Double(bf.mantissa.magnitude))
+        } else {
+            let offset = bf.mantissa.bitWidth-1 - 64
+            self.init(
+                sign:bf.sign,
+                exponent:Exponent(bf.scale + offset),
+                significand:Double(bf.mantissa.magnitude >> offset)
+            )
+        }
     }
 }
 /// BigFloat -> BigRat
 extension BigRat {
     public init(_ bf:BigFloat) {
-        (num, den) = (bf.mantissa, 1)
-        if bf.scale < 0 {
-            den <<= -bf.scale
-        } else {
-            num <<= +bf.scale
+        if bf.isNaN                 { self = BigRat.nan }
+        else if bf.isSignalingNaN   { self = BigRat.signalingNaN }
+        else if bf.isInfinite       { self = bf.sign == .minus ? -BigRat.infinity : +.infinity }
+        else if bf.isZero           { self = bf.sign == .minus ? -BigRat.zero : +BigRat.zero }
+        else {
+            (num, den) = (bf.mantissa, 1)
+            if bf.scale < 0 {
+                den <<= -bf.scale
+            } else {
+                num <<= +bf.scale
+            }
         }
     }
 }
@@ -117,17 +129,23 @@ extension BigRat {
 extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
     public init?<T:BinaryInteger>(exactly bi:T) {
         mantissa = Significand(bi)
-        scale = mantissa.bitWidth-1
+        scale = 0
     }
     /// BinaryInteger -> BigFloat
     public init<T:BinaryInteger>(_ bi:T) { self.init(exactly:bi)! }
     public init(integerLiteral value: Int) { self.init(value) }
     /// BinaryFloatingPoint -> BigFloat
     public init?<T:BinaryFloatingPoint>(exactly bf:T) {
-        mantissa = Significand(bf.significandBitPattern | 1 << T.significandBitCount)
-        mantissa >>= mantissa.trailingZeroBitCount
-        if bf < 0 { mantissa.negate() }
-        scale = Exponent(bf.exponent) - (mantissa.bitWidth-1 - 1)
+        if bf.isNaN                 { self = .nan }
+        else if bf.isSignalingNaN   { self = .signalingNaN }
+        else if bf.isInfinite       { self = bf.sign == .minus ? -.infinity : +.infinity }
+        else if bf.isZero           { self = bf.sign == .minus ? .negativeZero : .zero }
+        else {
+            mantissa = Significand(bf.significandBitPattern | 1 << T.significandBitCount)
+            mantissa >>= mantissa.trailingZeroBitCount
+            if bf < 0 { mantissa.negate() }
+            scale = Exponent(bf.exponent) - (mantissa.bitWidth-1 - 1)
+        }
     }
     public init<T:BinaryFloatingPoint>(_ bf:T) { self.init(exactly:bf)! }
     public var asDouble:Double { return Double(self) }
@@ -199,10 +217,13 @@ extension BigFloat {
 
 // override == to introduce NaN
 extension BigFloat {
+    public func isIdentical(to other:BigFloat)->Bool {
+        return self.scale == other.scale && self.mantissa == other.mantissa
+    }
     public func isEqual(to other:BigFloat)->Bool {
-        return !self.isNaN && !other.isNaN
-            && self.scale == other.scale
-            && self.mantissa == other.mantissa
+        return self.isNaN || other.isNaN ? false
+            :  self.isZero ? other.isZero
+            :  self.isIdentical(to: other)
     }
     public static func ==(_ lhs:BigFloat, _ rhs:BigFloat)->Bool {
         return lhs.isEqual(to:rhs)
@@ -213,12 +234,20 @@ extension BigFloat : Comparable {
     public static func +(_ lhs:BigFloat, _ rhs:BigFloat)->BigFloat {
         return nan
     }
-    
     public func isLess(than other:BigFloat)->Bool {
-        if self.isNaN  { return false }
-        if other.isNaN { return false }
-        if self.isInfinite { }
-        fatalError()
+        return BigRat(self).isLess(than: BigRat(other))
+        if self.isEqual(to: other) { return false }
+        if self.isNaN || other.isNaN { return false }
+        if self.isInfinite {
+            return self.sign == .minus
+        }
+        if other.isInfinite {
+            return other.sign == .plus
+        }
+        if self.exponent < other.exponent {
+            return self.sign == .plus
+        }
+        return self.significand.mantissa < other.significand.mantissa
     }
     public static func <(_ lhs:BigFloat, _ rhs:BigFloat)->Bool {
         return lhs.isLess(than:rhs)
