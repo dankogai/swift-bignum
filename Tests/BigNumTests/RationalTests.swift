@@ -1,7 +1,7 @@
 import XCTest
 @testable import BigNum
 
-final class BigRatTests: XCTestCase {
+final class RationalTests: XCTestCase {
     //
     func runBasic<Q:RationalType>(forType T:Q.Type) {
         XCTAssertEqual(T.init(+2, +4), T.init(+1, +2))
@@ -16,7 +16,7 @@ final class BigRatTests: XCTestCase {
         XCTAssertEqual( T.init(-Double.pi).asDouble, -Double.pi)
     }
     func testBigRatBasic() { runBasic(forType: BigRat.self) }
-    func testIntRatBasic() { runBasic(forType: IntRat.self) }
+    func testIntRatBasic()  { runBasic(forType: IntRat.self) }
     //
     func runNaN<Q:RationalType>(forType T:Q.Type) {
         let nan = T.nan
@@ -76,7 +76,7 @@ final class BigRatTests: XCTestCase {
         XCTAssertEqual (-inf / +zero, -inf)
         XCTAssertEqual (+inf / -zero, -inf)
         XCTAssertEqual (+inf / +zero, +inf)
-     // usual cases
+        // usual cases
         for q in [half, one, two] {
             // *(_, ±inf) and *(±inf, _)
             XCTAssertEqual(+q * +inf, +inf)
@@ -125,7 +125,7 @@ final class BigRatTests: XCTestCase {
     func testIntRatRound() { runRound(forType: IntRat.self) }
     //
     func runComp<Q:RationalType>(forType T:Q.Type) {
-        var doubles = [0.0, 1.0, 42.0, 42.195, .infinity]
+        var doubles = [0.0, 0.5, 1.0, 2.0, .infinity]
         doubles += doubles.map{ -$0 }
         for x in doubles {
             for y in doubles {
@@ -135,12 +135,12 @@ final class BigRatTests: XCTestCase {
                 XCTAssertEqual(Q(x) >= Q(y), x >= y, "\(x) >= \(y)")
                 XCTAssertEqual(Q(x) >  Q(y), x >  y, "\(x) >  \(y)")
                 XCTAssertEqual(Q(x).isTotallyOrdered(belowOrEqualTo:Q(y)), x.isTotallyOrdered(belowOrEqualTo:y), "\(x).isTotallyOrdered(belowOrEqualTo:(\(y))")
-
+                
             }
         }
     }
     func testBigRatComp() { runComp(forType: BigRat.self) }
-    // func testIntRatComp() { runComp(forType: IntRat.self) }
+    func testIntRatComp() { runComp(forType: IntRat.self) }
     //
     static var allTests = [
         ("testBigRatBasic", testBigRatBasic),
