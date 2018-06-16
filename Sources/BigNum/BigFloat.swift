@@ -84,33 +84,48 @@ extension BigFloat {
     public init(sign:FloatingPointSign, exponent:Exponent, significand:BigFloat) {
         scale    = exponent + significand.scale - (significand.mantissa.bitWidth-1)
         mantissa = sign == .minus ? -significand.mantissa : +significand.mantissa
+        let shift = mantissa.trailingZeroBitCount
+        scale     += shift
+        mantissa >>= shift
     }
 }
 /// BigFloat -> BinaryFloatingPoint
 extension BinaryFloatingPoint {
     public init(_ bf:BigFloat) {
-        #if os(iOS) || os(watchOS)
-        typealias F = Double
-        #else
-        typealias F = Float80
-        #endif
-        let offset = Swift.max(bf.mantissa.bitWidth-1 - (Self.significandBitCount+1), 0)
-        self.init(
-            sign:bf.sign,
-            exponent:Exponent(bf.scale + offset),
-            significand:Self(F(bf.mantissa.magnitude >> offset))
-        )
+        if bf.isNaN                 { self = .nan }
+        else if bf.isSignalingNaN   { self = .signalingNaN }
+        else if bf.isInfinite       { self = bf.sign == .minus ? -.infinity : +.infinity }
+        else if bf.isZero           { self = bf.sign == .minus ? -Self(0) : +Self(0) }
+        else {
+            #if os(iOS) || os(watchOS)
+            typealias F = Double
+            #else
+            typealias F = Float80
+            #endif
+            let offset = Swift.max(bf.mantissa.bitWidth-1 - (Self.significandBitCount+1), 0)
+            self.init(
+                sign:bf.sign,
+                exponent:Exponent(bf.scale + offset),
+                significand:Self(F(bf.mantissa.magnitude >> offset))
+            )
+        }
     }
 }
 /// BigFloat -> Double
 extension Double {
     public init(_ bf:BigFloat) { // tailored becaused it is the most frequently used
-        let offset = Swift.max(bf.mantissa.bitWidth-1 - 64, 0)
-        self.init(
-            sign:bf.sign,
-            exponent:Exponent(bf.scale + offset),
-            significand:Double(bf.mantissa.magnitude >> offset)
-        )
+        if bf.isNaN                 { self = .nan }
+        else if bf.isSignalingNaN   { self = .signalingNaN }
+        else if bf.isInfinite       { self = bf.sign == .minus ? -.infinity : +.infinity }
+        else if bf.isZero           { self = bf.sign == .minus ? -Double(0) : +Double(0) }
+        else {
+            let offset = Swift.max(bf.mantissa.bitWidth-1 - 64, 0)
+            self.init(
+                sign:bf.sign,
+                exponent:Exponent(bf.scale + offset),
+                significand:Double(bf.mantissa.magnitude >> offset)
+            )
+        }
     }
 }
 /// BigFloat -> BigRat
@@ -135,6 +150,9 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
     public init?<T:BinaryInteger>(exactly bi:T) {
         mantissa = Significand(bi)
         scale = 0
+        let shift = mantissa.trailingZeroBitCount
+        scale     += shift
+        mantissa >>= shift
     }
     /// BinaryInteger -> BigFloat
     public init<T:BinaryInteger>(_ bi:T) { self.init(exactly:bi)! }
@@ -146,7 +164,8 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
         else if bf.isInfinite       { self = bf.sign == .minus ? -.infinity : +.infinity }
         else if bf.isZero           { self = bf.sign == .minus ? .negativeZero : .zero }
         else {
-            mantissa = Significand(bf.significandBitPattern | 1 << T.significandBitCount)
+            mantissa = Significand(bf.significandBitPattern)
+            if bf.isNormal { mantissa |= 1 << T.significandBitCount }
             mantissa >>= mantissa.trailingZeroBitCount
             if bf < 0 { mantissa.negate() }
             scale = Exponent(bf.exponent) - (mantissa.bitWidth-1 - 1)
@@ -177,13 +196,24 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
         return result
     }
     /// RationalType -> BigFloat
-    public init<T:RationalType>(_ q:T, precision px:Int = precision) {
-        let bits = Swift.min(q.den.bitWidth-1, Swift.abs(px))
-        mantissa = Significand(q.num << (bits+2) / q.den)
-        mantissa.truncate(width:px)
-        mantissa >>= 2
-        mantissa >>= mantissa.trailingZeroBitCount
-        scale = (q.num.bitWidth-1) - (q.den.bitWidth-1) - (mantissa.bitWidth-1) + 1
+    public init<T:RationalType>(_ q:T,
+                                precision px:Int = precision,
+                                round rule:FloatingPointRoundingRule=roundingRule)
+    {
+        if      q.isNaN     { self = .nan }
+        else if q.isZero    { self = q.sign == .minus ? .negativeZero : .zero }
+        else if q.isInfinite{ self = q.sign == .minus ? -.infinity : +.infinity }
+        else {
+            let qt = BigInt(q.num).over(BigInt(q.den)).truncated(width:px, round:rule)
+            self = BigFloat(scale:-qt.den.trailingZeroBitCount, mantissa:qt.num)
+//            return
+//            let bits = Swift.max(q.den.bitWidth-1, Swift.abs(px))
+//            mantissa = Significand(q.num << (bits+2) / q.den)
+//            mantissa.truncate(width:px, round:rule)
+//            mantissa >>= 2
+//            //mantissa >>= mantissa.trailingZeroBitCount
+//            scale = (q.num.bitWidth-1) - (q.den.bitWidth-1) - (mantissa.bitWidth-1)
+        }
     }
 }
 
@@ -290,11 +320,11 @@ extension BigFloat : Comparable {
     public static func <(_ lhs:BigFloat, _ rhs:BigFloat)->Bool {
         return lhs.isLess(than:rhs)
     }
-    public func isLessOrEqual(to other:BigFloat)->Bool {
+    public func isLessThanOrEqualTo(_ other:BigFloat)->Bool {
         return self.isLessThan(other, onEqual:true)
     }
     public static func <=(_ lhs:BigFloat, _ rhs:BigFloat)->Bool {
-        return lhs.isLessOrEqual(to:rhs)
+        return lhs.isLessThanOrEqualTo(rhs)
     }
 }
 /// SignedNumeric!
@@ -330,25 +360,21 @@ extension BigFloat: Strideable {
     }
 }
 extension BigFloat {
-    public func reciprocal(precision px:Int=precision,
-                           round rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
-        let bits = Swift.max(mantissa.bitWidth-1, Swift.abs(px))
-        var m = (Significand(1) << (bits+2)) / mantissa
-        m.truncate(width:px)
-        m >>= 2
-        m >>= m.trailingZeroBitCount
-        let s = -(mantissa.bitWidth-1) - (m.bitWidth-1) + 2
-        return BigFloat(scale:s, mantissa:m)
+    public func divided(by other:BigFloat,
+                        precision px:Int=precision,
+                        round rule:FloatingPointRoundingRule=roundingRule)->BigFloat
+    {
+        // easy!
+        // return BigFloat(BigRat(self)/BigRat(other), precision:px, round:rule)
+        // little optimized for BigRat generation
+        return BigFloat(scale:self.scale - other.scale, mantissa:1)
+            *  BigFloat(BigRat(self.mantissa)/BigRat(other.mantissa), precision:px, round:rule)
     }
     public mutating func divide(by other:BigFloat,
                                 precision px:Int=precision,
-                                round rule:FloatingPointRoundingRule=roundingRule) {
-        self = self * other.reciprocal(precision:px, round:rule)
-    }
-    public func divided(by other:BigFloat,
-                        precision px:Int=precision,
-                        round rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
-            return self * other.reciprocal(precision:px, round:rule)
+                                round rule:FloatingPointRoundingRule=roundingRule)
+    {
+        self = self.divided(by: other, precision:px, round:rule)
     }
     public static func / (lhs: BigFloat, rhs: BigFloat) -> BigFloat {
         return lhs.divided(by:rhs)
@@ -357,4 +383,73 @@ extension BigFloat {
         lhs = lhs / rhs
     }
 }
-
+extension BigFloat : FloatingPoint {
+    public init(signOf: BigFloat, magnitudeOf: BigFloat) {
+        fatalError()
+    }
+    
+    public static var radix: Int {
+        fatalError()
+    }
+    
+    public static var greatestFiniteMagnitude: BigFloat {
+        fatalError()
+    }
+    
+    public static var pi: BigFloat {
+        fatalError()
+    }
+    
+    public var ulp: BigFloat {
+        fatalError()
+    }
+    
+    public static var leastNormalMagnitude: BigFloat {
+        fatalError()
+    }
+    
+    public static var leastNonzeroMagnitude: BigFloat {
+        fatalError()
+    }
+    
+    public mutating func formRemainder(dividingBy other: BigFloat) {
+        fatalError()
+    }
+    
+    public mutating func formTruncatingRemainder(dividingBy other: BigFloat) {
+        fatalError()
+    }
+    
+    public mutating func formSquareRoot() {
+        fatalError()
+    }
+    
+    public mutating func addProduct(_ lhs: BigFloat, _ rhs: BigFloat) {
+        fatalError()
+    }
+    
+    public var nextUp: BigFloat {
+        fatalError()
+    }
+    
+    public func isTotallyOrdered(belowOrEqualTo other: BigFloat) -> Bool {
+        fatalError()
+    }
+    
+    public var isNormal: Bool {
+        fatalError()
+    }
+    
+    public var isFinite: Bool {
+        fatalError()
+    }
+    
+    public var isSubnormal: Bool {
+        fatalError()
+    }
+    
+    public var isCanonical: Bool {
+        fatalError()
+    }
+    
+}

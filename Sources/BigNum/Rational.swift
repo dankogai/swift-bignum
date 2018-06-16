@@ -69,22 +69,10 @@ extension BigRationalType {
         if width == 0       { return }
         let w = width < 0 ? -width : +width
         let s = max(den.bitWidth - 1, w)    // -1 for sign bit
-        let t = s - w
-        if den >> den.trailingZeroBitCount == 1 { // already power of two
-            if w < (num.bitWidth - 1) - num.trailingZeroBitCount { // has significant bits to truncate
-                num = Element(BigInt(num).truncated(width:w, round:round))
-            }
-            let gcd = num.greatestCommonDivisor(with: den)
-            if gcd != 1 {
-                num /= gcd; den /= gcd
-            }
-        } else {
-            let d = Element(1) << s
-            var (n, r) = (num * d).quotientAndRemainder(dividingBy: den)
-            let ro = r.over(den).rounded(round)
-            n += ro.asMixed.0
-            self = Self((n >> t) << t, d)   // shift down and back up to discard lower bits
-        }
+        let d = Element(1) << s
+        var n = (num << (s+2)) / den    // 2 bits for rounding hint
+        n.truncate(width:width, round:round)
+        self = Self(n >> 2, d)  // shift down and back up to discard lower bits
     }
 }
 
