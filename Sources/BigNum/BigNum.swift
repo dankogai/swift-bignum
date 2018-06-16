@@ -87,7 +87,7 @@ extension DoubleConvertible {
 }
 
 //
-extension BigInt {
+extension SignedInteger {
     //
     public mutating func truncate(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
         let w = Swift.abs(width)
@@ -97,7 +97,7 @@ extension BigInt {
         let r = self - (i << t)
         let s = self.signum()
         let a = Swift.abs(r) * 2
-        let o = BigInt(1 << t)
+        let o = Self(1) << t
         switch round {
         case .toNearestOrAwayFromZero:  i += o <= a ? s : 0
         case .toNearestOrEven:          i += o < a || o == a && i & 1 == 1 ? s : 0
@@ -108,7 +108,7 @@ extension BigInt {
         }
         self = i << t
     }
-    public func truncated(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero)->BigInt {
+    public func truncated(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero)->Self {
         var result = self
         result.truncate(width:width, round:round)
         return result
