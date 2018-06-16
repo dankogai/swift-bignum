@@ -34,15 +34,12 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral, Flo
 }
 extension BigFloatingPoint {
     public mutating func truncate(width px:Int) {
-        self.truncate(width:px, round:.toNearestOrAwayFromZero)
+        self.truncate(width:px, round:Self.roundingRule)
     }
-    public func truncated(width px: Int, round rule:FloatingPointRoundingRule)->Self {
+    public func truncated(width px:Int=Self.precision, round rule:FloatingPointRoundingRule=Self.roundingRule)->Self {
         var result = self
         result.truncate(width:px, round:rule)
         return result
-    }
-    public func truncated(width px: Int)->Self {
-        return self.truncated(width:px, round:.toNearestOrAwayFromZero)
     }
 }
 extension BigFloatingPoint where Self:BinaryFloatingPoint {

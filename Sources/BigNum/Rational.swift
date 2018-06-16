@@ -64,7 +64,7 @@ extension BigInt: RationalElement {
 
 extension BigRationalType {
     /// truncate significand to `width` bits
-    public mutating func truncate(width:Int, round:FloatingPointRoundingRule) {
+    public mutating func truncate(width:Int, round:FloatingPointRoundingRule=Self.roundingRule) {
         if self.isNaN || self.isZero || self.isInfinite { return }
         if width == 0       { return }
         let w = width < 0 ? -width : +width
