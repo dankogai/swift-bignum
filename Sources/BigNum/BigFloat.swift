@@ -11,7 +11,7 @@ public struct BigFloat: Equatable, Hashable {  // automatic conformance to Equat
     public var scale:Exponent           // stored property
     public var mantissa:Significand     // stored property
     public static var precision = 64
-    public static var defaultRoundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
+    public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
     public static var maxExponent =  Int.max
 }
 // override == to introduce NaN
@@ -150,22 +150,22 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
     public var asDouble:Double { return Double(self) }
     public init(floatLiteral value: Double) { self.init(value) }
     // implement truncate() here so init(_q:RationalType) can use it
-    public mutating func truncate(width:Int, round:FloatingPointRoundingRule = defaultRoundingRule) {
+    public mutating func truncate(width:Int, round:FloatingPointRoundingRule=roundingRule) {
         mantissa.truncate(width: width, round: round)
     }
-    public func truncated(width:Int, round:FloatingPointRoundingRule = defaultRoundingRule)->BigFloat {
+    public func truncated(width:Int, round:FloatingPointRoundingRule=roundingRule)->BigFloat {
         var result = self
         result.truncate(width:width, round:round)
         return result
     }
     // we have truncate, we have round
-    public mutating func round(_ rule:FloatingPointRoundingRule = defaultRoundingRule) {
+    public mutating func round(_ rule:FloatingPointRoundingRule=roundingRule) {
         let width = scale + (mantissa.bitWidth-1)
         mantissa.truncate(width: width, round: rule)
         mantissa >>= (mantissa.bitWidth-1) - width
         scale = 0
     }
-    public func rounded(_ rule:FloatingPointRoundingRule = defaultRoundingRule)->BigFloat {
+    public func rounded(_ rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
         var result = self
         result.round(rule)
         return result
@@ -315,14 +315,22 @@ extension BigFloat : SignedNumeric {
     }
 }
 extension BigFloat {
-//    public func divide(by other:BigFloat, precision px:Int = defaultPrecision, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
-//        let bits = Swift.min(q.den.bitWidth-1, Swift.abs(px))
-//        mantissa = Significand(q.num << (bits+2) / q.den)
-//        mantissa.truncate(width:px)
-//        mantissa >>= 2
-//        mantissa >>= mantissa.trailingZeroBitCount
-//        scale = (q.num.bitWidth-1) - (q.den.bitWidth-1) - (mantissa.bitWidth-1) + 1
-//    }
+    public mutating func divide(
+        by other:BigFloat, precision px:Int=precision, round rule:FloatingPointRoundingRule=roundingRule) {
+        let bits = Swift.max(self.mantissa.bitWidth-1, Swift.abs(px))
+        mantissa = Significand(mantissa << (bits+2) / other.mantissa)
+        mantissa >>= 2
+        mantissa.truncate(width:px, round:rule)
+        mantissa >>= mantissa.trailingZeroBitCount
+        scale -= other.scale + (mantissa.bitWidth-1)-1
+    }
+    public func divided(
+        by other:BigFloat, precision px:Int=precision, round rule:FloatingPointRoundingRule=roundingRule
+        )->BigFloat {
+            var result = self
+            result.divide(by:other, precision:px, round:rule)
+            return result
+    }
 //    public static func / (lhs: BigFloat, rhs: BigFloat) -> BigFloat {
 //        let bits = Swift.min(q.den.bitWidth-1, Swift.abs(px))
 //        mantissa = Significand(q.num << (bits+2) / q.den)
