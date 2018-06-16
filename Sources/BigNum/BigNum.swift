@@ -19,8 +19,9 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral, Flo
     mutating func truncate(width:Int, round:FloatingPointRoundingRule)
     static func %(_:Self,_:Self)->Self
     static func getEpsilon(precision: Int)->Self
-    static var defaultPrecision:Int { get }
     static var maxExponent:Int { get }
+    static var precision:Int { get }
+    static var roundingRule: FloatingPointRoundingRule { get }
     var asBigRat:BigRat { get }
     var asDouble:Double { get }
     var asMixed:(IntType, Self) { get }
@@ -65,12 +66,12 @@ extension BigFloatingPoint where Self:BinaryFloatingPoint {
         return lhs.truncatingRemainder(dividingBy: rhs)
     }
     /// defaultPrecision is set to significandBitCount
-    public static var defaultPrecision:Int { return Self.significandBitCount }
+    public static var precision:Int { return Self.significandBitCount }
     /// max exponent is set to  = 0x3fff
     public static var maxExponent:Int { return Int(Self.greatestFiniteMagnitude.exponent) }
     /// get epsilon for math functions.  always smaller than 63
     public static func getEpsilon(precision px: Int)->Self {
-        return 1.0 / Self(BigInt(1) << min(defaultPrecision, Swift.abs(px)))
+        return 1.0 / Self(BigInt(1) << min(Self.precision, Swift.abs(px)))
     }
 }
 
@@ -85,5 +86,34 @@ extension Float:  DoubleConvertible {}
 extension DoubleConvertible {
     init<T:BigFloatingPoint>(_ bf:T) {
         self = Self(bf.asDouble)
+    }
+}
+
+//
+extension BigInt {
+    //
+    public mutating func truncate(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
+        let w = Swift.abs(width)
+        if self.bitWidth-1 < w { return }
+        let t = self.bitWidth-1 - w
+        var i = self >> t
+        let r = self - (i << t)
+        let s = self.signum()
+        let a = Swift.abs(r) * 2
+        let o = BigInt(1 << t)
+        switch round {
+        case .toNearestOrAwayFromZero:  i += o <= a ? s : 0
+        case .toNearestOrEven:          i += o < a || o == a && i & 1 == 1 ? s : 0
+        case .awayFromZero:             i += o < a ?  s : 0
+        case .down:                     i += r < 0 ? -1 : 0
+        case .up:                       i += 0 < r ? +1 : 0
+        case .towardZero:               i += 0
+        }
+        self = i << t
+    }
+    public func truncated(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero)->BigInt {
+        var result = self
+        result.truncate(width:width, round:round)
+        return result
     }
 }

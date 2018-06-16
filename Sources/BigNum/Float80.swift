@@ -5,6 +5,7 @@
 extension Float80: BigFloatingPoint {
     /// Corresponding integer type
     public typealias IntType = Int
+    public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
     /// constants
     public static var ATAN1 = (precision:0, value:nan)
     public static var E     = (precision:0, value:nan)

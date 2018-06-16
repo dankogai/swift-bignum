@@ -30,18 +30,18 @@ extension RationalElement where Self == BigInt {
     public func greatestCommonDivisor(with n:Self)->Self {
          return Self(BigInt(self).greatestCommonDivisor(with:BigInt(n)))
     }
-    public mutating func truncate(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
-        let w = Swift.abs(width)
-        if self.bitWidth - 1 < w { return }
-        let t = self.bitWidth - 1 - w
-        let n = BigRat(self >> t).rounded(round).num
-        self = Self(n) << t
-    }
-    public func truncated(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero)->Self {
-        var result = self
-        result.truncate(width:width, round:round)
-        return result
-    }
+//    public mutating func truncate(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
+//        let w = Swift.abs(width)
+//        if self.bitWidth - 1 < w { return }
+//        let t = self.bitWidth - 1 - w
+//        let n = BigRat(self >> t).rounded(round).num
+//        self = Self(n) << t
+//    }
+//    public func truncated(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero)->Self {
+//        var result = self
+//        result.truncate(width:width, round:round)
+//        return result
+//    }
 }
 
 /// Rational number type whose numerator and denominator are `RationalElement`
@@ -198,7 +198,7 @@ extension RationalType {
     public mutating func addProduct(_ lhs: Self, _ rhs: Self) {
         self = self.addingProduct(lhs, rhs)
     }
-    public func squareRoot(precision px:Int = Int64.bitWidth)->Self {
+    public func squareRoot(precision px:Int = 64)->Self {
         if self.isNaN || self.isLess(than:0) { return Self.nan }
         if self.isZero { return self }
         let w = 2 * max(num.bitWidth, den.bitWidth, Swift.abs(px))
@@ -464,7 +464,8 @@ public struct BigRational : BigRationalType & Codable {
     public typealias FloatLiteralType = Double
     public typealias Element = BigInt
     public typealias IntType = BigInt
-    public static var defaultPrecision = 64
+    public static var precision    = 64
+    public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
     public static var ATAN1 = (precision:0, value:nan)
     public static var E     = (precision:0, value:nan)
     public static var SQRT2 = (precision:0, value:nan)

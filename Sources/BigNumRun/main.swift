@@ -33,8 +33,6 @@ print(BigFloat(Double.pi).asDouble)
 print(BigFloat(Double.greatestFiniteMagnitude).asDouble)
 print(BigFloat(BigInt(1) << 128 - 1).asDouble)
 print(BigFloat(-3.0).asDouble)
-exit(0)
-
 print("Float")
 print(BigFloat(Float(+0.0)))
 print(BigFloat(Float(-0.0)))
