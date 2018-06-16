@@ -13,6 +13,12 @@ public struct BigFloat: Equatable, Hashable {  // automatic conformance to Equat
     public static var precision = 64
     public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
     public static var maxExponent =  Int.max
+    // basic init
+    public init(scale: Exponent, mantissa:Significand) {
+        let shift = mantissa.trailingZeroBitCount
+        self.scale    =    scale  + shift
+        self.mantissa = mantissa >> shift
+    }
 }
 // override == to introduce NaN
 extension BigFloat {
@@ -315,29 +321,26 @@ extension BigFloat : SignedNumeric {
     }
 }
 extension BigFloat {
-    public mutating func divide(
-        by other:BigFloat, precision px:Int=precision, round rule:FloatingPointRoundingRule=roundingRule) {
-        let bits = Swift.max(self.mantissa.bitWidth-1, Swift.abs(px))
-        mantissa = Significand(mantissa << (bits+2) / other.mantissa)
-        mantissa >>= 2
-        mantissa.truncate(width:px, round:rule)
-        mantissa >>= mantissa.trailingZeroBitCount
-        scale -= other.scale + (mantissa.bitWidth-1)-1
+    public func reciprocal(precision px:Int=precision, round rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
+        let bits = Swift.max(mantissa.bitWidth-1, Swift.abs(px))
+        var m = (Significand(1) << (bits+2)) / mantissa
+        m.truncate(width:px)
+        m >>= 2
+        m >>= m.trailingZeroBitCount
+        let s = -(mantissa.bitWidth-1) - (m.bitWidth-1) + 2
+        return BigFloat(scale:s, mantissa:m)
     }
-    public func divided(
-        by other:BigFloat, precision px:Int=precision, round rule:FloatingPointRoundingRule=roundingRule
-        )->BigFloat {
-            var result = self
-            result.divide(by:other, precision:px, round:rule)
-            return result
+    public mutating func divide(by other:BigFloat,
+                                precision px:Int=precision,
+                                round rule:FloatingPointRoundingRule=roundingRule) {
+        self = self * other.reciprocal(precision:px, round:rule)
     }
-//    public static func / (lhs: BigFloat, rhs: BigFloat) -> BigFloat {
-//        let bits = Swift.min(q.den.bitWidth-1, Swift.abs(px))
-//        mantissa = Significand(q.num << (bits+2) / q.den)
-//        mantissa.truncate(width:px)
-//        mantissa >>= 2
-//        mantissa >>= mantissa.trailingZeroBitCount
-//        scale = (q.num.bitWidth-1) - (q.den.bitWidth-1) - (mantissa.bitWidth-1) + 1
-//
-//    }
+    public func divided(by other:BigFloat,
+                        precision px:Int=precision,
+                        round rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
+            return self * other.reciprocal(precision:px, round:rule)
+    }
+    public static func / (lhs: BigFloat, rhs: BigFloat) -> BigFloat {
+        return lhs.divided(by:rhs)
+    }
 }
