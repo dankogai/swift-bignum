@@ -320,8 +320,18 @@ extension BigFloat : SignedNumeric {
         lhs = lhs * rhs
     }
 }
+// now we have + and -.  Let's make it Strideable
+extension BigFloat: Strideable {
+    public func distance(to other: BigFloat) -> BigFloat {
+        return other - self
+    }
+    public func advanced(by n: BigFloat) -> BigFloat {
+        return self + n
+    }
+}
 extension BigFloat {
-    public func reciprocal(precision px:Int=precision, round rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
+    public func reciprocal(precision px:Int=precision,
+                           round rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
         let bits = Swift.max(mantissa.bitWidth-1, Swift.abs(px))
         var m = (Significand(1) << (bits+2)) / mantissa
         m.truncate(width:px)
@@ -343,4 +353,8 @@ extension BigFloat {
     public static func / (lhs: BigFloat, rhs: BigFloat) -> BigFloat {
         return lhs.divided(by:rhs)
     }
+    public static func /= (lhs: inout BigFloat, rhs: BigFloat) {
+        lhs = lhs / rhs
+    }
 }
+

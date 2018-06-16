@@ -212,7 +212,7 @@ extension RationalType {
     }
     //
     public func distance(to other: Self) -> Self {
-        return self - other
+        return other - self
     }
     public func advanced(by n: Self) -> Self {
         return self + n
