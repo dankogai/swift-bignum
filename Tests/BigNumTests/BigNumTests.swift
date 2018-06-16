@@ -19,11 +19,11 @@ final class BigNumTests: XCTestCase {
                 XCTAssertEqual(T.init(x) <  T.init(y), x <  y, "\(x) <  \(y)")
                 XCTAssertEqual(T.init(x) >= T.init(y), x >= y, "\(x) >= \(y)")
                 XCTAssertEqual(T.init(x) >  T.init(y), x >  y, "\(x) >  \(y)")
-//                XCTAssertEqual(
-//                    Q(x).isTotallyOrdered(belowOrEqualTo:Q(y)),
-//                    x.isTotallyOrdered(belowOrEqualTo:y),
-//                    "\(x).isTotallyOrdered(belowOrEqualTo:(\(y))"
-//                )
+                XCTAssertEqual(
+                    Q(x).isTotallyOrdered(belowOrEqualTo:Q(y)),
+                    x.isTotallyOrdered(belowOrEqualTo:y),
+                    "\(x).isTotallyOrdered(belowOrEqualTo:(\(y))"
+                )
             }
         }
     }

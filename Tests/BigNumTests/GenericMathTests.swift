@@ -3,12 +3,13 @@ import XCTest
 
 import Foundation
 
+var okCount = 0
+
 final class GenericMathTests: XCTestCase {
     private typealias D = Double
     func runUnary<R:BigFloatingPoint>(forType T:R.Type, ulp:Int) {
-        var count = 0
         func ok(_ d:D, _ rd:D, _ rq:R, _ name:String="", check:()->Bool = { false })->Bool {
-            count += 1
+            okCount += 1
             print("\(R.self).\(name)(\(d.debugDescription))", terminator: " ")
             if rq.isNaN         { print("is NaN");      return rd.isNaN  }
             if rd.isInfinite    { print("D.\(name) is inf"); return true }
@@ -38,13 +39,13 @@ final class GenericMathTests: XCTestCase {
             let q = T.init(d); var (rd, rq):(D, R)
             _ = d.isNaN ? XCTAssertEqual(d.isNaN, q.isNaN) : XCTAssertEqual(d, q.asDouble) // very basic test
             // {} is inverse function thereof
-            (rd,rq)=(D.sqrt(d), T.sqrt(q,precision:64) ); XCTAssert(ok(d,rd,rq, "sqrt" ){d==D(rq)*D(rq)      }, "\(d)")
-            (rd,rq)=(D.cbrt(d), T.cbrt(q,precision:64) ); XCTAssert(ok(d,rd,rq, "cbrt" ){d==D(rq)*D(rq)*D(rq)}, "\(d)")
+            (rd,rq)=(D.sqrt(d), T.sqrt(q,precision:64) ); XCTAssert(ok(d,rd,rq, "sqrt" ){d==D(rq)*D(rq)      }, "\(d,rd,rq)")
+            (rd,rq)=(D.cbrt(d), T.cbrt(q,precision:64) ); XCTAssert(ok(d,rd,rq, "cbrt" ){d==D(rq)*D(rq)*D(rq)}, "\(d,rd,rq)")
             // skip for values where log() returns inf
             (rd,rq)=(D.exp(d),  T.exp(q,precision:64)  ); XCTAssert(ok(d,rd,rq, "exp"  ){
-                lgfm < d.magnitude || d==D.log  (D(rq)) }, "\(d)")
+                lgfm < d.magnitude || d==D.log  (D(rq)) }, "\(d,rd,rq)")
             (rd,rq)=(D.expm1(d),T.expm1(q)); XCTAssert(ok(d,rd,rq, "exp1m"){
-                lgfm < d.magnitude || d==D.log1p(D(rq)) }, "\(d)")
+                lgfm < d.magnitude || d==D.log1p(D(rq)) }, "\(d,rd,rq)")
             // logarithms
             (rd,rq)=(D.log(d),  T.log(q,precision:64)  ); XCTAssert(ok(d,rd,rq, "log"  ){d==D.exp  (D(rq))}, "\(d,rd,rq)")
             (rd,rq)=(D.log2(d), T.log2(q,precision:64) ); XCTAssert(ok(d,rd,rq, "log2" ){d==D.pow( 2,D(rq))},"\(d,rd,rq)")
@@ -72,11 +73,12 @@ final class GenericMathTests: XCTestCase {
             (rd,rq)=(D.acosh(d),T.acosh(q,precision:64)); XCTAssert(ok(d,rd,rq, "acosh"){d==D.cosh (D(rq))}, "\(d)")
             (rd,rq)=(D.atanh(d),T.atanh(q,precision:64)); XCTAssert(ok(d,rd,rq, "atanh"){d==D.tanh (D(rq))}, "\(d,rd,rq)")
         }
-        print("testUnary:checked \(count) cases")
+        print("testUnary:checked \(okCount) cases")
     }
     
-    func testUnaryBigRat()  { runUnary(forType: BigRat.self,  ulp:1) }
-    func testUnaryFloat80() { runUnary(forType: Float80.self, ulp:2) }
+    func testUnaryBigRat()   { runUnary(forType: BigRat.self,   ulp:1) }
+    func testUnaryBigFloat() { runUnary(forType: BigFloat.self, ulp:1) }
+    func testUnaryFloat80()  { runUnary(forType: Float80.self,  ulp:2) }
 
     func runAtan2<R:BigFloatingPoint>(forType T:R.Type) {
         let doubles:[Double] = [-1/0.0, -1.0, -0.0, +0.0, +1.0, +1/0.0]
@@ -89,12 +91,13 @@ final class GenericMathTests: XCTestCase {
         }
     }
     
-    func testAtan2BigRat()  { runAtan2(forType: BigRat.self) }
-    func testAtan2Float80() { runAtan2(forType: Float80.self) }
+    func testAtan2BigRat()   { runAtan2(forType: BigRat.self) }
+    func testAtan2BigFloat() { runAtan2(forType: BigFloat.self) }
+    func testAtan2Float80()  { runAtan2(forType: Float80.self) }
 
-    static var allTests = [
-        ("testUnaryBigRat", testUnaryBigRat),
-        ("testAtan2BigRat", testAtan2BigRat),
-        ("testUnaryFloat80", testUnaryBigRat),
-        ("testAtan2Float80", testAtan2BigRat),]
+//    static var allTests = [
+//        ("testUnaryBigRat", testUnaryBigRat),
+//        ("testAtan2BigRat", testAtan2BigRat),
+//        ("testUnaryFloat80", testUnaryBigRat),
+//        ("testAtan2Float80", testAtan2BigRat),]
 }

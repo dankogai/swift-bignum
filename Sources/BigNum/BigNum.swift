@@ -17,6 +17,7 @@ public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral, Flo
     init(_:Double)
     init(_:IntType)
     mutating func truncate(width:Int, round:FloatingPointRoundingRule)
+    func remainder(dividingBy:Self, precision:Int,  round:FloatingPointRoundingRule)->Self
     static func %(_:Self,_:Self)->Self
     static func getEpsilon(precision: Int)->Self
     static var maxExponent:Int { get }

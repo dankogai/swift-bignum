@@ -13,7 +13,7 @@ extension BigFloatingPoint {
         let apx = Swift.abs(px)
         if apx <= E.precision { return E.value.truncated(width: apx) }
         E.precision = apx
-        E.value = {
+        E.value = E.value is BigRat ? {
             let epsilon = getEpsilon(precision: px)
             var (e, d) = (Self(1), Self(1))
             for i in 1 ... apx {
@@ -22,7 +22,7 @@ extension BigFloatingPoint {
                 if 1/d < epsilon { break }
             }
             return e.truncated(width: apx)
-        }()
+        }() : Self(BigRat.E(precision: apx))
         return E.value
     }
     /// log(2)
@@ -30,7 +30,7 @@ extension BigFloatingPoint {
         let apx = Swift.abs(px)
         if apx <= LN2.precision { return LN2.value.truncated(width: apx) }
         LN2.precision = apx
-        LN2.value = {
+        LN2.value = LN2.value is BigRat ? {
             let epsilon = getEpsilon(precision: px)
             var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
             for i in 1...px {
@@ -40,7 +40,7 @@ extension BigFloatingPoint {
                 r = (r + t / Self(2 * i + 1)).truncated(width:px)
             }
             return (2*r).truncated(width: apx)
-        }()
+        }() : Self(BigRat.LN2(precision: apx))
         return LN2.value
     }
     /// log(10)
@@ -59,7 +59,7 @@ extension BigFloatingPoint {
         let apx = Swift.abs(px)
         if apx <= ATAN1.precision { return ATAN1.value.truncated(width: apx) }
         ATAN1.precision = apx
-        ATAN1.value = {
+        ATAN1.value = ATAN1.value is BigRat ? {
             let epsilon = getEpsilon(precision: px)
             var p64 = Self(0)
             for i in 0..<Int(apx.magnitude) {
@@ -84,7 +84,7 @@ extension BigFloatingPoint {
             }
             p64 /= Self(1<<8)
             return p64.truncated(width: apx)
-        }()
+        }() : Self(BigRat.ATAN1(precision: apx))
         return ATAN1.value
     }
     /// π in precision `px`.  4*atan(1)
@@ -319,13 +319,13 @@ extension BigFloatingPoint {
         var theta = x
         let onepi = PI(precision:px)
         if theta < -2*onepi || +2*onepi < theta {
-            let precision = px + Int(theta.exponent)
-            // print("\(Self.self).wrapAngle: precision=", precision)
-            let twopi = 2*PI(precision:precision)
-            // print("before:", angle)
-            theta = theta % twopi
-            // print("after:", angle)
+            let hp = px + Int(theta.exponent)
+            if debug { print("\(Self.self).wrapAngle: precision =", hp) }
+            let twopi = 2*PI(precision:hp)
+            if debug { print("before:", theta) }
+            theta = theta.remainder(dividingBy: twopi, precision:hp, round:Self.roundingRule)
             theta.truncate(width:px)
+            if debug { print("after:", theta) }
         }
         if theta < -onepi { theta += 2*onepi }
         if +onepi < theta { theta -= 2*onepi }
@@ -365,7 +365,7 @@ extension BigFloatingPoint {
             }
             return (s, c)
         }
-        let (s, c) = inner(Swift.abs(x) < 8 ? x : normalizeAngle(x, precision:px))
+        let (s, c) = inner(Swift.abs(x) < 8 ? x : normalizeAngle(x, precision:px, debug:debug))
         return 0 < px ? (s, c) : (s.truncated(width: px), c.truncated(width: px))
     }
     /// cos(x)

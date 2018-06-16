@@ -18,6 +18,16 @@ extension Float80: BigFloatingPoint {
     public var asDouble:Double { return Double(self) }
     /// Float80 -> BigRat
     public var asBigRat:BigRat { return BigRat(self) }
+    ///
+    public func remainder(dividingBy other:Float80,
+                          precision:Int = Float80.precision,
+                          round:FloatingPointRoundingRule = Float80.roundingRule)->Float80
+    {
+        // self.remainder(dividingBy: other) loops :(
+        var result = self
+        result.formRemainder(dividingBy: other)
+        return result
+    }
 }
 /// Float80-related extension
 extension BigRat {

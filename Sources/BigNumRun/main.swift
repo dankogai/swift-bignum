@@ -5,6 +5,8 @@ import Glibc
 import Darwin
 #endif
 
+print(BigFloat.exp(1))
+
 print(BigFloat(BigRat(-Double.greatestFiniteMagnitude)))
 print(BigFloat(BigRat(-Double.greatestFiniteMagnitude)).asDouble)
 print(BigRat(BigFloat(-Double.greatestFiniteMagnitude)))

@@ -186,7 +186,7 @@ extension RationalType {
     public mutating func addProduct(_ lhs: Self, _ rhs: Self) {
         self = self.addingProduct(lhs, rhs)
     }
-    public func squareRoot(precision px:Int = 64)->Self {
+    public func squareRoot(precision px:Int=Int64.bitWidth)->Self {
         if self.isNaN || self.isLess(than:0) { return Self.nan }
         if self.isZero { return self }
         let w = 2 * max(num.bitWidth, den.bitWidth, Swift.abs(px))
@@ -344,16 +344,23 @@ extension RationalType {
         let (q, r) = self.num.quotientAndRemainder(dividingBy: self.den)
         return (q, Self(r, self.den)) as! (Self.IntType, Self)
     }
-    public func quotientAndRemainder(dividingBy other: Self)->(Self, Self) {
+    public func quotientAndRemainder(dividingBy other: Self)->(quotient:Self, remainder:Self) {
         let (q, r) = self.over(other).asMixed
         return (Self(q), r * other)
     }
-     public mutating func formRemainder(dividingBy other: Self) {
-        self = self.quotientAndRemainder(dividingBy: other).1
+    public func truncatingRemainder(dividingBy other: Self)->Self {
+        return self.quotientAndRemainder(dividingBy: other).0
     }
     public mutating func formTruncatingRemainder(dividingBy other: Self) {
         self = self.quotientAndRemainder(dividingBy: other).0
     }
+    public func remainder(dividingBy other: Self)->Self {
+        return self.quotientAndRemainder(dividingBy: other).1
+    }
+    public mutating func formRemainder(dividingBy other: Self) {
+        self = self.quotientAndRemainder(dividingBy: other).1
+    }
+    
     public static func /(_ lhs:Self, _ rhs:Self)->Self {
         return lhs.over(rhs)
     }
@@ -483,8 +490,13 @@ public struct BigRational : BigRationalType & Codable {
     public static var maxExponent:Int {
         return Int(Int16.max)
     }
+    public func remainder(dividingBy other:BigRational,
+                          precision:Int = BigRational.precision,
+                          round:FloatingPointRoundingRule = BigRational.roundingRule)->BigRational
+    {
+        return self.quotientAndRemainder(dividingBy: other).remainder
+    }
 }
-
 public typealias BigRat = BigRational
 
 extension BigRational {
