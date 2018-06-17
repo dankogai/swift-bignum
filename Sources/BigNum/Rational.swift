@@ -481,17 +481,18 @@ public struct BigRational : BigRationalType & Codable {
 }
 public typealias BigRat = BigRational
 
-extension BigRational {
+extension BigRational : CustomDebugStringConvertible {
     public var asIntRat:IntRat {
         let q = self.truncated(width: Int.bitWidth - 1)
         return IntRat(num:Int(q.num), den:Int(q.den))
     }
     public func toString(radix:Int=10)->String {
+        if self.isNaN || self.isSignalingNaN || self.isInfinite { return self.asDouble.description }
         return "(\(String(num, radix:radix))/\(String(den, radix:radix)))"
     }
     public var debugDescription:String {
         let n = (sign == .minus ? "-" : "+") + "0x" + String(num.magnitude, radix:16)
-        let d = (sign == .minus ? ""  : "+") + "0x" + String(den, radix:16)
+        let d = (sign == .minus ? "-" : "" ) + "0x" + String(den, radix:16)
         return "(\(n)/\(d))"
     }
     public func toFloatingPointString(radix:Int = 10)->String {
@@ -541,7 +542,8 @@ extension FixedWidthRationalElement {
 
 // FixedWidthRationalType is Codable
 /// Rational number type whose numerator and denominator are `RationalElement`
-public protocol FixedWidthRationalType : RationalType & Codable where Element: FixedWidthRationalElement {}
+public protocol FixedWidthRationalType : RationalType, CustomDebugStringConvertible,Codable
+    where Element: FixedWidthRationalElement {}
 
 extension FixedWidthRationalType {
     public static var max:Self {
@@ -559,9 +561,14 @@ extension FixedWidthRationalType {
     public func toFloatingPointString(radix:Int = 10)->String {
         return self.asBigRat.toFloatingPointString(radix:radix)
     }
+    public var debugDescription: String {
+        return self.asBigRat.debugDescription
+    }
 }
 
-public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRationalType, Codable {
+public struct FixedWidthRational<I:FixedWidthRationalElement> :
+    FixedWidthRationalType, Codable
+{
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType   = Double
     public typealias Element = I
