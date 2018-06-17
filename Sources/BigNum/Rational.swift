@@ -33,7 +33,7 @@ public protocol RationalType : CustomStringConvertible, FloatingPoint, Expressib
     var num:Element { get set }
     var den:Element { get set }
     init(num:Element, den:Element)
-    static var maxExponent:Int { get }
+    static var expLimit:Int { get }
 }
 
 public protocol BigRationalType : RationalType & BigFloatingPoint {}
@@ -429,9 +429,9 @@ public struct Rational<I:RationalElement> : RationalType {
         self.init(floatLiteral)
     }
     /// maximum magnitude of the argument to exponential functions.
-    /// if smaller than `-maxExponent` 0 is returned
-    /// anything larger than `+maxExponent` +infinity is returned
-    public static var maxExponent:Int {
+    /// if smaller than `-expLimit` 0 is returned
+    /// anything larger than `+expLimit` +infinity is returned
+    public static var expLimit:Int {
         return Int(Int16.max)
     }
 }
@@ -467,9 +467,9 @@ public struct BigRational : BigRationalType & Codable {
     }
     public var asBigRat:BigRational { return self }
     /// maximum magnitude of the argument to exponential functions.
-    /// if smaller than `-maxExponent` 0 is returned
-    /// anything larger than `+maxExponent` +infinity is returned
-    public static var maxExponent:Int {
+    /// if smaller than `-expLimit` 0 is returned
+    /// anything larger than `+expLimit` +infinity is returned
+    public static var expLimit:Int {
         return Int(Int16.max)
     }
     public func remainder(dividingBy other:BigRational,
@@ -577,9 +577,9 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRation
         self.init(floatLiteral)
     }
     /// maximum magnitude of the argument to exponential functions.
-    /// if smaller than `-maxExponent` 0 is returned
-    /// anything larger than `+maxExponent` +infinity is returned
-    public static var maxExponent:Int {
+    /// if smaller than `-expLimit` 0 is returned
+    /// anything larger than `+expLimit` +infinity is returned
+    public static var expLimit:Int {
         return I.bitWidth - 1
     }
 }

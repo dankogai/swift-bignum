@@ -12,7 +12,7 @@ public struct BigFloat: Equatable, Hashable, Codable {  // automatic conformance
     public var mantissa:Significand     // stored property
     public static var precision = 64
     public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
-    public static var maxExponent =  BigRat.maxExponent //Int.max
+    public static var expLimit     = BigRat.expLimit //Int.max
     // basic init
     public init(scale: Exponent, mantissa:Significand) {
         let shift = mantissa.trailingZeroBitCount
@@ -449,6 +449,7 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
     }
     public var debugDescription:String {
         var s = self.toString(radix:16)
+        if self.isNaN || self.isSignalingNaN || self.isInfinite { return s }
         s.insert("x", at: s.index(s.startIndex, offsetBy:1))
         s.insert("0", at: s.index(s.startIndex, offsetBy:1))
         return s + "p0"

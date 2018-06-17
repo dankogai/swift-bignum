@@ -116,24 +116,6 @@ extension BigFloatingPoint {
         }
         return px < 0 ? r : r.truncated(width: px)
     }
-    /// self ** n where n is an integer
-    public func power(_ y:IntType, precision px:Int=Self.precision, debug:Bool=false)->Self  {
-        if self.isNaN || self.isInfinite || self.isZero {
-            return Self(Double.pow(self.asDouble, Self(y).asDouble))
-        }
-        if Self.maxExponent < Swift.abs(y) {
-            return y < 0 ? 0 : +Self.infinity
-        }
-        if y == 0 { return 1 }
-        if y < 0  { return 1/self.power(-y, precision:px) }
-        var (i, r, x) = (y, Self(1), self)
-        while i != 0 {
-            if i & 1 == 1 { r *= x }
-            x = (x * x).truncated(width: px*2)
-            i >>= 1
-        }
-        return r.truncated(width:px)
-    }
     /// atan2
     public static func atan2(_ y:Self, _ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self  {
         // cf. https://en.wikipedia.org/wiki/Atan2
@@ -154,13 +136,28 @@ extension BigFloatingPoint {
             )
         }
     }
-    /// x ** y
+    /// self ** n where n is an integer
+    public func power(_ y:IntType, precision px:Int=Self.precision, debug:Bool=false)->Self  {
+        if self.isNaN || self.isInfinite || self.isZero {
+            return Self(Double.pow(self.asDouble, Self(y).asDouble))
+        }
+        if Self.expLimit < Swift.abs(Self.log(self) * Self(y)).asMixed.0 {
+            return y < 0 ? 0 : +Self.infinity
+        }
+        if y == 0 { return 1 }
+        if y < 0  { return 1/self.power(-y, precision:px) }
+        var (i, r, x) = (y, Self(1), self)
+        while i != 0 {
+            if i & 1 == 1 { r *= x }
+            x = (x * x).truncated(width: px*2)
+            i >>= 1
+        }
+        return r.truncated(width:px)
+    }
+   /// x ** y
     public static func pow(_ x:Self, _ y:Self, precision px:Int=Self.precision, debug:Bool=false)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
             return Self(Double.pow(x.asDouble, y.asDouble))
-        }
-        if Self(maxExponent) < Swift.abs(y) {
-            return y.sign == .minus ? 0 : +Self.infinity
         }
         if Swift.abs(x) < 1   { return 1/pow(1/x, y, precision:px) }
         let (iy, fy) = y.asMixed
@@ -193,7 +190,7 @@ extension BigFloatingPoint {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
         if x.isZero     { return 1 }
-        if Self(maxExponent) < Swift.abs(x) {
+        if Self(expLimit) < Swift.abs(x) {
             return x.sign == .minus ? 0 : +Self.infinity
         }
         if x.isLess(than:0) { return 1/exp(-x, precision:px) }
@@ -219,7 +216,7 @@ extension BigFloatingPoint {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? -1 : +infinity }
         if x.isZero     { return x }
-        if Self(maxExponent) < Swift.abs(x) {
+        if Self(expLimit) < Swift.abs(x) {
             return x.sign == .minus ? -1 : +Self.infinity
         }
         if LN2(precision: px) <=  Swift.abs(x)  {
