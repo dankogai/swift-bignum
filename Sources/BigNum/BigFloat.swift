@@ -420,7 +420,9 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
         return self.toFloatingPointString(radix:radix)
     }
     public var description:String {
-        return self.toString()
+        var s = self.toString()
+        if s.first == "+" { s.removeFirst() }
+        return s
     }
     public var debugDescription:String {
         var s = self.toString(radix:16)
