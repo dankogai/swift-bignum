@@ -383,7 +383,7 @@ extension BigFloat : FloatingPoint{
         self = self.squareRoot(precision:px, round:rule)
     }
     public mutating func formSquareRoot() {
-        self.formSquareRoot()
+        self = self.squareRoot()
     }
     public mutating func addProduct(_ lhs: BigFloat, _ rhs: BigFloat) {
         self += lhs * rhs
