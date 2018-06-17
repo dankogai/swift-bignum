@@ -418,14 +418,15 @@ extension BigFloat : BigFloatingPoint {
 extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
     public func toString(radix:Int = 10)->String {
         // return self.toFloatingPointString(radix:radix)
+        let ssign = self.sign == .minus ? "-" : "+"
         if self.isNaN || self.isSignalingNaN { return "nan" }
         if self.isInfinite {
-            return (sign == .minus ? "-" : "+") + "infinity"
+            return ssign + "infinity"
         }
         let (iself, fself) = self.asMixed
         let sint = String(iself.magnitude, radix:radix)
         let ilen = sint.count
-        if fself.isZero { return sint + ".0" }
+        if fself.isZero { return ssign + sint + ".0" }
         let bitsPerDigit = Double.log2(Double(radix))
         let bitWidth = Swift.max(fself.mantissa.bitWidth, Int64.bitWidth)
         let ndigits = Int(Double(bitWidth) / bitsPerDigit) + 1
@@ -441,12 +442,60 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
         s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
         while s.last == "0" { s.removeLast() }
         if s.last == "." { s.append("0") }
-        return (self.sign == .minus ? "-" : "+") + s;
+        return ssign + s;
     }
     public var description:String {
         return self.toString()
     }
     public var debugDescription:String {
-        return self.toString(radix:16)
+        var s = self.toString(radix:16)
+        s.insert("x", at: s.index(s.startIndex, offsetBy:1))
+        s.insert("0", at: s.index(s.startIndex, offsetBy:1))
+        return s + "p0"
     }
+    public init?<S:StringProtocol>(_ str:S, radix:Int=10) {
+        self = 0
+        guard 0 < str.count else { return nil }
+        var base   = radix
+        var scale  = 0
+        var factor = BigFloat(1)
+        var signum = +1.0
+        var chars = [Character](str.lowercased())
+        if      chars[0] == "+" { signum = +1.0 ; chars.removeFirst() }
+        else if chars[0] == "-" { signum = -1.0 ; chars.removeFirst() }
+        if chars[0] == "0" {
+            chars.removeFirst()
+            if chars.count < 1 { return }
+            switch chars[0] {
+            case "x" : base = 16; chars.removeFirst()
+            case "o" : base = 8;  chars.removeFirst()
+            case "b" : base = 2;  chars.removeFirst()
+            default: while chars[0] == "0" { chars.removeFirst() }
+            }
+        }
+        if base == 16 && chars.contains("p") {
+            let cs = chars.split(separator:"p").map{ [Character]($0) }
+            chars = cs[0]
+            scale = Exponent(String(cs[1]))!
+        }
+        else if base == 10 && chars.contains("e") {
+            let cs = chars.split(separator:"e").map{ [Character]($0) }
+            chars = cs[0]
+            factor = BigFloat(base).power(BigInt(String(cs[1]))!)
+        }
+        let cs = chars.split(separator:".").map{ [Character]($0) }
+        guard let i = BigInt(String(cs[0]), radix:base) else { return nil }
+        self += signum * factor * BigFloat(i) * BigFloat(scale:scale, mantissa:1)
+        if 1 < cs.count {
+            guard let i = BigInt(String(cs[1]), radix:base) else { return nil }
+            self += signum * factor * BigFloat(i) * BigFloat(scale:scale, mantissa:1)
+                    / BigFloat(base).power(BigInt(cs[1].count))
+        }
+    }
+}
+extension String {
+    init(_ bf:BigFloat, radix:Int=10, uppercase:Bool=false){
+        self = uppercase ? bf.toString(radix:radix).uppercased() : bf.toString(radix:radix)
+    }
+
 }

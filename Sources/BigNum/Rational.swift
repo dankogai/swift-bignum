@@ -495,13 +495,15 @@ extension BigRational {
         return "(\(n)/\(d))"
     }
     public func toFloatingPointString(radix:Int = 10)->String {
-        if self.isNaN || self.isSignalingNaN || self.isInfinite {
-            return self.asDouble.description
+        let ssign = self.sign == .minus ? "-" : "+"
+        if self.isNaN || self.isSignalingNaN { return "nan" }
+        if self.isInfinite {
+            return ssign + "infinity"
         }
         let (iself, fself) = self.asMixed
         let sint = String(iself.magnitude, radix:radix)
         let ilen = sint.count
-        if fself.isZero { return sint + ".0" }
+        if fself.isZero { return ssign + sint + ".0" }
         let bitsPerDigit = Double.log2(Double(radix))
         let bitWidth = Swift.max(fself.num.bitWidth, fself.den.bitWidth, Int64.bitWidth)
         let ndigits = Int(Double(bitWidth) / bitsPerDigit) + 1
@@ -517,7 +519,7 @@ extension BigRational {
         s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
         while s.last == "0" { s.removeLast() }
         if s.last == "." { s.append("0") }
-        return (self.sign == .minus ? "-" : "+") + s;
+        return ssign + s;
     }
 }
 
