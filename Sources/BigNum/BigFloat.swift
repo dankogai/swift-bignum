@@ -211,7 +211,7 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
         else {
             let qt = BigInt(q.num).over(BigInt(q.den)).truncated(width:(q.den.bitWidth-1)+px, round:rule)
             self = BigFloat(scale:-qt.den.trailingZeroBitCount, mantissa:qt.num)
-        }
+         }
     }
 }
 extension BigFloat {
@@ -417,32 +417,7 @@ extension BigFloat : BigFloatingPoint {
 // Custom{,Debug}StringConvertible
 extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
     public func toString(radix:Int = 10)->String {
-        // return self.toFloatingPointString(radix:radix)
-        let ssign = self.sign == .minus ? "-" : "+"
-        if self.isNaN || self.isSignalingNaN { return "nan" }
-        if self.isInfinite {
-            return ssign + "infinity"
-        }
-        let (iself, fself) = self.asMixed
-        let sint = String(iself.magnitude, radix:radix)
-        let ilen = sint.count
-        if fself.isZero { return ssign + sint + ".0" }
-        let bitsPerDigit = Double.log2(Double(radix))
-        let bitWidth = Swift.max(fself.mantissa.bitWidth, Int64.bitWidth)
-        let ndigits = Int(Double(bitWidth) / bitsPerDigit) + 1
-        var (i, r) = (self * BigFloat(radix).power(IntType(ndigits))).asMixed
-        if 1 <= r.magnitude * 2 {
-            i += i.sign == .minus ? -1 : +1
-        }
-        var s = String(i.magnitude, radix:radix)
-
-        if self.magnitude < 1 {
-            s = [String](repeating:"0", count: ndigits - s.count + 1).joined() + s
-        }
-        s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
-        while s.last == "0" { s.removeLast() }
-        if s.last == "." { s.append("0") }
-        return ssign + s;
+        return self.toFloatingPointString(radix:radix)
     }
     public var description:String {
         return self.toString()
@@ -485,13 +460,10 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
             factor = BigFloat(base).power(BigInt(String(cs[1]))!)
         }
         let cs = chars.split(separator:".").map{ [Character]($0) }
-        guard let i = BigInt(String(cs[0]), radix:base) else { return nil }
-        self += signum * factor * BigFloat(i) * BigFloat(scale:scale, mantissa:1)
-        if 1 < cs.count {
-            guard let i = BigInt(String(cs[1]), radix:base) else { return nil }
-            self += signum * factor * BigFloat(i) * BigFloat(scale:scale, mantissa:1)
-                    / BigFloat(base).power(BigInt(cs[1].count))
-        }
+        let dlen = cs.count < 2 ? 0 : cs[1].count
+        guard let n = BigInt(String(cs[0]+cs[1]), radix:base) else { return nil }
+        let d = BigInt(base).power(dlen)
+        self = signum * factor * BigFloat(scale:scale, mantissa:1) *  BigFloat(n.over(d))
     }
 }
 extension String {
