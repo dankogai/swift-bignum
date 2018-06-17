@@ -6,8 +6,8 @@ public protocol RationalElement : SignedInteger {
 extension RationalElement {
     /// - returns: the greatest common divisor of `self`
     public func greatestCommonDivisor(with n:Self)->Self {
-        if Self.self == BigInt.self {
-            return Self(BigInt(self).greatestCommonDivisor(with:BigInt(n)))
+        if let bi = self as? BigInt {
+            return Self(bi.greatestCommonDivisor(with:n as! BigInt))
         }
         // print("\(Self.self).greatestCommonDivisor: slow version")
         var r = self < 0 ? -self : +self
@@ -513,7 +513,7 @@ extension BigRational {
         return "(\(n)/\(d))"
     }
     public func toFloatingPointString(radix:Int = 10)->String {
-        if self.isNaN || self.isInfinite {
+        if self.isNaN || self.isSignalingNaN || self.isInfinite {
             return self.asDouble.description
         }
         let (iself, fself) = self.asMixed
@@ -536,23 +536,6 @@ extension BigRational {
         while s.last == "0" { s.removeLast() }
         if s.last == "." { s.append("0") }
         return (self.sign == .minus ? "-" : "+") + s;
-    }
-}
-
-extension Rational : Codable where Element: Codable {
-    public enum CodingKeys : String, CodingKey {
-        public typealias RawValue = String
-        case num, den
-    }
-    public init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        self.num = try values.decode(Element.self, forKey: .num)
-        self.den = try values.decode(Element.self, forKey: .den)
-    }
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.num, forKey: .num)
-        try container.encode(self.den, forKey: .den)
     }
 }
 
@@ -594,7 +577,7 @@ extension FixedWidthRationalType {
     }
 }
 
-public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRationalType {
+public struct FixedWidthRational<I:FixedWidthRationalElement> : FixedWidthRationalType, Codable {
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType   = Double
     public typealias Element = I

@@ -1,5 +1,5 @@
 /// conforming to BigFloatingPoint
-public struct BigFloat: Equatable, Hashable {  // automatic conformance to Equatable but needs to be overridden
+public struct BigFloat: Equatable, Hashable, Codable {  // automatic conformance to Equatable but needs to be overridden
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType   = Double
     public typealias Exponent           = Int
@@ -218,37 +218,7 @@ extension BigFloat {
     public var asBigRat:BigRat {
         return BigRat(self)
     }
-//    public func toString(radix:Int = 10)->String {
-//        if self.isNaN {
-//            return "nan"
-//        }
-//        if self.isInfinite {
-//            return (sign == .minus ? "-" : "+") + "infinity"
-//        }
-//        let (iself, fself) = self.asMixed
-//        let sint = String(iself.magnitude, radix:radix)
-//        let ilen = sint.count
-//        if fself.isZero { return sint + ".0" }
-//        let bitsPerDigit = Double.log2(Double(radix))
-//        let bitWidth = Swift.max(fself.num.bitWidth, fself.den.bitWidth, Int64.bitWidth)
-//        let ndigits = Int(Double(bitWidth) / bitsPerDigit) + 1
-//        var (i, r) = (self * BigInt(radix).power(ndigits)).asMixed
-//        if 1 <= r.magnitude * 2 {
-//            i += i.sign == .minus ? -1 : +1
-//        }
-//        var s = String(i.magnitude, radix:radix)
-//
-//        if self.magnitude < 1 {
-//            s = [String](repeating:"0", count: ndigits - s.count + 1).joined() + s
-//        }
-//        s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
-//        while s.last == "0" { s.removeLast() }
-//        if s.last == "." { s.append("0") }
-//        return (self.sign == .minus ? "-" : "+") + s;
-//    }
 }
-
-
 // override == to introduce NaN
 extension BigFloat {
     public func isIdentical(to other:BigFloat)->Bool {
@@ -444,9 +414,41 @@ extension BigFloat : BigFloatingPoint {
         return lhs.remainder(dividingBy: rhs)
     }
 }
-//// Generic Math Refinements
-//extension BigFloat {
-////    public static func exp(_ x:BigFloat, precision px:Int=BigFloat.precision, debug:Bool=false)->BigFloat {
-////        return BigFloat(BigRat.exp(BigRat(x), precision:px, debug:debug))
-////    }
-//}
+//
+extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
+    public func toString(radix:Int = 10)->String {
+        return self.toFloatingPointString(radix:radix)
+//        if self.isNaN {
+//            return "nan"
+//        }
+//        if self.isInfinite {
+//            return (sign == .minus ? "-" : "+") + "infinity"
+//        }
+//        let (iself, fself) = self.asMixed
+//        let sint = String(iself.magnitude, radix:radix)
+//        let ilen = sint.count
+//        if fself.isZero { return sint + ".0" }
+//        let bitsPerDigit = Double.log2(Double(radix))
+//        let bitWidth = Swift.max(fself.num.bitWidth, fself.den.bitWidth, Int64.bitWidth)
+//        let ndigits = Int(Double(bitWidth) / bitsPerDigit) + 1
+//        var (i, r) = (self * BigInt(radix).power(ndigits)).asMixed
+//        if 1 <= r.magnitude * 2 {
+//            i += i.sign == .minus ? -1 : +1
+//        }
+//        var s = String(i.magnitude, radix:radix)
+//
+//        if self.magnitude < 1 {
+//            s = [String](repeating:"0", count: ndigits - s.count + 1).joined() + s
+//        }
+//        s.insert(".", at:s.index(s.startIndex, offsetBy:ilen))
+//        while s.last == "0" { s.removeLast() }
+//        if s.last == "." { s.append("0") }
+//        return (self.sign == .minus ? "-" : "+") + s;
+    }
+    public var description:String {
+        return self.toString()
+    }
+    public var debugDescription:String {
+        return self.toString(radix:16)
+    }
+}

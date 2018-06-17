@@ -42,6 +42,9 @@ extension BigFloatingPoint {
         result.truncate(width:px, round:rule)
         return result
     }
+    public func toFloatingPointString(radix:Int = 10)->String {
+        return self.asBigRat.toFloatingPointString(radix: radix)
+    }
 }
 extension BigFloatingPoint where Self:BinaryFloatingPoint {
     /// decompose to sign, exponent and significand
@@ -115,3 +118,4 @@ extension SignedInteger {
         return result
     }
 }
+

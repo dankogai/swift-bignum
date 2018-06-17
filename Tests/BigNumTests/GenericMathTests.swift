@@ -95,9 +95,12 @@ final class GenericMathTests: XCTestCase {
     func testAtan2BigFloat() { runAtan2(forType: BigFloat.self) }
     func testAtan2Float80()  { runAtan2(forType: Float80.self) }
 
-//    static var allTests = [
-//        ("testUnaryBigRat", testUnaryBigRat),
-//        ("testAtan2BigRat", testAtan2BigRat),
-//        ("testUnaryFloat80", testUnaryBigRat),
-//        ("testAtan2Float80", testAtan2BigRat),]
+    static var allTests = [
+        ("testAtan2BigRat",   testAtan2BigRat),
+        ("testAtan2BigFloat", testAtan2BigFloat),
+        ("testAtan2Float80",  testAtan2BigRat),
+        ("testUnaryBigRat",   testUnaryBigRat),
+        ("testUnaryBigFloat", testUnaryBigFloat),
+        ("testUnaryFloat80",  testUnaryFloat80),
+    ]
 }
