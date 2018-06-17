@@ -487,12 +487,14 @@ extension BigRational : CustomDebugStringConvertible {
         return IntRat(num:Int(q.num), den:Int(q.den))
     }
     public func toString(radix:Int=10)->String {
-        if self.isNaN || self.isSignalingNaN || self.isInfinite { return self.asDouble.description }
-        return "(\(String(num, radix:radix))/\(String(den, radix:radix)))"
+        return "(\(num < 0 ? "-" : "+")\(String(num.magnitude, radix:radix))/\(String(den, radix:radix)))"
     }
     public var debugDescription:String {
-        let n = (sign == .minus ? "-" : "+") + "0x" + String(num.magnitude, radix:16)
-        let d = (sign == .minus ? "-" : "" ) + "0x" + String(den, radix:16)
+        if self.isNaN || self.isSignalingNaN || self.isInfinite || self.isZero {
+            return self.toString(radix: 16)
+        }
+        let n = (num < 0 ? "-" : "+") + "0x" + String(num.magnitude, radix:16)
+        let d = "0x" + String(den.magnitude, radix:16)
         return "(\(n)/\(d))"
     }
     public func toFloatingPointString(radix:Int = 10)->String {
