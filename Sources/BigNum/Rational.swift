@@ -26,24 +26,6 @@ extension RationalElement {
     }
 }
 
-extension RationalElement where Self == BigInt {
-    public func greatestCommonDivisor(with n:Self)->Self {
-         return Self(BigInt(self).greatestCommonDivisor(with:BigInt(n)))
-    }
-//    public mutating func truncate(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
-//        let w = Swift.abs(width)
-//        if self.bitWidth - 1 < w { return }
-//        let t = self.bitWidth - 1 - w
-//        let n = BigRat(self >> t).rounded(round).num
-//        self = Self(n) << t
-//    }
-//    public func truncated(width:Int, round:FloatingPointRoundingRule = .toNearestOrAwayFromZero)->Self {
-//        var result = self
-//        result.truncate(width:width, round:round)
-//        return result
-//    }
-}
-
 /// Rational number type whose numerator and denominator are `RationalElement`
 public protocol RationalType : CustomStringConvertible, FloatingPoint, ExpressibleByFloatLiteral {
     associatedtype Element:RationalElement
