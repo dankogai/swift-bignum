@@ -118,7 +118,7 @@ and the following to the `.target` argument:
 Now all you have to do is:
 
 ```swift
-import Complex
+import BigNum
 ```
 
 in your code.  Enjoy!
