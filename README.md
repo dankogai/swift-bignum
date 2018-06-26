@@ -103,7 +103,7 @@ Add the following to the `dependencies` section:
 
 ```swift
 .package(
-  url: "https://github.com/dankogai/swift-complex.git", from: "4.0.0"
+  url: "https://github.com/dankogai/swift-bignum.git", from: "4.0.0"
 )
 ```
 
@@ -112,7 +112,7 @@ and the following to the `.target` argument:
 ```swift
 .target(
   name: "YourSwiftyPackage",
-  dependencies: ["Complex"])
+  dependencies: ["BigNum"])
 ```
 
 Now all you have to do is:

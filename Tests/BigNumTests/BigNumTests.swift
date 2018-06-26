@@ -7,8 +7,6 @@ extension BigFloat: DoubleConvertible {}
 final class BigNumTests: XCTestCase {
     typealias D = Double
     
-    func testNothing() {}
-    //
     func runComp<Q:FloatingPoint & DoubleConvertible>(forType T:Q.Type) {
         var doubles = [0.0, 0.5, 1.0, 1.5, 2.0, .infinity]
         doubles += doubles.map{ -$0 }
@@ -39,11 +37,30 @@ final class BigNumTests: XCTestCase {
         XCTAssertEqual( T.init(+D.pi).asDouble, +D.pi)
         XCTAssertEqual( T.init(-D.pi).asDouble, -D.pi)
     }
-    func testBigRatrArithmetic() { runArithmetic(forType: BigRat.self) }
-    func testIntRatArithmetic()  { runArithmetic(forType: BigFloat.self) }
+    func testBigRatArithmetic() { runArithmetic(forType: BigRat.self) }
+    func testBigFloatArithmetic()  { runArithmetic(forType: BigFloat.self) }
+    //
+    func runRound<Q:FloatingPoint & DoubleConvertible>(forType T:Q.Type) {
+        var doubles = [0.0, 0.2, 0.5, 0.8, 1.0, 1.2, 1.5, 1.8]
+        doubles += doubles.map{ -$0 }
+        for d in doubles {
+            let q = Q(d)
+            // https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md
+            let allRules:[FloatingPointRoundingRule] = [
+                .awayFromZero, .down, .toNearestOrAwayFromZero, .toNearestOrEven, .towardZero, .up
+            ]
+            for rule in allRules {
+                XCTAssertEqual(q.rounded(rule), Q(d.rounded(rule)), "\(d, rule)")
+            }
+        }
+    }
+    func testBigRatRound() { runArithmetic(forType: BigRat.self) }
+    func testBigFloatRound()  { runArithmetic(forType: BigFloat.self) }
 
-    
     static var allTests = [
-        ("testNothing", testNothing),
+        ("testBigRatComp", testBigRatComp),
+        ("testBigFloatComp", testBigFloatComp),
+        ("testBigRatArithmetic", testBigRatArithmetic),
+        ("testBigFloatArithmetic", testBigFloatArithmetic),
     ]
 }
