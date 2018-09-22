@@ -1,4 +1,4 @@
-[![Swift 4.1](https://img.shields.io/badge/swift-4.1-brightgreen.svg)](https://swift.org)
+[![Swift 4.2](https://img.shields.io/badge/swift-4.2-brightgreen.svg)](https://swift.org)
 [![MIT LiCENSE](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 [![build status](https://secure.travis-ci.org/dankogai/swift-bignum.png)](http://travis-ci.org/dankogai/swift-bignum)
 
@@ -59,7 +59,7 @@ $ swift build && swift -I.build/debug -L.build/debug -lBigNum
 and in your repl,
 
 ```sh
-Welcome to Apple Swift version 4.1.2 (swiftlang-902.0.54 clang-902.0.39.2). Type :help for assistance.
+Welcome to Apple Swift version 4.2 (swiftlang-1000.11.37.1 clang-1000.11.45.1). Type :help for assistance.
   1> import BigNum 
   2> BigRat.sqrt(2, precision:128)
 $R0: BigNum.BigRat = {
@@ -125,4 +125,4 @@ in your code.  Enjoy!
 
 # Prerequisite
 
-Swift 4.1 or better, OS X or Linux to build.
+Swift 4.2 or better, OS X or Linux to build.
