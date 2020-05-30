@@ -1,4 +1,4 @@
-[![Swift 4.2](https://img.shields.io/badge/swift-4.2-brightgreen.svg)](https://swift.org)
+[![Swift 5](https://img.shields.io/badge/swift-5-brightgreen.svg)](https://swift.org)
 [![MIT LiCENSE](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 [![build status](https://secure.travis-ci.org/dankogai/swift-bignum.png)](http://travis-ci.org/dankogai/swift-bignum)
 
@@ -52,7 +52,7 @@ $ scripts/run-repl.sh
 or
 
 ```sh
-$ swift build && swift -I.build/debug -L.build/debug -lBigNum
+$ swift run --repl
 
 ```
 
@@ -91,7 +91,7 @@ $R0: BigNum.BigRat = {
 Xcode project is deliberately excluded from the repository because it should be generated via `swift package generate-xcodeproj` . For convenience, you can
 
 ```
-$ scripts/prep-xcode
+$ scripts/xcode-prep
 ```
 
 And the Workspace opens up for you with Playground on top.  The playground is written as a manual.
@@ -103,7 +103,7 @@ Add the following to the `dependencies` section:
 
 ```swift
 .package(
-  url: "https://github.com/dankogai/swift-bignum.git", from: "4.0.0"
+  url: "https://github.com/dankogai/swift-bignum.git", .branch("master")
 )
 ```
 
@@ -125,4 +125,4 @@ in your code.  Enjoy!
 
 # Prerequisite
 
-Swift 4.2 or better, OS X or Linux to build.
+Swift 5 or better, OS X or Linux to build.
