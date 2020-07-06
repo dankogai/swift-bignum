@@ -463,7 +463,8 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
         }
         let cs = chars.split(separator:".").map{ [Character]($0) }
         let dlen = cs.count < 2 ? 0 : cs[1].count
-        guard let n = BigInt(String(cs[0]+cs[1]), radix:base) else { return nil }
+        let digits = String(cs[0]) + (dlen != 0 ? String(cs[1]) : "")
+        guard let n = BigInt(digits, radix:base) else { return nil }
         let d = BigInt(base).power(dlen)
         self = signum * factor * BigFloat(scale:scale, mantissa:1) *  BigFloat(n.over(d))
     }

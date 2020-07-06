@@ -7,7 +7,7 @@ import Darwin
 
 //
 print(BigFloat.exp(1))
-
+print(BigFloat("+0x1234567890abcdef.0p0")!)
 
 
 //var dummy:Any = 0
