@@ -117,7 +117,7 @@ final class RationalTests: XCTestCase {
                 .awayFromZero, .down, .toNearestOrAwayFromZero, .toNearestOrEven, .towardZero, .up
             ]
             for rule in allRules {
-                XCTAssertEqual(q.rounded(rule), Q(d.rounded(rule)), "\(d, rule)")
+                XCTAssertEqual(q.rounded(rule), Q(d.rounded(rule)), "\((d, rule))")
             }
         }
     }

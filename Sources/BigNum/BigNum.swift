@@ -109,6 +109,7 @@ extension SignedInteger {
         case .down:                     i += r < 0 ? -1 : 0
         case .up:                       i += 0 < r ? +1 : 0
         case .towardZero:               i += 0
+        @unknown default:               fatalError()
         }
         self = i << t
     }
