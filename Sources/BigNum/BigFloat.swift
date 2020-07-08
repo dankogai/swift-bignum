@@ -461,10 +461,12 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
             chars = cs[0]
             factor = BigFloat(base).power(BigInt(String(cs[1]))!)
         }
-        let cs = chars.split(separator:".").map{ [Character]($0) }
-        let dlen = cs.count < 2 ? 0 : cs[1].count
-        let digits = String(cs[0]) + (dlen != 0 ? String(cs[1]) : "")
-        guard let n = BigInt(digits, radix:base) else { return nil }
+        var dlen = 0
+        if let i = chars.firstIndex(of:".") {
+            dlen = chars.count - i - 1
+            chars.remove(at:i)
+        }
+        guard let n = BigInt(String(chars), radix:base) else { return nil }
         let d = BigInt(base).power(dlen)
         self = signum * factor * BigFloat(scale:scale, mantissa:1) *  BigFloat(n.over(d))
     }
