@@ -126,3 +126,8 @@ in your code.  Enjoy!
 # Prerequisite
 
 Swift 5 or better, OS X or Linux to build.
+
+Depends on [apple/swift-numerics] since version 5.1.  Prior versions depended on [dankogai/swift-floatingpoint] for the `FloatingPointMath` protocols but it is replaced by the `ElementaryFunctions` protocol of swift-numerics.
+
+[apple/swift-numerics]: https://github.com/apple/swift-numerics
+[dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
