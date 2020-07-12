@@ -97,9 +97,14 @@ final class GenericMathTests: XCTestCase {
             XCTAssert(ok(d, rd, rq, "cos", 1) {
                 d == D.acos(rq.asDouble)
             }, "cos(\(d)):\((rd,rq))")
-            // BigRat.tan(q precision:128) fails for q very close to 1
+            // MARK:
+            // ulp = 2 needed for macOS (clang?)
+            /*
+             BigRational.tan(0.9999980926550052) !~ Double.tan() // err=0x1.2a219d9e9b7f7p-52
+             BigRational.tan(0.9999999999998863) !~ Double.tan() // err=0x1.310a4dda8dd2p-52
+             */
             (rd, rq) = (D.tan(d), T.tan(q, precision: 128));
-            XCTAssert(ok(d, rd, rq, "tan", 1) {
+            XCTAssert(ok(d, rd, rq, "tan", 2) {
                 d == D.atan(rq.asDouble)
             }, "tan(\(d)):\((rd,rq))")
             // inverse trigonometric
@@ -125,7 +130,16 @@ final class GenericMathTests: XCTestCase {
                 lgfm < d.magnitude || d == D.acosh(rq.asDouble)
             }, "cosh(\(d)):\((rd,rq))")
             (rd, rq) = (D.tanh(d), T.tanh(q, precision: 128));
-            XCTAssert(ok(d, rd, rq, "tanh", 1) {
+            // MARK:
+            // ulp = 2 needed on Linux (glibc?)
+            /*
+            BigRational.tanh(0.8888888888888888) !~ Double.tanh() // err=0x1.05db0bfda6e13p-52
+            BigRational.tanh(0.9980506822612085) !~ Double.tanh() // err=0x1.047b077b42dfbp-52
+            BigRational.tanh(0.9999998807907247) !~ Double.tanh() // err=0x1.04de7a5cf5a97p-52
+            BigFloat.tanh(0.9980506822612085) !~ Double.tanh() // err=0x1.047b077b42dfap-52
+            BigFloat.tanh(0.9999998807907247) !~ Double.tanh() // err=0x1.04de7a5cf5a97p-52
+            */
+            XCTAssert(ok(d, rd, rq, "tanh", 2) {
                 d == D.atanh(rq.asDouble)
             }, "tanh(\(d)):\((rd,rq))")
             // inverse hyperbolic. skip like exp
