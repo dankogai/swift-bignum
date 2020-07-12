@@ -1,5 +1,5 @@
 @_exported import BigInt // imported and re-exported
-import FloatingPointMath
+import RealModule
 
 ///
 /// Placeholder for utility functions and values
@@ -9,7 +9,7 @@ public class BigNum {}
 ///
 /// BigFloatingPoint protocol.
 ///
-public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral, FloatingPointMath {
+public protocol BigFloatingPoint : FloatingPoint, ExpressibleByFloatLiteral, ElementaryFunctions {
     associatedtype IntType:SignedInteger
     func squareRoot(precision: Int)->Self
     init(_:BigInt)
@@ -81,14 +81,14 @@ public protocol DoubleConvertible {
     var asDouble:Double { get }
 }
 
-extension Double: DoubleConvertible {}
-extension Float:  DoubleConvertible {}
-
-extension DoubleConvertible {
-    init<T:BigFloatingPoint>(_ bf:T) {
-        self = Self(bf.asDouble)
-    }
-}
+//extension Double: DoubleConvertible {}
+//extension Float:  DoubleConvertible {}
+//
+//extension DoubleConvertible {
+//    init<T:BigFloatingPoint>(_ bf:T) {
+//        self = Self(bf.asDouble)
+//    }
+//}
 
 //
 extension SignedInteger {

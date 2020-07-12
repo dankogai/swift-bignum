@@ -12,9 +12,7 @@ let package = Package(
             targets: ["BigNum"]),
     ],
     dependencies: [
-      .package(
-        url: "https://github.com/dankogai/swift-floatingpointmath.git", .branch("master")
-      ),
+      .package(url: "https://github.com/apple/swift-numerics", from: "0.0.6"),
       .package(
         url: "https://github.com/attaswift/BigInt.git", from:"5.0.0"
       )
@@ -22,7 +20,10 @@ let package = Package(
     targets: [
         .target(
             name: "BigNum",
-            dependencies: ["BigInt", "FloatingPointMath"]),
+            dependencies: [
+              "BigInt",
+              .product(name: "Numerics", package: "swift-numerics")
+            ]),
         .target(
             name: "BigNumRun",
             dependencies: ["BigNum"]),

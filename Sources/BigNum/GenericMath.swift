@@ -1,5 +1,5 @@
-// constants
 extension BigFloatingPoint {
+    // constants
     /// √2
     public static func SQRT2(precision px:Int=Self.precision, debug:Bool=false)->Self {
         let apx = Swift.abs(px)
@@ -117,7 +117,7 @@ extension BigFloatingPoint {
         return px < 0 ? r : r.truncated(width: px)
     }
     /// atan2
-    public static func atan2(_ y:Self, _ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self  {
+    public static func atan2(y:Self, x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self  {
         // cf. https://en.wikipedia.org/wiki/Atan2
         //     https://www.freebsd.org/cgi/man.cgi?query=atan2
         if x.isNaN || y.isNaN { return nan }
@@ -212,7 +212,7 @@ extension BigFloatingPoint {
         return  0 < px ? r : r.truncated(width:px)
     }
     /// exp(x) - 1
-    public static func expm1(_ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self {
+    public static func expMinusOne(_ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? -1 : +infinity }
         if x.isZero     { return x }
@@ -530,5 +530,71 @@ extension FloatingPoint where Self:DoubleConvertible {
     }
     public func toFloatingPointString(radix:Int = 10)->String {
         return self.asBigRat.toFloatingPointString(radix:radix)
+    }
+}
+
+// make BigFloatingPoint conform to ElementaryFunction
+// above extention supposed to suffice but as of Swift 5 we need the shim below
+import RealModule
+extension BigFloatingPoint {
+    public static func exp(_ x:Self) -> Self {
+        return         exp(x, precision:Self.precision, debug:false)
+    }
+    public static func expMinusOne(_ x:Self) -> Self {
+        return         expMinusOne(x, precision:Self.precision, debug:false)
+    }
+    public static func cosh(_ x:Self) -> Self {
+        return         cosh(x, precision:Self.precision, debug:false)
+    }
+    public static func sinh(_ x:Self) -> Self {
+        return         sinh(x, precision:Self.precision, debug:false)
+    }
+    public static func tanh(_ x:Self) -> Self {
+        return         tanh(x, precision:Self.precision, debug:false)
+    }
+    public static func cos(_ x:Self) -> Self {
+        return         cos(x, precision:Self.precision, debug:false)
+    }
+    public static func sin(_ x:Self) -> Self {
+        return         sin(x, precision:Self.precision, debug:false)
+    }
+    public static func tan(_ x:Self) -> Self {
+        return         tan(x, precision:Self.precision, debug:false)
+    }
+    public static func log(_ x:Self) -> Self {
+        return         log(x, precision:Self.precision, debug:false)
+    }
+    public static func log(onePlus x:Self) -> Self {
+        return         log1p(      x, precision:Self.precision, debug:false)
+    }
+    public static func acosh(_ x:Self) -> Self {
+        return         acosh(x, precision:Self.precision, debug:false)
+    }
+    public static func asinh(_ x:Self) -> Self {
+        return         asinh(x, precision:Self.precision, debug:false)
+    }
+    public static func atanh(_ x:Self) -> Self {
+        return         atanh(x, precision:Self.precision, debug:false)
+    }
+    public static func acos(_ x:Self) -> Self {
+        return         acos(x, precision:Self.precision, debug:false)
+    }
+    public static func asin(_ x:Self) -> Self {
+        return         asin(x, precision:Self.precision, debug:false)
+    }
+    public static func atan(_ x:Self) -> Self {
+        return         atan(x, precision:Self.precision, debug:false)
+    }
+    public static func pow(_ x: Self, _ y: Self) -> Self {
+        return         pow(x, y, precision:Self.precision, debug:false)
+    }
+    public static func pow(_ x:Self, _ n:Int) -> Self {
+        return x.power(IntType(n), precision:Self.precision, debug:false)
+    }
+    public static func sqrt(_ x:Self) -> Self {
+        return         sqrt(x, precision:Self.precision, debug:false)
+    }
+    public static func root(_ x:Self, _ n:Int) -> Self {
+        return x.nthroot(IntType(n), precision:Self.precision, debug:false)
     }
 }
