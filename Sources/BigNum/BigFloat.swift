@@ -427,9 +427,25 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
     public var debugDescription:String {
         var s = self.toString(radix:16)
         if self.isNaN || self.isSignalingNaN || self.isInfinite { return s }
+        if self.isZero { return s + "p0" }
+        var p = 0
+        if s.hasPrefix("-0.0") || s.hasPrefix("+0.0") {
+            let idx = s.index(s.startIndex, offsetBy: 3)
+            while s[idx] == "0" {
+                s.remove(at:idx)
+                p -= 4
+            }
+        }
+        else {
+            while s.hasSuffix("0.0") {
+                let idx = s.index(s.endIndex, offsetBy: -3)
+                s.remove(at:idx)
+                p += 4
+            }
+        }
         s.insert("x", at: s.index(s.startIndex, offsetBy:1))
         s.insert("0", at: s.index(s.startIndex, offsetBy:1))
-        return s + "p0"
+        return s + "p\(p)"
     }
     public init?<S:StringProtocol>(_ str:S, radix:Int=10) {
         self = 0
