@@ -516,7 +516,6 @@ extension BigRational : CustomDebugStringConvertible {
             i += i.sign == .minus ? -1 : +1
         }
         var s = String(i.magnitude, radix:radix)
-
         if self.magnitude < 1 {
             s = [String](repeating:"0", count: ndigits - s.count + 1).joined() + s
         }
