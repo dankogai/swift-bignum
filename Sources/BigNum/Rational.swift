@@ -49,6 +49,8 @@ extension BigRationalType {
     public mutating func truncate(width:Int, round:FloatingPointRoundingRule=Self.roundingRule) {
         if self.isNaN || self.isZero || self.isInfinite { return }
         if width == 0       { return }
+        // if the denominator is power of 2, do nothing
+        guard 1 < den >> den.trailingZeroBitCount else { return }
         let w = width < 0 ? -width : +width
         let s = max(den.bitWidth - 1, w)    // -1 for sign bit
         let d = Element(1) << s

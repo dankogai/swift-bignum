@@ -209,7 +209,8 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
         else if q.isZero    { self = q.sign == .minus ? .negativeZero : .zero }
         else if q.isInfinite{ self = q.sign == .minus ? -.infinity : +.infinity }
         else {
-            let qt = BigInt(q.num).over(BigInt(q.den)).truncated(width:(q.den.bitWidth-1)+px, round:rule)
+            let w = max(q.num.bitWidth, q.den.bitWidth) - 1
+            let qt = BigInt(q.num).over(BigInt(q.den)).truncated(width:w+px, round:rule)
             self = BigFloat(scale:-qt.den.trailingZeroBitCount, mantissa:qt.num)
          }
     }
