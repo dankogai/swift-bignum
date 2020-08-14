@@ -159,7 +159,7 @@ final class GenericMathTests: XCTestCase {
         print("testUnary:checked \(okCount) cases")
     }
     
-    func testUnaryBigRat()   { runUnary(forType: BigRat.self) }
+//    func testUnaryBigRat()   { runUnary(forType: BigRat.self) }
     func testUnaryBigFloat() { runUnary(forType: BigFloat.self) }
 
     func runAtan2<R:BigFloatingPoint>(forType T:R.Type) {
@@ -182,7 +182,7 @@ final class GenericMathTests: XCTestCase {
     static var allTests = [
         ("testAtan2BigRat",   testAtan2BigRat),
         ("testAtan2BigFloat", testAtan2BigFloat),
-        ("testUnaryBigRat",   testUnaryBigRat),
+//        ("testUnaryBigRat",   testUnaryBigRat),
         ("testUnaryBigFloat", testUnaryBigFloat),
     ]
 }

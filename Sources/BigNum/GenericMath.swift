@@ -193,7 +193,7 @@ extension BigFloatingPoint {
         if Self(expLimit) < Swift.abs(x) {
             return x.sign == .minus ? 0 : +Self.infinity
         }
-        if x.isLess(than:0) { return 1/exp(-x, precision:px) }
+        if x.isLess(than:0) { return 1/exp(-x, precision:px, debug:debug) }
         let e = E(precision: px * 2)
         let (ix, fx) = x.asMixed
         var (ir, fr) = (e.power(ix, precision:px), Self(1))
@@ -233,6 +233,24 @@ extension BigFloatingPoint {
             n.truncate(width: px * 2)
             r.truncate(width: px * 2)
         }
+        return  0 < px ? r : r.truncated(width:px)
+    }
+    /// 2 ** x
+    public static func exp2(_ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self {
+        // return exp(x * LN2(precision:px, debug:debug), precision:px, debug:debug)
+        if x.isNaN      { return nan }
+        if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
+        if x.isZero     { return 1 }
+        if Self(expLimit) < Swift.abs(x) {
+            return x.sign == .minus ? 0 : +Self.infinity
+        }
+        if x.isLess(than:0) { return 1/exp2(-x, precision:px, debug:debug) }
+        let (ix, fx) = x.asMixed
+        let (ir, fr) = (
+            Self(2.0).power(ix, precision:px),
+            exp(fx * LN2(precision:px, debug:debug), precision:px, debug:debug)
+        )
+        let r = ir * fr
         return  0 < px ? r : r.truncated(width:px)
     }
     /// binary log (base 2) -- steady but slow algorithm. use log2
@@ -543,6 +561,9 @@ extension BigFloatingPoint {
     public static func expMinusOne(_ x:Self) -> Self {
         return         expMinusOne(x, precision:Self.precision, debug:false)
     }
+    public static func exp2(_ x: Self) -> Self {
+        return         exp2(x, precision:Self.precision, debug:false)
+    }
     public static func cosh(_ x:Self) -> Self {
         return         cosh(x, precision:Self.precision, debug:false)
     }
@@ -566,6 +587,12 @@ extension BigFloatingPoint {
     }
     public static func log(onePlus x:Self) -> Self {
         return         log1p(      x, precision:Self.precision, debug:false)
+    }
+    public static func log2(_ x:Self) -> Self {
+        return         log2(x, precision:Self.precision, debug:false)
+    }
+    public static func log10(_ x:Self) -> Self {
+        return         log10(x, precision:Self.precision, debug:false)
     }
     public static func acosh(_ x:Self) -> Self {
         return         acosh(x, precision:Self.precision, debug:false)
@@ -596,5 +623,24 @@ extension BigFloatingPoint {
     }
     public static func root(_ x:Self, _ n:Int) -> Self {
         return x.nthroot(IntType(n), precision:Self.precision, debug:false)
+    }
+    public static func hypot(_ y: Self, _ x: Self) -> Self {
+        return hypot(y, x, precision:Self.precision, debug:false);
+    }
+    public static func atan2(y: Self, x: Self) -> Self { // argument labels needed
+        return atan2(y:y, x:x, precision:Self.precision, debug:false);
+    }
+    //: mark todo
+    public static func erf(_ x: Self) -> Self {
+        fatalError("yet to be implemented");
+    }
+    public static func erfc(_ x: Self) -> Self {
+        fatalError("yet to be implemented");
+    }
+    public static func gamma(_ x: Self) -> Self {
+        fatalError("yet to be implemented");
+    }
+    public static func logGamma(_ x: Self) -> Self {
+        fatalError("yet to be implemented");
     }
 }
