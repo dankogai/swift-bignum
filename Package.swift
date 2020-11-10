@@ -13,7 +13,6 @@ let package = Package(
     ],
     dependencies: [
       .package(url: "https://github.com/apple/swift-numerics", from: "0.0.8"),
-      // .package(url: "https://github.com/dankogai/swift-numerics", .branch("complex-elementaryfunctions")),
       .package(
         url: "https://github.com/attaswift/BigInt.git", from:"5.0.0"
       )
