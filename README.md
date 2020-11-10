@@ -103,7 +103,7 @@ Add the following to the `dependencies` section:
 
 ```swift
 .package(
-  url: "https://github.com/dankogai/swift-bignum.git", .branch("master")
+  url: "https://github.com/dankogai/swift-bignum.git", .branch("main")
 )
 ```
 
