@@ -102,7 +102,10 @@ extension BinaryFloatingPoint {
         else if bf.isInfinite       { self = bf.sign == .minus ? -.infinity : +.infinity }
         else if bf.isZero           { self = bf.sign == .minus ? -Self(0) : +Self(0) }
         else {
-            #if os(iOS) || os(watchOS)
+            // with the advent of Apple Silicon which does not support Float80,
+            // F is now always Double
+            // #if os(iOS) || os(watchOS)
+            #if true
             typealias F = Double
             #else
             typealias F = Float80
