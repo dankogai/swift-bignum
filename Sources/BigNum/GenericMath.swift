@@ -141,6 +141,11 @@ extension BigFloatingPoint {
         if self.isNaN || self.isInfinite || self.isZero {
             return Self(Double.pow(self.asDouble, Self(y).asDouble))
         }
+        if self < 0 {
+            let isOdd = y & 1 == 1
+            let magnitude = (-self).power(y, precision:px, debug:debug)
+            return isOdd ? -magnitude : +magnitude
+        }
         if Self.expLimit < Swift.abs(Self.log(self) * Self(y)).asMixed.0 {
             return y < 0 ? 0 : +Self.infinity
         }
