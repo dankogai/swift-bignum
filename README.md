@@ -1,6 +1,6 @@
 [![Swift 5](https://img.shields.io/badge/swift-5-blue.svg)](https://swift.org)
 [![MIT LiCENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![build status](https://secure.travis-ci.org/dankogai/swift-bignum.png)](http://travis-ci.org/dankogai/swift-bignum)
+[![build status](https://app.travis-ci.com/dankogai/swift-bignum.svg)](https://app.travis-ci.com/github/dankogai/swift-bignum)
 
 # swift-bignum
 
