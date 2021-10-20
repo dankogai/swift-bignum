@@ -37,7 +37,7 @@ BigInt(3260954456333195553).over(BigInt(2305843009213693952)) // == BigRat.sqrt(
 
 ```sh
 $ git clone https://github.com/dankogai/swift-bignum.git
-$ cd swift-complex # the following assumes your $PWD is here
+$ cd swift-bignum # the following assumes your $PWD is here
 $ swift build
 ```
 
