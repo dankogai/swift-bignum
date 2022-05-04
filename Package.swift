@@ -1,4 +1,4 @@
-// swift-tools-version:4.0
+// swift-tools-version:5.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -8,13 +8,14 @@ let package = Package(
     products: [
         .library(
             name: "BigNum",
-            type: .dynamic,
             targets: ["BigNum"]),
     ],
     dependencies: [
-      .package(url: "https://github.com/apple/swift-numerics", from: "1.0.0"),
       .package(
-        url: "https://github.com/attaswift/BigInt.git", from:"5.0.0"
+        url: "https://github.com/apple/swift-numerics", from: "1.0.0"
+      ),
+      .package(
+        url: "https://github.com/attaswift/BigInt", from:"5.0.0"
       )
     ],
     targets: [
