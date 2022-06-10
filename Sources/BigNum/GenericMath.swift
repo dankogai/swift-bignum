@@ -556,7 +556,7 @@ extension FloatingPoint where Self:DoubleConvertible {
     }
 }
 
-// make BigFloatingPoint conform to ElementaryFunction
+// make BigFloatingPoint conform to ElementaryFunction and RealFunctions
 // above extention supposed to suffice but as of Swift 5 we need the shim below
 import RealModule
 extension BigFloatingPoint {
