@@ -649,3 +649,6 @@ extension BigFloatingPoint {
         fatalError("yet to be implemented");
     }
 }
+
+extension BigRat : ElementaryFunctions, RealFunctions {}
+extension BigFloat : ElementaryFunctions, RealFunctions {}
