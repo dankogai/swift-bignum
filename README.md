@@ -133,10 +133,14 @@ in your code.  Enjoy!
 
 Swift 5 or better, OS X or Linux to build.
 
-Depends on [attaswift/BigInt] for internal representation of `BigFloat` and `BigRat`.
+* Depends on [attaswift/BigInt] for internal representation of
+`BigFloat` and `BigRat`.
+* Depends on [apple/swift-numerics] since
+version 5.1 for the `ElementaryFunctions` protocol.
+* Prior versions depended on [dankogai/swift-floatingpoint] for the
+`FloatingPointMath` protocols but it is replaced by the
+`ElementaryFunctions`.
 
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
 [apple/swift-numerics]: https://github.com/apple/swift-numerics
 [dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
-
-Depends on [apple/swift-numerics] since version 5.1 for the `ElementaryFunctions` protocol.  Prior versions depended on [dankogai/swift-floatingpoint] for the `FloatingPointMath` protocols but it is replaced by the `ElementaryFunctions`.
