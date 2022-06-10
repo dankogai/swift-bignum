@@ -23,7 +23,13 @@ This module offers two flavors of Arbitrary-precision types that conforms to [Fl
 
 [FloatingPoint]: https://developer.apple.com/documentation/swift/floatingpoint
 
-In addition to all arithmetic operations that [FloatingPoint] supports.  Most of the functions in `<math.h>` are offered as static functions.  As you see in the synopsis above, all arithmetic functions and operators that are lossy can take `precision:Int` as an optional argument.  When omitted the value of `BigRat.precision` or `BigFloat.precision` is used (default:64)
+In addition to all arithmetic operations that [FloatingPoint] supports.  Most of the functions in `<math.h>` are offered as static functions.  As you see in the synopsis above, all arithmetic functions and operators that are lossy can take `precision:Int` as an optional argument.  When omitted the value of `BigRat.precision` or `BigFloat.precision` is used (default:64).
+
+```swift
+BigFloat.sqrt(2) // 1.41421356237309504876
+BigFloat.precision = 128
+BigFloat.sqrt(2) // 1.414213562373095048801688724209698078569
+```
 
 `BigInt`, an arbitrary-precision interger type is internally used and re-exported so you don't have to `import BigInt` just for that.  `BigInt` is also extended with `.over()` method so instead of constructing `BigRat` directly, you can:
 
