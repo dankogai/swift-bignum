@@ -541,7 +541,7 @@ extension BigFloatingPoint {
             if debug { print("\(Self.self).atanh: resorting to BigRat") }
             return Self(BigRat.atanh(x.asBigRat, precision:px, debug:debug))
         }
-        return log(a, precision:px)  / 2
+        return log(a, precision:px, debug:debug)  / 2
     }
 }
 
