@@ -469,6 +469,7 @@ public struct BigRational : BigRationalType & Codable {
         self.init(floatLiteral)
     }
     public var asBigRat:BigRational { return self }
+    public var asBigFloat:BigFloat { return BigFloat(self) }
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-expLimit` 0 is returned
     /// anything larger than `+expLimit` +infinity is returned
