@@ -304,7 +304,7 @@ extension BigFloatingPoint {
         var fr = t
         for i in 1...px {
             t = (t * t2).truncated(width: px)
-            if debug { print("\(Self.self).log:i=(i), t=\(t),fr=\(fr)") }
+            if debug { print("\(Self.self).log:i=\(i), t=\(t),fr=\(fr)") }
             if t < epsilon { break }
             fr = (fr + t / Self(2*i + 1)).truncated(width: px)
         }
