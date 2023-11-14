@@ -15,15 +15,15 @@ let package = Package(
         url: "https://github.com/apple/swift-numerics", from: "1.0.0"
       ),
       .package(
-        url: "https://github.com/attaswift/BigInt", from:"5.0.0"
+        url: "https://github.com/attaswift/BigInt", from: "5.0.0"
       )
     ],
     targets: [
         .target(
             name: "BigNum",
             dependencies: [
-              "BigInt",
-              .product(name: "Numerics", package: "swift-numerics")
+                .product(name: "BigInt", package: "BigInt"),
+                .product(name: "Numerics", package: "swift-numerics")
             ]),
         .target(
             name: "BigNumRun",
