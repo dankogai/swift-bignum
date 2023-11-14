@@ -33,7 +33,7 @@ extension BigFloatingPoint {
         LN2.value = LN2.value is BigRat ? {
             let epsilon = getEpsilon(precision: px)
             var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
-            for i in 1...px {
+            for i in 1...px.magnitude {
                 t *= Self(1)/Self(9)
                 if debug { print("\(Self.self).LN2: i=\(i), r=~\(r)") }
                 if t < epsilon { break }
@@ -299,7 +299,7 @@ extension BigFloatingPoint {
         var t = (fx - 1) / (fx + 1)
         let t2 = t * t
         var fr = t
-        for i in 1...px {
+        for i in 1...px.magnitude {
             t = (t * t2).truncated(width: px)
             if debug { print("\(Self.self).log:i=\(i), t=\(t),fr=\(fr)") }
             if t < epsilon { break }
@@ -418,7 +418,7 @@ extension BigFloatingPoint {
             let x2 = x*x
             let x2p1 = 1 + x2
             var (t, r) = (Self(1), Self(1))
-            for i in 1...px {
+            for i in 1...px.magnitude {
                 t *= 2 * (Self(i) * x2) / (Self(2 * i + 1) * x2p1)
                 t.truncate(width:px * 2)
                 r += t
