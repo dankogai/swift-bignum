@@ -493,18 +493,18 @@ extension BigFloatingPoint {
     }
     /// hyperbolic cosine
     public static func cosh(_ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self   {
-        return sinhcosh(x, precision:px).cosh
+        return sinhcosh(x, precision:px, debug:debug).cosh
     }
     /// hyperbolic sine
     public static func sinh(_ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self   {
-        return sinhcosh(x, precision:px).sinh
+        return sinhcosh(x, precision:px, debug:debug).sinh
     }
     /// hyperbolic tangent
     public static func tanh(_ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self   {
         if x.isZero || x.isInfinite || x.isNaN {
             return Self(Double.tanh(x.asDouble))
         }
-        let (s, c) = sinhcosh(x, precision:px)
+        let (s, c) = sinhcosh(x, precision:px, debug:debug)
         if s.isInfinite {
             return x.sign == .minus ? -1 : +1
         }
