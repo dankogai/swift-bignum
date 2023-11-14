@@ -146,9 +146,6 @@ extension BigFloatingPoint {
             let magnitude = (-self).power(y, precision:px, debug:debug)
             return isOdd ? -magnitude : +magnitude
         }
-        if Self.expLimit < Swift.abs(Self.log(self) * Self(y)).asMixed.0 {
-            return y < 0 ? 0 : +Self.infinity
-        }
         if y == 0 { return 1 }
         if y < 0  { return 1/self.power(-y, precision:px) }
         var (i, r, x) = (y, Self(1), self)
