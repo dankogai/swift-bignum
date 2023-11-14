@@ -65,11 +65,15 @@ $ swift run --repl
 and in your repl,
 
 ```sh
-Welcome to Apple Swift version 4.2 (swiftlang-1000.11.37.1 clang-1000.11.45.1). Type :help for assistance.
+[0/0] Build complete!
+Launching Swift REPL with arguments: -I/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/release -L/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/release -lBigNum__REPL -I/Users/dankogai/github/swift-bignum/.build/checkouts/swift-numerics/Sources/_NumericsShims/include
+Welcome to Swift version 5.5.2-dev.
+Type :help for assistance.
   1> import BigNum 
-  2> BigRat.sqrt(2, precision:128)
-$R0: BigNum.BigRat = {
-  num = {
+  2> var bf = BigFloat.sqrt(2, precision:128)
+bf: BigNum.BigFloat = {
+  scale = -127
+  mantissa = {
     magnitude = {
       kind = array
       storage = 2 values {
@@ -79,17 +83,9 @@ $R0: BigNum.BigRat = {
     }
     sign = plus
   }
-  den = {
-    magnitude = {
-      kind = array
-      storage = 2 values {
-        [0] = 0
-        [1] = 9223372036854775808
-      }
-    }
-    sign = plus
-  }
 }
+  3> print(bf)
+1.414213562373095048801688724209698078569
 ````
 
 ### From your Xcode Projects.
