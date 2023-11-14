@@ -286,7 +286,7 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        let r =  log(x, precision:px) / LN2(precision:px * 2)
+        let r =  log(x, precision:px, debug:debug) / LN2(precision:px * 2)
         return 0 < px ? r : r.truncated(width: px)
     }
     /// natural log (base e)
@@ -295,7 +295,7 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        if x.isLess(than:1) { return -log(1/x, precision:px) }
+        if x.isLess(than:1) { return -log(1/x, precision:px, debug:debug) }
         if x.isEqual(to:1)  { return 0 }
         let epsilon = getEpsilon(precision: px)
         let (_, ix, fx) = x.decomposed
@@ -304,6 +304,7 @@ extension BigFloatingPoint {
         var fr = t
         for i in 1...px {
             t = (t * t2).truncated(width: px)
+            if debug { print("\(Self.self).log:i=(i), t=\(t),fr=\(fr)") }
             if t < epsilon { break }
             fr = (fr + t / Self(2*i + 1)).truncated(width: px)
         }
@@ -316,7 +317,7 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        let r =  log(x, precision:px) / LN10(precision:px)
+        let r =  log(x, precision:px, debug:debug) / LN10(precision:px)
         return 0 < px ? r : r.truncated(width: px)
     }
     /// log(1 + x)
