@@ -12,7 +12,7 @@ public struct BigFloat: Equatable, Hashable, Codable {  // automatic conformance
     public var mantissa:Significand     // stored property
     public static var precision = 64
     public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
-    public static var expLimit     = BigRat.expLimit //Int.max
+    public static var expLimit     = Self(Int16.max)
     // basic init
     public init(scale: Exponent, mantissa:Significand) {
         let shift = mantissa.trailingZeroBitCount

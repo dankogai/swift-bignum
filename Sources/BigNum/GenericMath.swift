@@ -192,7 +192,7 @@ extension BigFloatingPoint {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
         if x.isZero     { return 1 }
-        if Self(expLimit) < Swift.abs(x) {
+        if expLimit < Swift.abs(x) {
             return x.sign == .minus ? 0 : +Self.infinity
         }
         if x.isLess(than:0) { return 1/exp(-x, precision:px, debug:debug) }
@@ -218,7 +218,7 @@ extension BigFloatingPoint {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? -1 : +infinity }
         if x.isZero     { return x }
-        if Self(expLimit) < Swift.abs(x) {
+        if expLimit < Swift.abs(x) {
             return x.sign == .minus ? -1 : +Self.infinity
         }
         if LN2(precision: px) <=  Swift.abs(x)  {
@@ -243,7 +243,7 @@ extension BigFloatingPoint {
         if x.isNaN      { return nan }
         if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
         if x.isZero     { return 1 }
-        if Self(expLimit) < Swift.abs(x) {
+        if expLimit < Swift.abs(x) {
             return x.sign == .minus ? 0 : +Self.infinity
         }
         if x.isLess(than:0) { return 1/exp2(-x, precision:px, debug:debug) }

@@ -33,7 +33,6 @@ public protocol RationalType : CustomStringConvertible, FloatingPoint, Expressib
     var num:Element { get set }
     var den:Element { get set }
     init(num:Element, den:Element)
-    static var expLimit:Int { get }
 }
 
 public protocol BigRationalType : RationalType & BigFloatingPoint {}
@@ -431,12 +430,6 @@ public struct Rational<I:RationalElement> : RationalType {
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
     }
-    /// maximum magnitude of the argument to exponential functions.
-    /// if smaller than `-expLimit` 0 is returned
-    /// anything larger than `+expLimit` +infinity is returned
-    public static var expLimit:Int {
-        return Int(Int16.max)
-    }
 }
 
 public struct BigRational : BigRationalType & Codable {
@@ -473,9 +466,7 @@ public struct BigRational : BigRationalType & Codable {
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-expLimit` 0 is returned
     /// anything larger than `+expLimit` +infinity is returned
-    public static var expLimit:Int {
-        return Int(Int16.max)
-    }
+    public static var expLimit = Self(Int16.max)
     public func remainder(dividingBy other:BigRational,
                           precision:Int = BigRational.precision,
                           round:FloatingPointRoundingRule = BigRational.roundingRule)->BigRational
@@ -587,12 +578,6 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> :
     }
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
-    }
-    /// maximum magnitude of the argument to exponential functions.
-    /// if smaller than `-expLimit` 0 is returned
-    /// anything larger than `+expLimit` +infinity is returned
-    public static var expLimit:Int {
-        return I.bitWidth - 1
     }
 }
 

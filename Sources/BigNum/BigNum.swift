@@ -20,7 +20,7 @@ public protocol BigFloatingPoint : ExpressibleByFloatLiteral, Real {
     func remainder(dividingBy:Self, precision:Int,  round:FloatingPointRoundingRule)->Self
     static func %(_:Self,_:Self)->Self
     static func getEpsilon(precision: Int)->Self
-    static var expLimit:Int { get }
+    static var expLimit:Self { get set }
     static var precision:Int { get }
     static var roundingRule: FloatingPointRoundingRule { get }
     var asBigRat:BigRat { get }
@@ -68,8 +68,8 @@ extension BigFloatingPoint where Self:BinaryFloatingPoint {
     }
     /// defaultPrecision is set to significandBitCount
     public static var precision:Int { return Self.significandBitCount }
-    /// max exponent is set to  = 0x3fff
-    public static var expLimit:Int { return 0x3fff }
+    /// max x for exp(x) is exponent is set to  = 0x3fff
+    public static var expLimit:Self { return Self(0x3fff) }
     /// get epsilon for math functions.  always smaller than 63
     public static func getEpsilon(precision px: Int)->Self {
         return 1.0 / Self(BigInt(1) << min(Self.precision, Swift.abs(px)))
