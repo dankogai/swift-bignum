@@ -19,22 +19,22 @@ final class RationalTests: XCTestCase {
     func testIntRatBasic()  { runBasic(forType: IntRat.self) }
     //
     func runNaN<Q:RationalType>(forType T:Q.Type) {
-        let nan = T.nan
-        let one = T.init(1)
-        XCTAssertTrue (nan.isNaN)
-        XCTAssertFalse(nan.isZero)
-        XCTAssertFalse(nan.isInfinite)
-        XCTAssertFalse(nan.isFinite)
-        XCTAssertFalse(nan == nan)
-        XCTAssertFalse(nan <  0)
-        XCTAssertFalse(nan <= 0)
-        XCTAssertFalse(nan >= 0)
-        XCTAssertFalse(nan >  0)
-        XCTAssertTrue ((nan + one).isNaN)
-        XCTAssertTrue ((nan - one).isNaN)
-        XCTAssertTrue ((nan * one).isNaN)
-        XCTAssertTrue ((nan / one).isNaN)
-        XCTAssertTrue (nan.squareRoot().isNaN)
+        let n = T.nan
+        let o = T.init(1)
+        XCTAssertTrue (n.isNaN)
+        XCTAssertFalse(n.isZero)
+        XCTAssertFalse(n.isInfinite)
+        XCTAssertFalse(n.isFinite)
+        XCTAssertFalse(n == n)
+        XCTAssertFalse(n <  0)
+        XCTAssertFalse(n <= 0)
+        XCTAssertFalse(n >= 0)
+        XCTAssertFalse(n >  0)
+        XCTAssertTrue ((n + o).isNaN)
+        XCTAssertTrue ((n - o).isNaN)
+        XCTAssertTrue ((n * o).isNaN)
+        XCTAssertTrue ((n / o).isNaN)
+        XCTAssertTrue (n.squareRoot().isNaN)
     }
     func testBigRatNaN() {
         runNaN(forType: BigRat.self)
