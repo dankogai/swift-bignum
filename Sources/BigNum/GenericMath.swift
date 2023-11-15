@@ -415,6 +415,9 @@ extension BigFloatingPoint {
         let epsilon = getEpsilon(precision: px)
         if x * x < epsilon { return x } // atan(x) == x below this point
         func inner_atan(_ x:Self)->Self {
+            guard x < 0.5 else {
+                return x < 1 ? atan1 - inner_atan((1-x)/(1+x)) : 2*atan1 - inner_atan(1/x)
+            }
             let x2 = x*x
             let x2p1 = 1 + x2
             var (t, r) = (Self(1), Self(1))
@@ -432,9 +435,7 @@ extension BigFloatingPoint {
         }
         let ax = Swift.abs(x)
         if ax == 1 { return x.sign == .minus ? -atan1 : atan1 }
-        var r = ax < 0.5 ? inner_atan(ax)
-                : ax < 1 ? atan1 - inner_atan((1-ax)/(1+ax))
-                : 2 * atan1 - inner_atan(1/ax)
+        var r = inner_atan(ax)
         if 0 < px { r.truncate(width: px) }
         return x.sign == .minus ? -r : +r
     }
