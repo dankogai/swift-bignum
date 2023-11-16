@@ -503,8 +503,8 @@ extension BigFloatingPoint {
     /// acosh
     public static func acosh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if x.isLess(than: 1) { return nan }
-        let a = x + sqrt(x * x - 1, precision:px)
-        return log(a, precision:px)
+        let a = x + sqrt(x * x - 1, precision:px, debug:db)
+        return log(a, precision:px, debug:db)
     }
     /// asinh
     public static func asinh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
@@ -514,20 +514,20 @@ extension BigFloatingPoint {
         if x * x <= epsilon {
             return x    // asinh(x) == x blow this point
         }
-        let a = sqrt(x * x + 1, precision:px)
+        let a = sqrt(x * x + 1, precision:px, debug:db)
         if db { print("\(Self.self).asinh: x = ", x, "√(x*x + 1) = ", a) }
         if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
             if db { print("\(Self.self).asinh: resorting to BigRat") }
             return Self(BigRat.asinh(x.asBigRat, precision:px, debug:db))
         }
-        return log(x + a, precision:px)
+        return log(x + a, precision:px, debug:db)
     }
     /// atanh
     public static func atanh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if x.isZero { return x }
         if 1 <  x.magnitude { return nan }
         if 1 == x.magnitude { return x.sign == .minus ? -infinity : +infinity }
-        let a = (1 + x)/(1 - x)
+        let a = (1 + x).divided(by:1 - x, precision:px)
         if db { print("\(Self.self).atanh: x = ", x, "(1 + x)/(1 - x) =", a) }
         if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
             if db { print("\(Self.self).atanh: resorting to BigRat") }
