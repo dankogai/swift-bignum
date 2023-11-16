@@ -18,8 +18,9 @@ extension BigFloatingPoint {
             var (e, d) = (Self(1), Self(1))
             for i in 1 ... apx {
                 d *= Self(i)
-                e += Self(1) / (d)
-                if 1/d < epsilon { break }
+                let t = d.reciprocal!
+                e += t
+                if t < epsilon { break }
             }
             return e.truncated(width: apx)
         }() : Self(BigRat.E(precision: apx))
@@ -37,7 +38,7 @@ extension BigFloatingPoint {
                 t *= Self(1)/Self(9)
                 if debug { print("\(Self.self).LN2: i=\(i), r=~\(r)") }
                 if t < epsilon { break }
-                r = (r + t / Self(2 * i + 1)).truncated(width:px)
+                r += t / Self(2 * i + 1)
             }
             return (2*r).truncated(width: apx)
         }() : Self(BigRat.LN2(precision: apx))
