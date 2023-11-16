@@ -281,14 +281,15 @@ extension BigFloatingPoint {
         if x.isEqual(to:1)  { return 0 }
         let epsilon = getEpsilon(precision: px)
         let (_, ix, fx) = x.decomposed
-        var t = (fx - 1) / (fx + 1)
+        var t = (fx - 1).divided(by:fx + 1, precision:px)
         let t2 = t * t
         var fr = t
         for i in 1...px.magnitude {
-            t = (t * t2).truncated(width: px)
-            if debug { print("\(Self.self).log:i=\(i), t=\(t),fr=\(fr)") }
+            t *= t2
+            t.truncate(width:px)
+            if debug { print("\(Self.self).log:i=\(i), t=\(t), fr=\(fr)") }
             if t < epsilon { break }
-            fr = (fr + t / Self(2*i + 1)).truncated(width: px)
+            fr += t.divided(by:Self(2*i + 1), precision:px)
         }
         let r = Self(IntType(ix)) * LN2(precision: px) + 2 * fr
         return 0 < px ? r : r.truncated(width: px)
