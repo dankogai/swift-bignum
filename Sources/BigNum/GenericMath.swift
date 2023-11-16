@@ -390,7 +390,7 @@ extension BigFloatingPoint {
         if s.isNaN || s.isInfinite || c.isNaN || c.isInfinite {
             return Self(Double.tan(x.asDouble))
         }
-        return s / c
+        return s.divided(by:c, precision:px)
     }
     //
     // cf. https://en.wikipedia.org/wiki/Inverse_trigonometric_functions#Infinite_series
