@@ -159,7 +159,7 @@ extension BigFloatingPoint {
         } else {
             if x.isLess(than:0) { return nan }
         }
-        let fr = exp(log(x, precision:px*2) * fy, precision:px*2)
+        let fr = exp(log(x, precision:px*2, debug:debug) * fy, precision:px*2)
         return px < 0 ? ir * fr : (ir * fr).truncated(width: px)
     }
     /// nth root of self
@@ -168,7 +168,7 @@ extension BigFloatingPoint {
         if self.isZero { return self }
         if self == 1   { return 1 }
         if self <  0   { return -(-self).nthroot(n, precision:px) }
-        return Self.pow(self, Self(1)/Self(n), precision:px)
+        return Self.pow(self, Self(n).reciprocal!, precision:px, debug:debug)
     }
     /// cube root of self
     public static func cbrt(_ x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self {
@@ -192,9 +192,9 @@ extension BigFloatingPoint {
             for i in 1 ... px.magnitude {
                 n = (n * fx).truncated(width: px)
                 d *= Self(i)
-                let t = n / d
+                let t = n.divided(by:d, precision:px)
                 if t < epsilon { break }
-                fr = (fr + t).truncated(width: px)
+                fr += t
             }
         }
         let r = ir * fr
