@@ -17,6 +17,7 @@ public protocol BigFloatingPoint : ExpressibleByFloatLiteral, Real {
     init(_:Double)
     init(_:IntType)
     mutating func truncate(width:Int, round:FloatingPointRoundingRule)
+    func divided(by:Self, precision:Int, round:FloatingPointRoundingRule)->Self
     func remainder(dividingBy:Self, precision:Int,  round:FloatingPointRoundingRule)->Self
     static func %(_:Self,_:Self)->Self
     static func getEpsilon(precision: Int)->Self
@@ -41,6 +42,15 @@ extension BigFloatingPoint {
         var result = self
         result.truncate(width:px, round:rule)
         return result
+    }
+    public func divided(by other:Self, precision px:Int)->Self {
+        return self.divided(by:other, precision:px, round:Self.roundingRule)
+    }
+    public func divided(by other:Self)->Self {
+        return self.divided(by:other, precision:Self.precision, round:Self.roundingRule)
+    }
+    public mutating func divide(by other:Self, precision px:Int, round rule:FloatingPointRoundingRule=Self.roundingRule) {
+        self = self.divided(by:other, precision:px, round:Self.roundingRule)
     }
     public func toFloatingPointString(radix:Int = 10)->String {
         return self.asBigRat.toFloatingPointString(radix: radix)

@@ -57,6 +57,12 @@ extension BigRationalType {
         n.truncate(width:width, round:round)
         self = Self(n >> 2, d)  // shift down and back up to discard lower bits
     }
+    public func divided(by other:Self,
+                        precision px:Int=precision,
+                        round rule:FloatingPointRoundingRule=roundingRule)->Self
+    {
+        return self / other
+    }
 }
 
 extension RationalType {
@@ -344,7 +350,6 @@ extension RationalType {
     public mutating func formRemainder(dividingBy other: Self) {
         self = self.quotientAndRemainder(dividingBy: other).1
     }
-    
     public static func /(_ lhs:Self, _ rhs:Self)->Self {
         return lhs.over(rhs)
     }
