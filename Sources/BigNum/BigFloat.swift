@@ -19,6 +19,10 @@ public struct BigFloat: Equatable, Hashable, Codable {  // automatic conformance
         self.scale    =    scale  + shift
         self.mantissa = mantissa >> shift
     }
+    public init(_ other:Self) {
+        self.scale    = other.scale
+        self.mantissa = other.mantissa
+    }
 }
 // override == to introduce NaN
 extension BigFloat {
