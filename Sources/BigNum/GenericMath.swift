@@ -433,7 +433,7 @@ extension BigFloatingPoint {
             return Self(Double.acos(x.asDouble))
         }
         // print("acos:", x)
-        return PI(precision: px)/2 - asin(x, precision:px)
+        return 2*ATAN1(precision:px) - asin(x, precision:px)
     }
     /// arcsin
     public static func asin(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
@@ -441,8 +441,8 @@ extension BigFloatingPoint {
         if x.isZero || 1 < Swift.abs(x) || x.isInfinite {
             return Self(Double.asin(x.asDouble))
         }
-        let a = x / (1 + sqrt(1 - x * x))
-        return 2 * atan(a, precision:px)
+        let a = x.divided(by:1 + sqrt(1 - x*x, precision:px), precision:px)
+        return 2*atan(a, precision:px)
     }
     /// - returns: `(sinh(x), cosh(x))`
     public static func sinhcosh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->(sinh:Self, cosh:Self) {
