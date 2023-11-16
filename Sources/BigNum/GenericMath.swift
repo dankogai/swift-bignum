@@ -427,6 +427,39 @@ extension BigFloatingPoint {
         if 0 < px { r.truncate(width: px) }
         return x.sign == .minus ? -r : +r
     }
+    /// arctan by Newton-Raphson method
+    public static func atanByNewtonRaphson(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+           if x.isNaN || x.isZero { return x }
+           let atan1 = ATAN1(precision: px)
+           if x.isInfinite { return x.sign == .minus ? -2*atan1 : +2*atan1 }
+           let epsilon = getEpsilon(precision: px)
+           if x * x < epsilon { return x } // atan(x) == x below this point
+           func inner(_ y:Self)->Self {
+               // newton-raphson
+               // f(x) = tan(x) - y
+               // x <- x - f(x)/f'(x)
+               // f(x)/f'(x) = (tan(x) - y)/(1/cos^2(x))
+               // = tan(x)*cos^2(x) - x*cos^2(x) = sin(x)cos(x) - y*cos^2(x)
+               var x = Self(0)
+               for i in 1...px {
+                   let (s, c) = sincos(x, precision:px, debug:db)
+                   let x1 = x - s*c + y*c*c
+                   let dx = (x - x1).magnitude
+                   if db {
+                       print("\(Self.self).atan:i=\(i), x=\(x.truncated(width:px))")
+                   }
+                   if dx < epsilon { break }
+                   x = x1
+               }
+               return x
+           }
+           let ax = Swift.abs(x)
+           if ax == 1 { return x.sign == .minus ? -atan1 : atan1 }
+           var r = ax < 1 ? inner(ax) : 2*atan1 - inner(1/x)
+           if 0 < px { r.truncate(width: px) }
+           return x.sign == .minus ? -r : +r
+       }
+
     /// arccos
     public static func acos(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if (x - 1).isZero || 1 < Swift.abs(x) {
