@@ -451,7 +451,7 @@ extension BigFloatingPoint {
         }
         if 1 < x.magnitude {
             let ep = exp(x, precision:px)
-            let em = 1/ep
+            let em = ep.reciprocal!
             return ((ep - em)/2, (ep + em)/2)
         }
         let epsilon = getEpsilon(precision: px)
@@ -462,7 +462,7 @@ extension BigFloatingPoint {
             var (c, s) = (Self(0), Self(0))
             var (n, d) = (Self(1), Self(1))
             for i in 0...px {
-                let t = n / d
+                let t = n.divided(by:d, precision:px)
                 if db {
                     print("\(Self.self).sincos: i=\(i),t=:\(t)")
                 }
@@ -472,7 +472,8 @@ extension BigFloatingPoint {
                     s += t
                 }
                 if Swift.abs(t) < epsilon { break }
-                n = (n * x).truncated(width: px)
+                n *= x
+                n.truncate(width:px)
                 d *= Self(i+1)
             }
             return (s, c)
@@ -497,7 +498,7 @@ extension BigFloatingPoint {
         if s.isInfinite {
             return x.sign == .minus ? -1 : +1
         }
-        return s / c
+        return s.divided(by:c, precision:px)
     }
     /// acosh
     public static func acosh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
