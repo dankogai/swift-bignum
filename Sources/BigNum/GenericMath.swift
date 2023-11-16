@@ -354,7 +354,7 @@ extension BigFloatingPoint {
             var (c, s) = (Self(0), Self(0))
             var (n, d) = (Self(1), Self(1))
             for i in 0...px {
-                let t = n / d
+                let t = n.divided(by:d, precision:px)
                 if debug {
                     print("\(Self.self).sincos: i=\(i),t=\(t)")
                 }
@@ -364,7 +364,8 @@ extension BigFloatingPoint {
                     s += i & 2 == 2 ? -t : +t
                 }
                 if Swift.abs(t) < epsilon { break }
-                n = (n * x).truncated(width: px)
+                n *= x
+                n.truncate(width:px)
                 d *= Self(i+1)
             }
             return (s, c)
