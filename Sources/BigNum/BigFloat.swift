@@ -56,8 +56,8 @@ extension BigFloat {
     //
     public var sign: FloatingPointSign {
         return 0 < mantissa ? .plus
-            :  mantissa < 0 ? .minus
-            :    scale  < 0 ? .minus : .plus    // ±0 and inifinity
+          :  mantissa < 0 ? .minus
+          :    scale  < 0 ? .minus : .plus    // ±0 and inifinity
     }
     public mutating func negate() {
         if scale != -Int.max-1 && Swift.abs(scale) == Int.max {
@@ -116,9 +116,9 @@ extension BinaryFloatingPoint {
             #endif
             let offset = Swift.max(bf.mantissa.bitWidth-1 - (Self.significandBitCount+1), 0)
             self.init(
-                sign:bf.sign,
-                exponent:Exponent(bf.scale + offset),
-                significand:Self(F(bf.mantissa.magnitude >> offset))
+              sign:bf.sign,
+              exponent:Exponent(bf.scale + offset),
+              significand:Self(F(bf.mantissa.magnitude >> offset))
             )
         }
     }
@@ -133,9 +133,9 @@ extension Double {
         else {
             let offset = Swift.max(bf.mantissa.bitWidth-1 - 64, 0)
             self.init(
-                sign:bf.sign,
-                exponent:Exponent(bf.scale + offset),
-                significand:Double(bf.mantissa.magnitude >> offset)
+              sign:bf.sign,
+              exponent:Exponent(bf.scale + offset),
+              significand:Double(bf.mantissa.magnitude >> offset)
             )
         }
     }
@@ -219,7 +219,7 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
             let w = max(q.num.bitWidth, q.den.bitWidth) - 1
             let qt = BigInt(q.num).over(BigInt(q.den)).truncated(width:w+px, round:rule)
             self = BigFloat(scale:-qt.den.trailingZeroBitCount, mantissa:qt.num)
-         }
+        }
     }
 }
 extension BigFloat {
@@ -237,8 +237,8 @@ extension BigFloat {
     }
     public func isEqual(to other:BigFloat)->Bool {
         return self.isNaN || other.isNaN ? false
-            :  self.isZero ? other.isZero
-            :  self.isIdentical(to: other)
+          :  self.isZero ? other.isZero
+          :  self.isIdentical(to: other)
     }
     public static func ==(_ lhs:BigFloat, _ rhs:BigFloat)->Bool {
         return lhs.isEqual(to:rhs)
@@ -284,8 +284,8 @@ extension BigFloat : Comparable {
     }
     public func isTotallyOrdered(belowOrEqualTo other: BigFloat) -> Bool {
         return self.isNaN ? other.isNaN
-            : self.isZero && other.isZero ? self.sign == .minus || other.sign == .plus
-            : self.isLessThanOrEqualTo(other)
+          : self.isZero && other.isZero ? self.sign == .minus || other.sign == .plus
+          : self.isLessThanOrEqualTo(other)
     }
 }
 /// SignedNumeric!
@@ -353,7 +353,7 @@ extension BigFloat : FloatingPoint{
     public func quotientAndRemainder(dividingBy other: BigFloat,
                                      precision px:Int=precision,
                                      round rule:FloatingPointRoundingRule=roundingRule)
-    -> (quotient:BigFloat, remainder:BigFloat) {
+      -> (quotient:BigFloat, remainder:BigFloat) {
         let (q, r) = BigRat(self).quotientAndRemainder(dividingBy: BigRat(other))
         return (quotient:BigFloat(q), remainder:BigFloat(r, precision:px, round:rule))
     }
@@ -361,14 +361,14 @@ extension BigFloat : FloatingPoint{
                                     precision px:Int=precision,
                                     round rule:FloatingPointRoundingRule=roundingRule)->BigFloat
     {
-       return self.quotientAndRemainder(dividingBy:other, precision:px, round:rule).quotient
+        return self.quotientAndRemainder(dividingBy:other, precision:px, round:rule).quotient
     }
     public mutating func formTruncatingRemainder(dividingBy other: BigFloat) {
         self = self.quotientAndRemainder(dividingBy: other).quotient
     }
     public func remainder(dividingBy other: BigFloat,
-                           precision px:Int=precision,
-                           round rule:FloatingPointRoundingRule=roundingRule)->BigFloat
+                          precision px:Int=precision,
+                          round rule:FloatingPointRoundingRule=roundingRule)->BigFloat
     {
         return self.quotientAndRemainder(dividingBy:other, precision:px, round:rule).remainder
     }
@@ -499,5 +499,4 @@ extension String {
     init(_ bf:BigFloat, radix:Int=10, uppercase:Bool=false){
         self = uppercase ? bf.toString(radix:radix).uppercased() : bf.toString(radix:radix)
     }
-
 }

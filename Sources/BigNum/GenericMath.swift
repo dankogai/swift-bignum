@@ -119,7 +119,7 @@ extension BigFloatingPoint {
         }
         else {  // x.isZero
             return ysgn * (
-                y.isZero ? (x.sign == .minus ? PI(precision:px) : 0) : PI(precision: px)/2
+              y.isZero ? (x.sign == .minus ? PI(precision:px) : 0) : PI(precision: px)/2
             )
         }
     }
@@ -143,7 +143,7 @@ extension BigFloatingPoint {
         }
         return r.truncated(width:px)
     }
-   /// x ** y
+    /// x ** y
     public static func pow(_ x:Self, _ y:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
             return Self(Double.pow(x.asDouble, y.asDouble))
@@ -234,8 +234,8 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return 1/exp2(-x, precision:px, debug:db) }
         let (ix, fx) = x.asMixed
         let (ir, fr) = (
-            Self(2.0).power(ix, precision:px),
-            exp(fx * LN2(precision:px, debug:db), precision:px, debug:db)
+          Self(2.0).power(ix, precision:px),
+          exp(fx * LN2(precision:px, debug:db), precision:px, debug:db)
         )
         let r = ir * fr
         return  0 < px ? r : r.truncated(width:px)
@@ -433,8 +433,8 @@ extension BigFloatingPoint {
         func inner(_ x:Self)->Self {
             guard x < 0.5 else {
                 return x < 1
-                    ? atan1 - inner((1-x).divided(by:1+x, precision:px))
-                    : 2*atan1 - inner(1/x)
+                  ? atan1 - inner((1-x).divided(by:1+x, precision:px))
+                  : 2*atan1 - inner(1/x)
             }
             let x2 = x*x
             let x2p1 = 1 + x2
@@ -486,8 +486,7 @@ extension BigFloatingPoint {
         var r = ax < 1 ? inner(ax) : 2*atan1 - inner(1/x)
         if 0 < px { r.truncate(width: px) }
         return x.sign == .minus ? -r : +r
-       }
-
+    }
     /// arccos
     public static func acos(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if (x - 1).isZero || 1 < Swift.abs(x) {
