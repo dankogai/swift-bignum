@@ -68,7 +68,7 @@ final class GenericMathTests: XCTestCase {
             }, "exp(\(d)):\((rd,rq))")
             (rd, rq) = (D.expMinusOne(d), T.expMinusOne(q, precision: 128));
             XCTAssert(ok(d, rd, rq, "expMinusOne", 1) {
-                d == D.expMinusOne(rq.asDouble) || lgfm < d.magnitude
+                d == D.log(onePlus:rq.asDouble)
             }, "expMinusOne(\(d)):\((rd,rq))")
             // logarithms
             (rd, rq) = (D.log(d), T.log(q, precision: 128));

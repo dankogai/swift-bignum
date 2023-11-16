@@ -190,11 +190,11 @@ extension BigFloatingPoint {
             let epsilon = getEpsilon(precision: px)
             var (n, d) = (Self(1), Self(1))
             for i in 1 ... px.magnitude {
-                n = (n * fx).truncated(width: px)
+                n = (n * fx).truncated(width:px)
                 d *= Self(i)
                 let t = n.divided(by:d, precision:px)
-                if t < epsilon { break }
                 fr += t
+                if t < epsilon { break }
             }
         }
         let r = ir * fr
@@ -216,11 +216,9 @@ extension BigFloatingPoint {
         for i in 1 ... px.magnitude {
             n *= x
             d *= Self(i)
-            let t = n / d
+            let t = n.divided(by:d, precision:px)
             r += t
             if t < epsilon { break }
-            n.truncate(width: px * 2)
-            r.truncate(width: px * 2)
         }
         return  0 < px ? r : r.truncated(width:px)
     }
