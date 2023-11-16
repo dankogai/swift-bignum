@@ -101,21 +101,7 @@ extension BigFloatingPoint {
     }
     /// sqrt(x*x + y*y)
     public static func hypot(_ x:Self, _ y:Self, precision px:Int=Self.precision, debug:Bool=false)->Self  {
-        // return (x*x + y*y).squareRoot(precision: px)
-        var (r, l) = (x < 0 ? -x : x, y < 0 ? -y : y)
-        if r < l { (r, l) = (l, r) }
-        if l == 0 { return r }
-        let epsilon = getEpsilon(precision: px)
-        while epsilon < l {
-            var t = l / r
-            t *= t
-            t /= 4 + t
-            r += 2 * r * t
-            l *= t
-            r.truncate(width:px)
-            l.truncate(width:px)
-        }
-        return px < 0 ? r : r.truncated(width: px)
+        return (x*x + y*y).squareRoot(precision:px)
     }
     /// atan2
     public static func atan2(y:Self, x:Self, precision px:Int=Self.precision, debug:Bool=false)->Self  {
