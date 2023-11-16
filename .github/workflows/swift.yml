@@ -1,11 +1,8 @@
 name: CI via GitHub Actions
 
-on: [ workflow_dispatch ]
-#on:
-#  push:
-#    branches: [ main ]
-#  pull_request:
-#    branches: [ main ]
+on:
+  push:
+    tags: [ '*.*.*' ]
 
 jobs:
   build:
