@@ -294,6 +294,35 @@ extension BigFloatingPoint {
         let r = Self(IntType(ix)) * LN2(precision: px) + 2 * fr
         return 0 < px ? r : r.truncated(width: px)
     }
+    /// natural log by Newton-Raphson method
+    public static func logByNewtonRaphson(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        if x.isNaN          { return nan }
+        if x.isLess(than:0) { return nan }
+        if x.isZero         { return -infinity }
+        if x.isInfinite     { return +infinity }
+        if x.isLess(than:1) { return -log(1/x, precision:px, debug:db) }
+        if x.isEqual(to:1)  { return 0 }
+        let epsilon = getEpsilon(precision: px)
+        func inner(_ y:Self)->Self {
+            guard y != 1 else { return 0 }
+            var x = Self(0)
+            for i in 1...px.magnitude {
+                let ex = exp(x, precision:px)
+                let dx = 2*(y-ex).divided(by:y+ex, precision:px)
+                if db {
+                    print("\(Self.self).atan:i=\(i), x=\(x.truncated(width:px))")
+                }
+                if dx.magnitude < x.magnitude * epsilon { break }
+                x += dx
+                x.truncate(width:px)
+            }
+            return x
+        }
+        let (_, ix, fx) = x.decomposed
+        if db { print("\(Self.self).atan:ix=\(ix), fx=\(fx)") }
+        let r = Self(IntType(ix)) * LN2(precision: px) + inner(fx)
+        return 0 < px ? r : r.truncated(width: px)
+    }
     /// common log (base 10)
     public static func log10(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
         if x.isNaN          { return nan }
@@ -435,21 +464,19 @@ extension BigFloatingPoint {
            let epsilon = getEpsilon(precision: px)
            if x * x < epsilon { return x } // atan(x) == x below this point
            func inner(_ y:Self)->Self {
-               // newton-raphson
+               // newton-raphson : x <- x - f(x)/f'(x)
                // f(x) = tan(x) - y
-               // x <- x - f(x)/f'(x)
                // f(x)/f'(x) = (tan(x) - y)/(1/cos^2(x))
                // = tan(x)*cos^2(x) - x*cos^2(x) = sin(x)cos(x) - y*cos^2(x)
                var x = Self(0)
                for i in 1...px {
-                   let (s, c) = sincos(x, precision:px, debug:db)
-                   let x1 = x - s*c + y*c*c
-                   let dx = (x - x1).magnitude
+                   let (s, c) = sincos(x, precision:px)
+                   let dx = s*c - y*c*c
                    if db {
                        print("\(Self.self).atan:i=\(i), x=\(x.truncated(width:px))")
                    }
-                   if dx < epsilon { break }
-                   x = x1
+                   if dx.magnitude < x.magnitude * epsilon { break }
+                   x -= dx
                }
                return x
            }
