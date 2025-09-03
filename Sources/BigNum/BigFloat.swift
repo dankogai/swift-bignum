@@ -500,3 +500,7 @@ extension String {
         self = uppercase ? bf.toString(radix:radix).uppercased() : bf.toString(radix:radix)
     }
 }
+
+#if swift(>=5.5)
+extension BigFloat: Sendable { }
+#endif

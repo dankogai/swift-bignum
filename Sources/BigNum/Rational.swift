@@ -525,6 +525,10 @@ extension BigRational : CustomDebugStringConvertible {
     }
 }
 
+#if swift(>=5.5)
+extension BigRational: Sendable { }
+#endif
+
 // Because FixedWidthInteger is Coda
 /// Signed integer type that can be a numerator and denominator of `FixedWidthRationalType`
 public protocol FixedWidthRationalElement : RationalElement & FixedWidthInteger & Codable {}
