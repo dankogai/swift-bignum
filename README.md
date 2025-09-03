@@ -1,3 +1,4 @@
+[![Swift 6](https://img.shields.io/badge/swift-6-blue.svg)](https://swift.org)
 [![Swift 5](https://img.shields.io/badge/swift-5-blue.svg)](https://swift.org)
 [![MIT LiCENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI via GitHub Actions](https://github.com/dankogai/swift-bignum/actions/workflows/swift.yml/badge.svg?branch=main)](https://github.com/dankogai/swift-bignum/actions/workflows/swift.yml)
@@ -65,12 +66,27 @@ $ swift run --repl
 and in your repl,
 
 ```sh
-[0/0] Build complete!
-Launching Swift REPL with arguments: -I/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/release -L/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/release -lBigNum__REPL -I/Users/dankogai/github/swift-bignum/.build/checkouts/swift-numerics/Sources/_NumericsShims/include
-Welcome to Swift version 5.5.2-dev.
+% swift run --repl                
+Fetching https://github.com/attaswift/BigInt from cache
+Fetching https://github.com/apple/swift-numerics from cache
+Fetched https://github.com/attaswift/BigInt (0.51s)
+Fetched https://github.com/apple/swift-numerics (0.51s)
+Computing version for https://github.com/apple/swift-numerics
+Computed https://github.com/apple/swift-numerics at 1.1.0 (0.03s)
+Computing version for https://github.com/attaswift/BigInt
+Computed https://github.com/attaswift/BigInt at 5.7.0 (0.03s)
+Creating working copy for https://github.com/apple/swift-numerics
+Working copy of https://github.com/apple/swift-numerics resolved at 1.1.0
+Creating working copy for https://github.com/attaswift/BigInt
+Working copy of https://github.com/attaswift/BigInt resolved at 5.7.0
+Building for debugging...
+[59/59] Linking BigNumRun
+Build complete! (12.07s)
+Launching Swift REPL with arguments: repl -I/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/debug -L/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/debug -lswift-bignum__REPL -I/Users/dankogai/github/swift-bignum/.build/checkouts/swift-numerics/Sources/_NumericsShims/include
+Welcome to Apple Swift version 5.9.2 (swiftlang-5.9.2.2.56 clang-1500.1.0.2.5).
 Type :help for assistance.
   1> import BigNum 
-  2> var bf = BigFloat.sqrt(2, precision:128)
+  2> var bf = BigFloat.sqrt(2, precision:128) 
 bf: BigNum.BigFloat = {
   scale = -127
   mantissa = {
@@ -84,8 +100,9 @@ bf: BigNum.BigFloat = {
     sign = plus
   }
 }
-  3> print(bf)
+  3> print(bf) 
 1.414213562373095048801688724209698078569
+  4>  
 ````
 
 ### From your Xcode Projects.
@@ -133,7 +150,7 @@ in your code.  Enjoy!
 
 # Prerequisite
 
-Swift 5 or better, OS X or Linux to build.
+Swift 6 and 5, OS X or Linux to build.
 
 * Depends on [attaswift/BigInt] for internal representation of
 `BigFloat` and `BigRat`.
@@ -146,3 +163,4 @@ version 5.1 for the `ElementaryFunctions` protocol.
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
 [apple/swift-numerics]: https://github.com/apple/swift-numerics
 [dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
+
