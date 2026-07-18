@@ -1,8 +1,13 @@
 import XCTest
 @testable import BigNum
 
+#if compiler(<5.9)
 extension BigRational : DoubleConvertible {}
 extension BigFloat: DoubleConvertible {}
+#else
+extension BigRational : @retroactive DoubleConvertible {}
+extension BigFloat: @retroactive DoubleConvertible {}
+#endif
 
 final class BigNumTests: XCTestCase {
     typealias D = Double
