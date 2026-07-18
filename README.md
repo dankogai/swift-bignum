@@ -45,22 +45,13 @@ BigInt(3260954456333195553).over(BigInt(2305843009213693952)) // == BigRat.sqrt(
 ```sh
 $ git clone https://github.com/dankogai/swift-bignum.git
 $ cd swift-bignum # the following assumes your $PWD is here
-$ swift build
+$ swift buil
 ```
 
 ### REPL
 
-Simply
-
-```sh
-$ scripts/run-repl.sh
-```
-
-or
-
 ```sh
 $ swift run --repl
-
 ```
 
 and in your repl,
@@ -105,22 +96,13 @@ bf: BigNum.BigFloat = {
   4>  
 ````
 
-### From your Xcode Projects.
+### via Xcode
 
-Simply add the package from **Package Dependencies** tab of the Project.
-Enter `https://github.com/dankogai/swift-bignum` in the search field and click `[Add Package]`
+* simply open [./Package.swift] to open it lika project.
 
-![](img/add-package.png)
+[./Package.swift]: ./Package.swift
 
-Now you are able to `import BigNum`.
-
-![](img/import-bignum.png)
-
-Now all you have to do is build and enjoy!
-
-![](img/app-built.png)
-
-If you enconter errors like `Missing required module '_NumericShims'`, try cleaning up your `~/Library/Developer/Xcode/DerivedData`.
+* simply add `https://github.com/dankogai/swift-bignum.git` as package URL in your project
 
 ### From Your SwiftPM-Managed Projects
 
