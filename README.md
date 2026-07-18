@@ -1,3 +1,4 @@
+[![Swift 6](https://img.shields.io/badge/swift-6-blue.svg)](https://swift.org)
 [![Swift 5](https://img.shields.io/badge/swift-5-blue.svg)](https://swift.org)
 [![MIT LiCENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI via GitHub Actions](https://github.com/dankogai/swift-bignum/actions/workflows/swift.yml/badge.svg?branch=main)](https://github.com/dankogai/swift-bignum/actions/workflows/swift.yml)
@@ -23,7 +24,13 @@ This module offers two flavors of Arbitrary-precision types that conforms to [Fl
 
 [FloatingPoint]: https://developer.apple.com/documentation/swift/floatingpoint
 
-In addition to all arithmetic operations that [FloatingPoint] supports.  Most of the functions in `<math.h>` are offered as static functions.  As you see in the synopsis above, all arithmetic functions and operators that are lossy can take `precision:Int` as an optional argument.  When omitted the value of `BigRat.precision` or `BigFloat.precision` is used (default:64)
+In addition to all arithmetic operations that [FloatingPoint] supports.  Most of the functions in `<math.h>` are offered as static functions.  As you see in the synopsis above, all arithmetic functions and operators that are lossy can take `precision:Int` as an optional argument.  When omitted the value of `BigRat.precision` or `BigFloat.precision` is used (default:64).
+
+```swift
+BigFloat.sqrt(2) // 1.41421356237309504876
+BigFloat.precision = 128
+BigFloat.sqrt(2) // 1.414213562373095048801688724209698078569
+```
 
 `BigInt`, an arbitrary-precision interger type is internally used and re-exported so you don't have to `import BigInt` just for that.  `BigInt` is also extended with `.over()` method so instead of constructing `BigRat` directly, you can:
 
@@ -59,11 +66,30 @@ $ swift run --repl
 and in your repl,
 
 ```sh
-Welcome to Apple Swift version 4.2 (swiftlang-1000.11.37.1 clang-1000.11.45.1). Type :help for assistance.
+% swift run --repl                
+Fetching https://github.com/attaswift/BigInt from cache
+Fetching https://github.com/apple/swift-numerics from cache
+Fetched https://github.com/attaswift/BigInt (0.51s)
+Fetched https://github.com/apple/swift-numerics (0.51s)
+Computing version for https://github.com/apple/swift-numerics
+Computed https://github.com/apple/swift-numerics at 1.1.0 (0.03s)
+Computing version for https://github.com/attaswift/BigInt
+Computed https://github.com/attaswift/BigInt at 5.7.0 (0.03s)
+Creating working copy for https://github.com/apple/swift-numerics
+Working copy of https://github.com/apple/swift-numerics resolved at 1.1.0
+Creating working copy for https://github.com/attaswift/BigInt
+Working copy of https://github.com/attaswift/BigInt resolved at 5.7.0
+Building for debugging...
+[59/59] Linking BigNumRun
+Build complete! (12.07s)
+Launching Swift REPL with arguments: repl -I/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/debug -L/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/debug -lswift-bignum__REPL -I/Users/dankogai/github/swift-bignum/.build/checkouts/swift-numerics/Sources/_NumericsShims/include
+Welcome to Apple Swift version 5.9.2 (swiftlang-5.9.2.2.56 clang-1500.1.0.2.5).
+Type :help for assistance.
   1> import BigNum 
-  2> BigRat.sqrt(2, precision:128)
-$R0: BigNum.BigRat = {
-  num = {
+  2> var bf = BigFloat.sqrt(2, precision:128) 
+bf: BigNum.BigFloat = {
+  scale = -127
+  mantissa = {
     magnitude = {
       kind = array
       storage = 2 values {
@@ -73,17 +99,10 @@ $R0: BigNum.BigRat = {
     }
     sign = plus
   }
-  den = {
-    magnitude = {
-      kind = array
-      storage = 2 values {
-        [0] = 0
-        [1] = 9223372036854775808
-      }
-    }
-    sign = plus
-  }
 }
+  3> print(bf) 
+1.414213562373095048801688724209698078569
+  4>  
 ````
 
 ### From your Xcode Projects.
@@ -131,12 +150,17 @@ in your code.  Enjoy!
 
 # Prerequisite
 
-Swift 5 or better, OS X or Linux to build.
+Swift 6 and 5, OS X or Linux to build.
 
-Depends on [attaswift/BigInt] for internal representation of `BigFloat` and `BigRat`.
+* Depends on [attaswift/BigInt] for internal representation of
+`BigFloat` and `BigRat`.
+* Depends on [apple/swift-numerics] since
+version 5.1 for the `ElementaryFunctions` protocol.
+* Prior versions depended on [dankogai/swift-floatingpoint] for the
+`FloatingPointMath` protocols but it is replaced by the
+`ElementaryFunctions`.
 
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
 [apple/swift-numerics]: https://github.com/apple/swift-numerics
 [dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
 
-Depends on [apple/swift-numerics] since version 5.1 for the `ElementaryFunctions` protocol.  Prior versions depended on [dankogai/swift-floatingpoint] for the `FloatingPointMath` protocols but it is replaced by the `ElementaryFunctions`.

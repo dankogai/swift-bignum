@@ -33,7 +33,6 @@ public protocol RationalType : CustomStringConvertible, FloatingPoint, Expressib
     var num:Element { get set }
     var den:Element { get set }
     init(num:Element, den:Element)
-    static var expLimit:Int { get }
 }
 
 public protocol BigRationalType : RationalType & BigFloatingPoint {}
@@ -58,6 +57,12 @@ extension BigRationalType {
         n.truncate(width:width, round:round)
         self = Self(n >> 2, d)  // shift down and back up to discard lower bits
     }
+    public func divided(by other:Self,
+                        precision px:Int=precision,
+                        round rule:FloatingPointRoundingRule=roundingRule)->Self
+    {
+        return self / other
+    }
 }
 
 extension RationalType {
@@ -75,8 +80,8 @@ extension RationalType {
     public var ulp:Self                             { return Self.zero }
     public var sign:FloatingPointSign   {
         return num != 0
-        ? num < 0 ? .minus : .plus
-        : den < 0 ? .minus : .plus
+          ? num < 0 ? .minus : .plus
+          : den < 0 ? .minus : .plus
     }
     /// decompose to sign, exponent and significand
     /// - sign:        .minus or .plus
@@ -136,8 +141,8 @@ extension RationalType {
     }
     public func isEqual(to other: Self) -> Bool {
         return self.isNaN || other.isNaN ? false
-            :  self.isZero ? other.isZero
-            :  self.isIdentical(to: other)
+          :  self.isZero ? other.isZero
+          :  self.isIdentical(to: other)
     }
     private func isLessThan(_ other:Self, onEqual:Bool)->Bool {
         if self.isEqual(to: other) { return onEqual }
@@ -160,8 +165,8 @@ extension RationalType {
     }
     public func isTotallyOrdered(belowOrEqualTo other: Self) -> Bool {
         return self.isNaN ? other.isNaN
-            : self.isZero && other.isZero ? self.sign == .minus || other.sign == .plus
-            : self.isLessThanOrEqualTo(other)
+          : self.isZero && other.isZero ? self.sign == .minus || other.sign == .plus
+          : self.isLessThanOrEqualTo(other)
     }
     //
     public mutating func addingProduct(_ lhs: Self, _ rhs: Self)->Self {
@@ -204,7 +209,7 @@ extension RationalType {
         case .down:                     i += r < 0.0 ? -1 : 0
         case .up:                       i += 0.0 < r ? +1 : 0
         case .towardZero:               i += 0
-        @unknown default:               fatalError()
+                                        @unknown default:               fatalError()
         }
         self = Self(i)
     }
@@ -301,7 +306,7 @@ extension RationalType {
         if rhs.isNaN      { return Self.nan }
         if rhs.isZero {
             return lhs.isInfinite ? Self.nan
-                : lhs.sign == rhs.sign ? Self.zero : Self.negativeZero
+              : lhs.sign == rhs.sign ? Self.zero : Self.negativeZero
         }
         return Self(lhs.num * rhs.num, lhs.den * rhs.den)
     }
@@ -318,7 +323,7 @@ extension RationalType {
         if q.isNaN      { return Self.nan }
         if q.isInfinite {
             return self.isInfinite ? Self.nan
-                : self.sign == q.sign ? Self.zero : Self.negativeZero
+              : self.sign == q.sign ? Self.zero : Self.negativeZero
         }
         return Self(self.num * q.den, self.den * q.num)
     }
@@ -345,7 +350,6 @@ extension RationalType {
     public mutating func formRemainder(dividingBy other: Self) {
         self = self.quotientAndRemainder(dividingBy: other).1
     }
-    
     public static func /(_ lhs:Self, _ rhs:Self)->Self {
         return lhs.over(rhs)
     }
@@ -378,9 +382,9 @@ extension RationalType {
         if rhs.isInfinite {
             return lhs.isZero || lhs.sign == rhs.sign ? rhs : Self.nan
         }
-         return Self(
-            lhs.num * rhs.den + rhs.num * lhs.den,
-            lhs.den * rhs.den
+        return Self(
+          lhs.num * rhs.den + rhs.num * lhs.den,
+          lhs.den * rhs.den
         )
     }
     public static func +(_ lhs:Self, _ rhs:Element)->Self {
@@ -431,12 +435,6 @@ public struct Rational<I:RationalElement> : RationalType {
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
     }
-    /// maximum magnitude of the argument to exponential functions.
-    /// if smaller than `-expLimit` 0 is returned
-    /// anything larger than `+expLimit` +infinity is returned
-    public static var expLimit:Int {
-        return Int(Int16.max)
-    }
 }
 
 public struct BigRational : BigRationalType & Codable {
@@ -451,7 +449,7 @@ public struct BigRational : BigRationalType & Codable {
     public static var SQRT2 = (precision:0, value:nan)
     public static var LN2   = (precision:0, value:nan)
     public static var LN10  = (precision:0, value:nan)
-    
+    public static var pi: Self { return Self.PI(precision:Self.precision) }
     public static func getEpsilon(precision px:Int)->BigRational {
         return 1 / BigRational(IntType(1) << px.magnitude)
     }
@@ -469,12 +467,11 @@ public struct BigRational : BigRationalType & Codable {
         self.init(floatLiteral)
     }
     public var asBigRat:BigRational { return self }
+    public var asBigFloat:BigFloat { return BigFloat(self) }
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-expLimit` 0 is returned
     /// anything larger than `+expLimit` +infinity is returned
-    public static var expLimit:Int {
-        return Int(Int16.max)
-    }
+    public static var expLimit = Self(Int16.max)
     public func remainder(dividingBy other:BigRational,
                           precision:Int = BigRational.precision,
                           round:FloatingPointRoundingRule = BigRational.roundingRule)->BigRational
@@ -528,6 +525,10 @@ extension BigRational : CustomDebugStringConvertible {
     }
 }
 
+#if swift(>=5.5)
+extension BigRational: Sendable { }
+#endif
+
 // Because FixedWidthInteger is Coda
 /// Signed integer type that can be a numerator and denominator of `FixedWidthRationalType`
 public protocol FixedWidthRationalElement : RationalElement & FixedWidthInteger & Codable {}
@@ -547,7 +548,7 @@ extension FixedWidthRationalElement {
 // FixedWidthRationalType is Codable
 /// Rational number type whose numerator and denominator are `RationalElement`
 public protocol FixedWidthRationalType : RationalType, CustomDebugStringConvertible,Codable
-    where Element: FixedWidthRationalElement {}
+  where Element: FixedWidthRationalElement {}
 
 extension FixedWidthRationalType {
     public static var max:Self {
@@ -571,7 +572,7 @@ extension FixedWidthRationalType {
 }
 
 public struct FixedWidthRational<I:FixedWidthRationalElement> :
-    FixedWidthRationalType, Codable
+  FixedWidthRationalType, Codable
 {
     public typealias IntegerLiteralType = Int
     public typealias FloatLiteralType   = Double
@@ -586,12 +587,6 @@ public struct FixedWidthRational<I:FixedWidthRationalElement> :
     }
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
-    }
-    /// maximum magnitude of the argument to exponential functions.
-    /// if smaller than `-expLimit` 0 is returned
-    /// anything larger than `+expLimit` +infinity is returned
-    public static var expLimit:Int {
-        return I.bitWidth - 1
     }
 }
 

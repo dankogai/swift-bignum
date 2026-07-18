@@ -17,10 +17,11 @@ public protocol BigFloatingPoint : ExpressibleByFloatLiteral, Real {
     init(_:Double)
     init(_:IntType)
     mutating func truncate(width:Int, round:FloatingPointRoundingRule)
+    func divided(by:Self, precision:Int, round:FloatingPointRoundingRule)->Self
     func remainder(dividingBy:Self, precision:Int,  round:FloatingPointRoundingRule)->Self
     static func %(_:Self,_:Self)->Self
     static func getEpsilon(precision: Int)->Self
-    static var expLimit:Int { get }
+    static var expLimit:Self { get set }
     static var precision:Int { get }
     static var roundingRule: FloatingPointRoundingRule { get }
     var asBigRat:BigRat { get }
@@ -41,6 +42,15 @@ extension BigFloatingPoint {
         var result = self
         result.truncate(width:px, round:rule)
         return result
+    }
+    public func divided(by other:Self, precision px:Int)->Self {
+        return self.divided(by:other, precision:px, round:Self.roundingRule)
+    }
+    public func divided(by other:Self)->Self {
+        return self.divided(by:other, precision:Self.precision, round:Self.roundingRule)
+    }
+    public mutating func divide(by other:Self, precision px:Int, round rule:FloatingPointRoundingRule=Self.roundingRule) {
+        self = self.divided(by:other, precision:px, round:Self.roundingRule)
     }
     public func toFloatingPointString(radix:Int = 10)->String {
         return self.asBigRat.toFloatingPointString(radix: radix)
@@ -68,8 +78,6 @@ extension BigFloatingPoint where Self:BinaryFloatingPoint {
     }
     /// defaultPrecision is set to significandBitCount
     public static var precision:Int { return Self.significandBitCount }
-    /// max exponent is set to  = 0x3fff
-    public static var expLimit:Int { return 0x3fff }
     /// get epsilon for math functions.  always smaller than 63
     public static func getEpsilon(precision px: Int)->Self {
         return 1.0 / Self(BigInt(1) << min(Self.precision, Swift.abs(px)))
@@ -109,7 +117,7 @@ extension SignedInteger {
         case .down:                     i += r < 0 ? -1 : 0
         case .up:                       i += 0 < r ? +1 : 0
         case .towardZero:               i += 0
-        @unknown default:               fatalError()
+                                        @unknown default:               fatalError()
         }
         self = i << t
     }
@@ -119,4 +127,3 @@ extension SignedInteger {
         return result
     }
 }
-
