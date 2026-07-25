@@ -179,10 +179,87 @@ final class GenericMathTests: XCTestCase {
     func testAtan2BigRat()   { runAtan2(forType: BigRat.self) }
     func testAtan2BigFloat() { runAtan2(forType: BigFloat.self) }
 
+    /// erf, erfc, gamma and logGamma against `Double`
+    func runErfGamma<R:BigFloatingPoint>(forType T:R.Type) {
+        func ok(_ d: D, _ rd: D, _ rq: R, _ name: String, _ ulp: Int)->Bool {
+            okCount += 1
+            if rq.isNaN || rd.isNaN     { return rd.isNaN == rq.isNaN }
+            // BigNum has no overflow so it stays finite where Double gives up
+            if rd.isInfinite            { return true }
+            if rq.isInfinite            { return rd.isInfinite }
+            let qrd = T.init(rd)
+            if qrd == rq { return true }
+            let torelance = T.init(D(ulp) * D.ulpOfOne)
+            let err = Swift.abs(qrd - rq) / rq
+            if err <= torelance { return true }
+            print("\(R.self).\(name)(\(d.debugDescription)) !~ \(D.self).\(name)()"
+                  + " // err=\(String(format:"%a", err.asDouble))")
+            return false
+        }
+        var doubles:[D] = [0.125, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.5, 6.0, 8.5, 10.5]
+        doubles += doubles.map{ -$0 }
+        doubles += [-0.0, +0.0, -D.infinity, +D.infinity, D.nan]
+        for d in doubles {
+            let q = T.init(d)
+            var (rd, rq):(D, R)
+            (rd, rq) = (D.erf(d),  T.erf(q,  precision: 128))
+            XCTAssert(ok(d, rd, rq, "erf",  2), "erf(\(d)):\((rd, rq))")
+            (rd, rq) = (D.erfc(d), T.erfc(q, precision: 128))
+            XCTAssert(ok(d, rd, rq, "erfc", 2), "erfc(\(d)):\((rd, rq))")
+            (rd, rq) = (D.gamma(d), T.gamma(q, precision: 128))
+            XCTAssert(ok(d, rd, rq, "gamma", 4), "gamma(\(d)):\((rd, rq))")
+            // Double.logGamma() itself is off by a few ulps around its zeros
+            (rd, rq) = (D.logGamma(d), T.logGamma(q, precision: 128))
+            XCTAssert(ok(d, rd, rq, "logGamma", 8), "logGamma(\(d)):\((rd, rq))")
+        }
+        print("testErfGamma:checked \(okCount) cases")
+    }
+
+    func testErfGammaBigRat()   { runErfGamma(forType: BigRat.self) }
+    func testErfGammaBigFloat() { runErfGamma(forType: BigFloat.self) }
+
+    /// erf, erfc, gamma and logGamma beyond what `Double` can tell us.
+    /// the expected values are the leading digits of the exact ones
+    func runErfGammaExact<R:BigFloatingPoint>(forType T:R.Type) {
+        func ok(_ name:String, _ rq:R, _ expected:String) {
+            let got = rq.toFloatingPointString()
+            XCTAssert(got.hasPrefix(expected), "\(R.self).\(name): \(got.prefix(expected.count))")
+        }
+        let px = 256   // 77 decimal digits -- way more than the 40 we check
+        ok("erf(1)",        T.erf(T.init(1.0), precision:px),
+           "+0.8427007929497148693412206350826092592960")
+        ok("erfc(3/2)",     T.erfc(T.init(1.5), precision:px),
+           "+0.0338948535246892729330237383540521413185")
+        // erfc() switches to the continued fraction around here.
+        // erfc(12) == 1.3562611692059042127803061565904...e-64
+        ok("erfc(12)",      T.erfc(T.init(12.0), precision:px),
+           "+0." + String(repeating:"0", count:63) + "1356261169205904212780306156590")
+        ok("erfc(-12)",     T.erfc(T.init(-12.0), precision:px),
+           "+1.9999999999999999999999999999999999999999")
+        ok("gamma(1/2)",    T.gamma(T.init(0.5), precision:px),
+           "+1.7724538509055160272981674833411451827975")
+        ok("gamma(-5/2)",   T.gamma(T.init(-2.5), precision:px),
+           "-0.9453087204829418812256893244486107641586")
+        ok("logGamma(-5/2)", T.logGamma(T.init(-2.5), precision:px),
+           "-0.0562437164976740506725945300976542841229")
+        ok("logGamma(100)", T.logGamma(T.init(100.0), precision:px),
+           "+359.13420536957539877604401046028690961262")
+        // Γ(n) == (n-1)!
+        XCTAssertEqual(T.gamma(T.init(21.0), precision:px).toFloatingPointString(),
+                       "+2432902008176640000.0", "\(R.self).gamma(21)")
+    }
+
+    func testErfGammaExactBigRat()   { runErfGammaExact(forType: BigRat.self) }
+    func testErfGammaExactBigFloat() { runErfGammaExact(forType: BigFloat.self) }
+
     static var allTests = [
         ("testAtan2BigRat",   testAtan2BigRat),
         ("testAtan2BigFloat", testAtan2BigFloat),
 //        ("testUnaryBigRat",   testUnaryBigRat),
         ("testUnaryBigFloat", testUnaryBigFloat),
+        ("testErfGammaBigRat",        testErfGammaBigRat),
+        ("testErfGammaBigFloat",      testErfGammaBigFloat),
+        ("testErfGammaExactBigRat",   testErfGammaExactBigRat),
+        ("testErfGammaExactBigFloat", testErfGammaExactBigFloat),
     ]
 }

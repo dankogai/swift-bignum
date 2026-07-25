@@ -597,6 +597,244 @@ extension BigFloatingPoint {
     }
 }
 
+extension BigFloatingPoint {
+    /// √π
+    public static func SQRTPI(precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        let apx = Swift.abs(px)
+        return PI(precision:apx).squareRoot(precision:apx)
+    }
+    /// e ** x -- by way of `2 ** (x/log(2))`
+    ///
+    /// `exp()` raises `E` to the integral part of `x` by repeated squaring
+    /// and a power of two denominator is left as is by `truncate(width:)`,
+    /// so the operands of `BigRat` grow exponentially with the exponent.
+    /// raising 2 instead keeps them exact however big the exponent gets.
+    ///
+    /// `exp2()` is not used as is because it would apply `expLimit` to the
+    /// scaled exponent and so saturate earlier than `exp()` does.
+    public static func expByExp2(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        if x.isNaN      { return nan }
+        if x.isInfinite { return x.sign == .minus ? 0 : +infinity }
+        if x.isZero     { return 1 }
+        if expLimit < Swift.abs(x) {
+            return x.sign == .minus ? 0 : +Self.infinity
+        }
+        let apx = Swift.abs(px)
+        if x.isLess(than:0) {
+            return Self(1).divided(by:expByExp2(-x, precision:apx, debug:db), precision:apx)
+        }
+        // the quotient needs the extra bits because only its fractional
+        // part survives into the significand of the result
+        let ln2 = LN2(precision:apx + 32)
+        let (ix, fx) = x.divided(by:ln2, precision:apx + 32).asMixed
+        let r = Self(2).power(ix, precision:apx) * exp(fx * ln2, precision:apx, debug:db)
+        return 0 < px ? r : r.truncated(width:px)
+    }
+    /// e ** x -- `exp()` or `expByExp2()`, whichever is cheaper
+    ///
+    /// `exp()` wins while the exponent is small but its cost climbs with it,
+    /// whereas `expByExp2()` is flat.  the crossover measured with `BigRat`
+    /// is around 2**7 -- `BigFloat` prefers `exp()` throughout but the extra
+    /// work there is negligible.
+    static func expEitherWay(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        return Swift.abs(x) < 128
+          ? exp(x, precision:px, debug:db) : expByExp2(x, precision:px, debug:db)
+    }
+    /// sin(π*x).  stays accurate even when |x| is large
+    /// because only the fractional part of `x` is fed to `sin()`
+    public static func sinPi(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        if x.isNaN || x.isInfinite { return nan }
+        let (ix, fx) = x.asMixed    // x == ix + fx where |fx| < 1
+        if fx.isZero { return 0 }   // sin(π*n) == 0
+        let s = sin(PI(precision:px) * fx, precision:px, debug:db)
+        return ix % 2 == 0 ? +s : -s
+    }
+    /// error function
+    ///
+    /// uses the cancellation-free variant of the Maclaurin series
+    ///
+    ///     erf(x) = 2x/√π * exp(-x*x) * Σ (2x²)ⁿ/(2n+1)‼
+    ///
+    /// cf. https://en.wikipedia.org/wiki/Error_function#Taylor_series
+    public static func erf(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        if x.isNaN          { return nan }
+        if x.isZero         { return x }
+        if x.isInfinite     { return x.sign == .minus ? -1 : +1 }
+        if x.isLess(than:0) { return -erf(-x, precision:px, debug:db) }
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let x2  = x * x
+        // erfc(x) is already below the epsilon beyond this point so erf(x) == 1
+        if Self(apx + 1) * LN2(precision:wpx) < x2 { return 1 }
+        let epsilon = getEpsilon(precision: wpx)
+        var (t, s) = (Self(1), Self(1))
+        for i in 1 ... (4 * apx + 64) {
+            t = (2 * t * x2).divided(by:Self(2*i + 1), precision:wpx)
+            t.truncate(width:wpx)
+            s += t
+            s.truncate(width:wpx)
+            if db { print("\(Self.self).erf: i=\(i), t=\(t.asDouble), s=\(s.asDouble)") }
+            if t < s * epsilon { break }
+        }
+        // divide by exp(+x*x) rather than multiply by exp(-x*x) --
+        // the latter loses bits because `exp()` negates via `1/exp(-x)`
+        let r = (2 * x * s)
+          .divided(by:expEitherWay(x2, precision:wpx) * SQRTPI(precision:wpx), precision:wpx)
+        return 0 < px ? r : r.truncated(width:px)
+    }
+    /// complementary error function -- `1 - erf(x)` without cancellation
+    ///
+    /// for larger `x` the continued fraction of the incomplete gamma function
+    ///
+    ///     erfc(x) = Γ(½,x²)/√π
+    ///
+    /// is used instead.  cf. https://dlmf.nist.gov/8.9
+    public static func erfc(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        if x.isNaN      { return nan }
+        if x.isInfinite { return x.sign == .minus ? 2 : 0 }
+        if x.isZero     { return 1 }
+        let apx = Swift.abs(px)
+        let x2  = x * x
+        // erfc(x) ~ exp(-x*x) so 1 - erf(x) costs us x*x*log2(e) bits.
+        // as long as that is affordable the series above is the faster way
+        if x.isLess(than:1) || x2 < Self(apx) * LN2(precision:apx + 32) {
+            // this branch keeps `lost` below `apx`.  fall back to that bound
+            // when `asDouble` cannot tell us how large x*x actually is
+            let d2   = x2.asDouble
+            let lost = x.isLess(than:0) ? 0
+              : d2.isFinite ? Swift.min(apx, Int(d2 * 1.4426950408889634) + 1) : apx
+            let wpx  = apx + lost + 32
+            if db { print("\(Self.self).erfc: x=\(x.asDouble), lost=\(lost) bits") }
+            let r = 1 - erf(x, precision:wpx, debug:db)
+            return 0 < px ? r : r.truncated(width:px)
+        }
+        //  Γ(a,z) = exp(-z)*z**a / (z+1-a - 1(1-a)/(z+3-a - 2(2-a)/(z+5-a - …)))
+        //  where a = ½ and z = x*x.  evaluated by the modified Lentz method
+        let wpx     = apx + 32
+        let epsilon = getEpsilon(precision: wpx)
+        let tiny    = getEpsilon(precision: wpx * 2)
+        let half    = Self(1)/2
+        var b = x2 + half           // z + 1 - a
+        var c = Self(1).divided(by:tiny, precision:wpx)
+        var d = Self(1).divided(by:b,    precision:wpx)
+        var h = d
+        for i in 1 ... (4 * apx + 64) {
+            let an = -Self(i) * (Self(i) - half)
+            b += 2
+            d = an * d + b; if d.isZero { d = tiny }
+            c = b + an.divided(by:c, precision:wpx); if c.isZero { c = tiny }
+            d = Self(1).divided(by:d, precision:wpx)
+            d.truncate(width:wpx)
+            c.truncate(width:wpx)
+            let del = d * c
+            h = (h * del).truncated(width:wpx)
+            if db { print("\(Self.self).erfc: i=\(i), del=\(del.asDouble)") }
+            if (del - 1).magnitude < epsilon { break }
+        }
+        // erfc(x) = Γ(½,x²)/√π = x * h / (exp(x²) * √π)
+        let r = (x * h)
+          .divided(by:expEitherWay(x2, precision:wpx) * SQRTPI(precision:wpx), precision:wpx)
+        return 0 < px ? r : r.truncated(width:px)
+    }
+    /// log(Γ(x)) for `1 <= x` by Spouge's approximation
+    ///
+    ///     Γ(z+1) = (z+a)**(z+½) * exp(-(z+a)) * (c₀ + Σ cₖ/(z+k))
+    ///     c₀ = √(2π), cₖ = (-1)**(k-1)/(k-1)! * (a-k)**(k-½) * exp(a-k)
+    ///
+    /// cf. https://en.wikipedia.org/wiki/Spouge%27s_approximation
+    ///
+    /// every term is scaled by `exp(-a)` -- that is, `U = exp(-a) * S` is
+    /// summed instead of `S` so that `exp(a-k)` never has to be built.
+    /// `log(S)` is then simply `a + log(U)` which cancels the `-a` in `-(z+a)`:
+    ///
+    ///     log(Γ(z+1)) = (z+½)log(z+a) - z + log(U)
+    ///
+    /// the relative error is bounded by `a**-½ * (2π)**-(a+½)` hence
+    /// `a =~ 0.3773 * precision`.  since the terms are as large as
+    /// `exp(1.28*a)` while they cancel each other down to `exp(-a)`,
+    /// `2*a` extra bits are needed to work with.
+    public static func spougeLogGamma(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        let apx = Swift.abs(px)
+        let a   = Int(Double(apx) * 0.3773) + 4
+        let wpx = apx + 2*a + 32
+        let z   = x - 1
+        let e   = E(precision:wpx)
+        var s   = Self(0)       // U = exp(-a) * S
+        var fct = Self(1)       // (k-1)!
+        var emk = Self(1)       // exp(-k)
+        for k in 1 ..< a {
+            emk = emk.divided(by:e, precision:wpx)
+            emk.truncate(width:wpx)
+            let ak = Self(a - k)
+            var ck = ak.power(IntType(k - 1), precision:wpx) * ak.squareRoot(precision:wpx)
+            ck = (ck * emk).divided(by:fct, precision:wpx)
+            ck.truncate(width:wpx)
+            let t = ck.divided(by:z + Self(k), precision:wpx)
+            s += k & 1 == 1 ? +t : -t
+            s.truncate(width:wpx)
+            if db { print("\(Self.self).spougeLogGamma: k=\(k), t=\(t.asDouble), s=\(s.asDouble)") }
+            fct *= Self(k)
+        }
+        emk = emk.divided(by:e, precision:wpx)  // exp(-a)
+        emk.truncate(width:wpx)
+        s += (2 * PI(precision:wpx)).squareRoot(precision:wpx) * emk    // c₀ * exp(-a)
+        s.truncate(width:wpx)
+        let za = z + Self(a)
+        let r  = (z + Self(1)/2) * log(za, precision:wpx, debug:db) - z
+          + log(s, precision:wpx, debug:db)
+        return 0 < px ? r : r.truncated(width:px)
+    }
+    /// log(|Γ(x)|).  cf. `signGamma(_:)` for the sign
+    public static func logGamma(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        if x.isNaN      { return nan }
+        if x.isInfinite { return +infinity }
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let (ix, fx) = x.asMixed
+        if fx.isZero && ix <= 0 { return +infinity }    // poles at 0, -1, -2, …
+        var r:Self
+        if x.isLess(than:Self(1)/2) {
+            // reflection formula: Γ(x)Γ(1-x) = π/sin(πx)
+            r = log(PI(precision:wpx), precision:wpx, debug:db)
+              - log(sinPi(x, precision:wpx, debug:db).magnitude, precision:wpx, debug:db)
+              - logGamma(1 - x, precision:wpx, debug:db)
+        } else if x.isLess(than:1) {
+            // Γ(x) = Γ(x+1)/x -- Spouge's approximation wants 1 <= x
+            r = logGamma(x + 1, precision:wpx, debug:db) - log(x, precision:wpx, debug:db)
+        } else {
+            r = spougeLogGamma(x, precision:wpx, debug:db)
+        }
+        return 0 < px ? r : r.truncated(width:px)
+    }
+    /// Γ(x)
+    public static func gamma(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        if x.isNaN      { return nan }
+        if x.isInfinite { return x.sign == .minus ? nan : +infinity }
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let (ix, fx) = x.asMixed
+        if fx.isZero {
+            if ix == 0  { return x.sign == .minus ? -infinity : +infinity }
+            if ix <  0  { return nan }  // poles
+            if ix <= 1024 {             // Γ(n) == (n-1)! -- exact and fast
+                var r = Self(1)
+                if 2 < ix { for i in 2 ..< Int(ix) { r *= Self(i) } }
+                return 0 < px ? r : r.truncated(width:px)
+            }
+        }
+        if x.isLess(than:Self(1)/2) {
+            // reflection formula: Γ(x) = π/(sin(πx)Γ(1-x))
+            let d = sinPi(x, precision:wpx, debug:db) * gamma(1 - x, precision:wpx, debug:db)
+            let r = PI(precision:wpx).divided(by:d, precision:wpx)
+            return 0 < px ? r : r.truncated(width:px)
+        }
+        let lg = logGamma(x, precision:wpx, debug:db)
+        if expLimit < lg { return +infinity }
+        let r = exp(lg, precision:wpx, debug:db)
+        return 0 < px ? r : r.truncated(width:px)
+    }
+}
+
 extension FloatingPoint where Self:DoubleConvertible {
     public var asBigRat : BigRat {
         return self as? BigRat ?? BigRat(self.asDouble)
@@ -685,18 +923,17 @@ extension BigFloatingPoint {
     public static func atan2(y: Self, x: Self) -> Self { // argument labels needed
         return atan2(y:y, x:x, precision:Self.precision, debug:false);
     }
-    //: mark todo
     public static func erf(_ x: Self) -> Self {
-        fatalError("yet to be implemented");
+        return         erf(x, precision:Self.precision, debug:false)
     }
     public static func erfc(_ x: Self) -> Self {
-        fatalError("yet to be implemented");
+        return         erfc(x, precision:Self.precision, debug:false)
     }
     public static func gamma(_ x: Self) -> Self {
-        fatalError("yet to be implemented");
+        return         gamma(x, precision:Self.precision, debug:false)
     }
     public static func logGamma(_ x: Self) -> Self {
-        fatalError("yet to be implemented");
+        return         logGamma(x, precision:Self.precision, debug:false)
     }
 }
 
