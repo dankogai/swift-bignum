@@ -10,7 +10,7 @@ public struct BigFloat: Equatable, Hashable, Codable {  // automatic conformance
     public typealias Stride             = BigFloat
     public var scale:Exponent           // stored property
     public var mantissa:Significand     // stored property
-    public static var precision = 64
+    public static var precision = 128
     public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
     public static var expLimit     = Self(Int16.max)
     // basic init

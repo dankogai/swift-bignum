@@ -442,7 +442,7 @@ public struct BigRational : BigRationalType & Codable {
     public typealias FloatLiteralType = Double
     public typealias Element = BigInt
     public typealias IntType = BigInt
-    public static var precision    = 64
+    public static var precision    = 128
     public static var roundingRule = FloatingPointRoundingRule.toNearestOrAwayFromZero
     public static var ATAN1 = (precision:0, value:nan)
     public static var E     = (precision:0, value:nan)
