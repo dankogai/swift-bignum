@@ -4,16 +4,15 @@ extension BigFloatingPoint {
     public static func SQRT2(precision px:Int=Self.precision, debug db:Bool=false)->Self {
         let apx = Swift.abs(px)
         if apx <= SQRT2.precision { return SQRT2.value.truncated(width: apx) }
-        SQRT2.precision = apx
-        SQRT2.value = Self(2).squareRoot(precision: apx)
-        return SQRT2.value
+        let v = Self(2).squareRoot(precision: apx)
+        SQRT2 = (precision: apx, value: v)  // publish together, value first
+        return v
     }
     /// euler's constant
     public static func E(precision px:Int=Self.precision, debug db:Bool=false)->Self {
         let apx = Swift.abs(px)
         if apx <= E.precision { return E.value.truncated(width: apx) }
-        E.precision = apx
-        E.value = E.value is BigRat ? {
+        let v:Self = E.value is BigRat ? {
             let epsilon = getEpsilon(precision: px)
             var (e, d) = (Self(1), Self(1))
             for i in 1 ... apx {
@@ -24,14 +23,14 @@ extension BigFloatingPoint {
             }
             return e.truncated(width: apx)
         }() : Self(BigRat.E(precision: apx))
-        return E.value
+        E = (precision: apx, value: v)      // publish together, value first
+        return v
     }
     /// log(2)
     public static func LN2(precision px:Int=Self.precision, debug db:Bool = false)->Self {
         let apx = Swift.abs(px)
         if apx <= LN2.precision { return LN2.value.truncated(width: apx) }
-        LN2.precision = apx
-        LN2.value = LN2.value is BigRat ? {
+        let v:Self = LN2.value is BigRat ? {
             let epsilon = getEpsilon(precision: px)
             var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
             for i in 1...px.magnitude {
@@ -42,15 +41,16 @@ extension BigFloatingPoint {
             }
             return (2*r).truncated(width: apx)
         }() : Self(BigRat.LN2(precision: apx))
-        return LN2.value
+        LN2 = (precision: apx, value: v)    // publish together, value first
+        return v
     }
     /// log(10)
     public static func LN10(precision px:Int=Self.precision, debug db:Bool=false)->Self {
         let apx = Swift.abs(px)
         if apx <= LN10.precision { return LN10.value.truncated(width: apx) }
-        LN10.precision = apx
-        LN10.value = Self.log(10, precision:apx)
-        return LN10.value
+        let v = Self.log(10, precision:apx)
+        LN10 = (precision: apx, value: v)   // publish together, value first
+        return v
     }
     /// π/4 in precision `px`.  Bellard's Formula
     public static func ATAN1(precision px:Int=Self.precision, debug db:Bool=false)->Self {
@@ -59,8 +59,7 @@ extension BigFloatingPoint {
         }
         let apx = Swift.abs(px)
         if apx <= ATAN1.precision { return ATAN1.value.truncated(width: apx) }
-        ATAN1.precision = apx
-        ATAN1.value = ATAN1.value is BigRat ? {
+        let v:Self = ATAN1.value is BigRat ? {
             let epsilon = getEpsilon(precision: px)
             var p64 = Self(0)
             for i in 0..<Int(apx.magnitude) {
@@ -86,7 +85,8 @@ extension BigFloatingPoint {
             p64 /= Self(1<<8)
             return p64.truncated(width: apx)
         }() : Self(BigRat.ATAN1(precision: apx))
-        return ATAN1.value
+        ATAN1 = (precision: apx, value: v)  // publish together, value first
+        return v
     }
     /// π in precision `px`.  4*atan(1)
     public static func PI(precision px:Int=Self.precision, debug db:Bool=false)->Self {
@@ -218,7 +218,9 @@ extension BigFloatingPoint {
             d *= Self(i)
             let t = n.divided(by:d, precision:px)
             r += t
-            if t < epsilon { break }
+            // compare the *magnitude*: for x < 0 this series alternates, and a
+            // signed test bails out on the very first term
+            if t.magnitude < epsilon { break }
         }
         return  0 < px ? r : r.truncated(width:px)
     }

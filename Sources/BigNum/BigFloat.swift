@@ -197,10 +197,30 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
     }
     // we have truncate, we have round
     public mutating func round(_ rule:FloatingPointRoundingRule=roundingRule) {
-        let width = scale + (mantissa.bitWidth-1)
-        mantissa.truncate(width: width, round: rule)
-        mantissa >>= (mantissa.bitWidth-1) - width
-        scale = 0
+        // ±0, ±∞ and NaN are already whole -- and their `scale` is Int.min or
+        // Int.max, which would overflow the arithmetic below
+        if self.isZero || self.isInfinite || self.isNaN { return }
+        if 0 <= scale { return }    // mantissa << scale is an integer already
+        let shift = -scale
+        let minus = mantissa < 0
+        let a = Swift.abs(mantissa)
+        let i = a >> shift              // ⌊|self|⌋
+        let r = a - (i << shift)        // 0 <= r < 1, as a multiple of 2^scale
+        let half = Significand(1) << (shift - 1)
+        let up:Bool
+        switch rule {
+        case .toNearestOrAwayFromZero:  up = half <= r
+        case .toNearestOrEven:          up = half < r || half == r && i & 1 == 1
+        case .awayFromZero:             up = 0 < r
+        case .towardZero:               up = false
+        case .down:                     up = 0 < r &&  minus   // toward -∞
+        case .up:                       up = 0 < r && !minus   // toward +∞
+        @unknown default:               fatalError()
+        }
+        let n = up ? i + 1 : i
+        // keep the sign when we round to zero, the way -0.2 -> -0.0 does
+        self = n == 0 ? (minus ? Self.negativeZero : Self.zero)
+                      : Self(scale:0, mantissa: minus ? -n : n)
     }
     public func rounded(_ rule:FloatingPointRoundingRule=roundingRule)->BigFloat {
         var result = self

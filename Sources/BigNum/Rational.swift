@@ -48,9 +48,13 @@ extension BigRationalType {
     public mutating func truncate(width:Int, round:FloatingPointRoundingRule=Self.roundingRule) {
         if self.isNaN || self.isZero || self.isInfinite { return }
         if width == 0       { return }
-        // if the denominator is power of 2, do nothing
-        guard 1 < den >> den.trailingZeroBitCount else { return }
         let w = width < 0 ? -width : +width
+        // A power-of-two denominator is already exact, so there is nothing to
+        // gain -- but only skip the work when the fraction really does fit in
+        // `w` bits. Bailing out unconditionally left the memoized constants at
+        // their full width (π/4 to 1151 bits keeps a 1153-bit denominator),
+        // which then overflows asDouble().
+        if den >> den.trailingZeroBitCount == 1 && num.bitWidth - 1 <= w { return }
         let s = max(den.bitWidth - 1, w)    // -1 for sign bit
         let d = Element(1) << s
         var n = (num << (s+2)) / den    // 2 bits for rounding hint
@@ -280,7 +284,18 @@ extension RationalType {
         if self.isInfinite {
             return self.sign == .minus ? -Double.infinity : +Double.infinity
         }
-        let r = Double(BigInt(num)) / Double(BigInt(den))
+        var (n, d) = (BigInt(num), BigInt(den))
+        // Both sides can sit far above Double's range while their ratio is
+        // perfectly ordinary -- π/4 held to 1151 bits, say. Double(n)/Double(d)
+        // would be inf/inf, i.e. NaN, so shift them down together first: the
+        // quotient is unchanged and ~1000 bits of it survive, far more than the
+        // 53 a Double can keep.
+        let excess = Swift.max(n.bitWidth, d.bitWidth) - 1000
+        if 0 < excess {
+            let w = Swift.min(excess, Swift.min(n.bitWidth, d.bitWidth) - 1)
+            if 0 < w { (n, d) = (n >> w, d >> w) }
+        }
+        let r = Double(n) / Double(d)
         if r.isZero {       // we know it is not zero so try again with subnormal handling
             let w = Swift.min(den.trailingZeroBitCount, den.bitWidth - 1024)
             return Double(BigInt(num)) / Double(BigInt(den >> w)) / Double(BigInt(1) << w)
