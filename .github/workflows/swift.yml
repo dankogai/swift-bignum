@@ -12,10 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["5.10", "6.3"]
-        exclude:
-          - os: macos-latest
-            swift: "5.10"
+        swift: ["6.3"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: SwiftyLab/setup-swift@v1
