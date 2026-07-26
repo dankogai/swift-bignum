@@ -1,158 +1,145 @@
-import XCTest
+import Testing
 @testable import BigNum
 
-final class RationalTests: XCTestCase {
-    //
+/// What is specific to `RationalType`: reduction, and the ±0/±inf/NaN algebra
+/// that a rational has to synthesize by hand instead of inheriting from IEEE754.
+@Suite struct RationalTests {
+
+    // MARK: reduction and arithmetic
+
     func runBasic<Q:RationalType>(forType T:Q.Type) {
-        XCTAssertEqual(T.init(+2, +4), T.init(+1, +2))
-        XCTAssertEqual(T.init(-2, +4), T.init(-1, +2))
-        XCTAssertEqual(T.init(-2, +4), T.init(-1, +2))
-        XCTAssertEqual(T.init(-2, -4), T.init(+1, +2))
-        XCTAssertEqual( T.init(1,2) + T.init(1, 3), T.init(5, 6))
-        XCTAssertEqual( T.init(1,2) - T.init(1, 3), T.init(1, 6))
-        XCTAssertEqual( T.init(1,2) * T.init(1, 3), T.init(1, 6))
-        XCTAssertEqual( T.init(1,2) / T.init(1, 3), T.init(3, 2))
-        XCTAssertEqual( T.init(+Double.pi).asDouble, +Double.pi)
-        XCTAssertEqual( T.init(-Double.pi).asDouble, -Double.pi)
+        // constructed fractions are reduced, signs normalized onto the numerator
+        #expect(T.init(+2, +4) == T.init(+1, +2))
+        #expect(T.init(-2, +4) == T.init(-1, +2))
+        #expect(T.init(+2, -4) == T.init(-1, +2))
+        #expect(T.init(-2, -4) == T.init(+1, +2))
+        #expect(T.init(1, 2) + T.init(1, 3) == T.init(5, 6))
+        #expect(T.init(1, 2) - T.init(1, 3) == T.init(1, 6))
+        #expect(T.init(1, 2) * T.init(1, 3) == T.init(1, 6))
+        #expect(T.init(1, 2) / T.init(1, 3) == T.init(3, 2))
+        #expect(T.init(+Double.pi).asDouble == +Double.pi)
+        #expect(T.init(-Double.pi).asDouble == -Double.pi)
     }
-    func testBigRatBasic() { runBasic(forType: BigRat.self) }
-    func testIntRatBasic()  { runBasic(forType: IntRat.self) }
-    //
+    @Test func bigRatBasic() { runBasic(forType:BigRat.self) }
+    @Test func intRatBasic() { runBasic(forType:IntRat.self) }
+
+    // MARK: NaN
+
     func runNaN<Q:RationalType>(forType T:Q.Type) {
         let n = T.nan
         let o = T.init(1)
-        XCTAssertTrue (n.isNaN)
-        XCTAssertFalse(n.isZero)
-        XCTAssertFalse(n.isInfinite)
-        XCTAssertFalse(n.isFinite)
-        XCTAssertFalse(n == n)
-        XCTAssertFalse(n <  0)
-        XCTAssertFalse(n <= 0)
-        XCTAssertFalse(n >= 0)
-        XCTAssertFalse(n >  0)
-        XCTAssertTrue ((n + o).isNaN)
-        XCTAssertTrue ((n - o).isNaN)
-        XCTAssertTrue ((n * o).isNaN)
-        XCTAssertTrue ((n / o).isNaN)
-        XCTAssertTrue (n.squareRoot().isNaN)
+        #expect(n.isNaN)
+        #expect(!n.isZero)
+        #expect(!n.isInfinite)
+        #expect(!n.isFinite)
+        // NaN compares false against everything, itself included
+        #expect(!(n == n))
+        #expect(!(n <  0))
+        #expect(!(n <= 0))
+        #expect(!(n >= 0))
+        #expect(!(n >  0))
+        // and it propagates
+        #expect((n + o).isNaN)
+        #expect((n - o).isNaN)
+        #expect((n * o).isNaN)
+        #expect((n / o).isNaN)
+        #expect(n.squareRoot().isNaN)
     }
-    func testBigRatNaN() {
-        runNaN(forType: BigRat.self)
-        XCTAssertTrue (BigRat.exp(BigRat.nan).isNaN)
+    @Test func bigRatNaN() {
+        runNaN(forType:BigRat.self)
+        #expect(BigRat.exp(BigRat.nan).isNaN)
     }
-    func testIntRatNaN() { runNaN(forType: IntRat.self) }
-    //
+    @Test func intRatNaN() { runNaN(forType:IntRat.self) }
+
+    // MARK: signed zero and infinity
+
     func runInf<Q:RationalType>(forType T:Q.Type) {
         let zero = T.init(0)
         let one  = T.init(1)
         let two  = one + one
         let half = one.over(two)
         let inf  = one.over(zero)
-        // ±0
-        XCTAssert(inf.isInfinite)
-        XCTAssertEqual(+zero, -zero)
-        XCTAssertEqual((+zero).sign, .plus)
-        XCTAssertEqual((-zero).sign, .minus)
-        XCTAssertFalse((+zero).isIdentical(to:-zero))
-        XCTAssertTrue ((+one/zero).isIdentical(to:+inf))
-        XCTAssertTrue ((-one/zero).isIdentical(to:-inf))
-        // *(±0, ±inf)
-        XCTAssertTrue ((+zero * +inf).isNaN)
-        XCTAssertTrue ((-zero * -inf).isNaN)
-        XCTAssertTrue ((+zero * +inf).isNaN)
-        XCTAssertTrue ((-zero * -inf).isNaN)
-        // *(±inf, ±0)
-        XCTAssertTrue ((+inf * +zero).isNaN)
-        XCTAssertTrue ((-inf * -zero).isNaN)
-        XCTAssertTrue ((+inf * +zero).isNaN)
-        XCTAssertTrue ((-inf * -zero).isNaN)
-        // /(±0, ±inf)
-        XCTAssertTrue ((+zero / +inf).isIdentical(to: +zero))
-        XCTAssertTrue ((-zero / +inf).isIdentical(to: -zero))
-        XCTAssertTrue ((+zero / -inf).isIdentical(to: -zero))
-        XCTAssertTrue ((-zero / -inf).isIdentical(to: +zero))
-        // /(±0, ±inf)
-        XCTAssertEqual (+inf / +zero, +inf)
-        XCTAssertEqual (-inf / +zero, -inf)
-        XCTAssertEqual (+inf / -zero, -inf)
-        XCTAssertEqual (+inf / +zero, +inf)
-        // usual cases
+        // ±0 compare equal but stay distinguishable
+        #expect(inf.isInfinite)
+        #expect(+zero == -zero)
+        #expect((+zero).sign == .plus)
+        #expect((-zero).sign == .minus)
+        #expect(!(+zero).isIdentical(to: -zero))
+        #expect((+one/zero).isIdentical(to: +inf))
+        #expect((-one/zero).isIdentical(to: -inf))
+        // 0 * inf is the indeterminate form, either way round
+        #expect((+zero * +inf).isNaN)
+        #expect((-zero * -inf).isNaN)
+        #expect((+inf * +zero).isNaN)
+        #expect((-inf * -zero).isNaN)
+        // 0 / inf keeps the sign
+        #expect((+zero / +inf).isIdentical(to: +zero))
+        #expect((-zero / +inf).isIdentical(to: -zero))
+        #expect((+zero / -inf).isIdentical(to: -zero))
+        #expect((-zero / -inf).isIdentical(to: +zero))
+        // inf / 0 likewise
+        #expect(+inf / +zero == +inf)
+        #expect(-inf / +zero == -inf)
+        #expect(+inf / -zero == -inf)
+        #expect(-inf / -zero == +inf)
+        // finite operands: below 1, at 1, above 1
         for q in [half, one, two] {
-            // *(_, ±inf) and *(±inf, _)
-            XCTAssertEqual(+q * +inf, +inf)
-            XCTAssertEqual(-q * +inf, -inf)
-            XCTAssertEqual(+q * -inf, -inf)
-            XCTAssertEqual(-q * -inf, +inf)
-            XCTAssertEqual(+inf * +q, +inf)
-            XCTAssertEqual(-inf * +q, -inf)
-            XCTAssertEqual(+inf * -q, -inf)
-            XCTAssertEqual(-inf * -q, +inf)
-            // /(_, ±inf)
-            XCTAssertTrue ((+q / +inf).isIdentical(to: +zero))
-            XCTAssertTrue ((-q / +inf).isIdentical(to: -zero))
-            XCTAssertTrue ((+q / -inf).isIdentical(to: -zero))
-            XCTAssertTrue ((+q / +inf).isIdentical(to: +zero))
-            // +(_, ±inf)
-            XCTAssertEqual (+q + +inf, +inf)
-            XCTAssertTrue ((-q + +inf).isNaN)
-            XCTAssertTrue ((+q + -inf).isNaN)
-            XCTAssertEqual (-q + -inf, -inf)
-            // +(±inf, _)
-            XCTAssertEqual (+inf + +q, +inf)
-            XCTAssertTrue ((-inf + +q).isNaN)
-            XCTAssertTrue ((+inf + -q).isNaN)
-            XCTAssertEqual (-inf + -q, -inf)
+            #expect(+q * +inf == +inf)
+            #expect(-q * +inf == -inf)
+            #expect(+inf * -q == -inf)
+            #expect(-inf * -q == +inf)
+            #expect((+q / +inf).isIdentical(to: +zero))
+            #expect((-q / +inf).isIdentical(to: -zero))
+            #expect((+q / -inf).isIdentical(to: -zero))
+            #expect((-q / -inf).isIdentical(to: +zero))
+            // NOTE: adding across signs is NaN here, not the IEEE754 ±inf --
+            // Self.+ only keeps the infinity when the signs agree
+            #expect(+q + +inf == +inf)
+            #expect(-q + -inf == -inf)
+            #expect((-q + +inf).isNaN)
+            #expect((+q + -inf).isNaN)
+            #expect(+inf + +q == +inf)
+            #expect(-inf + -q == -inf)
+            #expect((+inf + -q).isNaN)
+            #expect((-inf + +q).isNaN)
+        }
+        // inf - inf is the other indeterminate form
+        #expect((+inf + -inf).isNaN)
+        #expect((-inf + +inf).isNaN)
+    }
+    @Test func bigRatInf() { runInf(forType:BigRat.self) }
+    @Test func intRatInf() { runInf(forType:IntRat.self) }
+
+    // MARK: rounding
+
+    func runRound<Q:RationalType>(forType T:Q.Type, _ d:Double) {
+        let q = Q(d)
+        for rule in allRoundingRules {
+            #expect(q.rounded(rule) == Q(d.rounded(rule)), "\((d, rule))")
         }
     }
-    func testBigRatInf() { runInf(forType: BigRat.self) }
-    func testIntRatInf() { runInf(forType: IntRat.self) }
-    //
-    func runRound<Q:RationalType>(forType T:Q.Type) {
-        var doubles = [0.0, 0.2, 0.5, 0.8, 1.0, 1.2, 1.5, 1.8]
-        doubles += doubles.map{ -$0 }
-        for d in doubles {
-            let q = Q(d)
-            // https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md
-            let allRules:[FloatingPointRoundingRule] = [
-                .awayFromZero, .down, .toNearestOrAwayFromZero, .toNearestOrEven, .towardZero, .up
-            ]
-            for rule in allRules {
-                XCTAssertEqual(q.rounded(rule), Q(d.rounded(rule)), "\((d, rule))")
-            }
-        }
+    @Test(arguments: roundingDoubles)
+    func bigRatRound(_ d:Double) { runRound(forType:BigRat.self, d) }
+    @Test(arguments: roundingDoubles)
+    func intRatRound(_ d:Double) { runRound(forType:IntRat.self, d) }
+
+    // MARK: comparison
+
+    func runComp<Q:RationalType>(forType T:Q.Type, _ x:Double, _ y:Double) {
+        #expect((Q(x) == Q(y)) == (x == y), "\(x) == \(y)")
+        #expect((Q(x) <= Q(y)) == (x <= y), "\(x) <= \(y)")
+        #expect((Q(x) <  Q(y)) == (x <  y), "\(x) <  \(y)")
+        #expect((Q(x) >= Q(y)) == (x >= y), "\(x) >= \(y)")
+        #expect((Q(x) >  Q(y)) == (x >  y), "\(x) >  \(y)")
+        #expect(
+            Q(x).isTotallyOrdered(belowOrEqualTo:Q(y)) == x.isTotallyOrdered(belowOrEqualTo:y),
+            "\(x).isTotallyOrdered(belowOrEqualTo:\(y))"
+        )
     }
-    func testBigRatRound() { runRound(forType: BigRat.self) }
-    func testIntRatRound() { runRound(forType: IntRat.self) }
-    //
-    func runComp<Q:RationalType>(forType T:Q.Type) {
-        var doubles = [0.0, 0.5, 1.0, 2.0, .infinity]
-        doubles += doubles.map{ -$0 }
-        for x in doubles {
-            for y in doubles {
-                XCTAssertEqual(Q(x) == Q(y), x == y, "\(x) == \(y)")
-                XCTAssertEqual(Q(x) <= Q(y), x <= y, "\(x) <= \(y)")
-                XCTAssertEqual(Q(x) <  Q(y), x <  y, "\(x) <  \(y)")
-                XCTAssertEqual(Q(x) >= Q(y), x >= y, "\(x) >= \(y)")
-                XCTAssertEqual(Q(x) >  Q(y), x >  y, "\(x) >  \(y)")
-                XCTAssertEqual(
-                    Q(x).isTotallyOrdered(belowOrEqualTo:Q(y)),
-                    x.isTotallyOrdered(belowOrEqualTo:y),
-                    "\(x).isTotallyOrdered(belowOrEqualTo:(\(y))"
-                )
-            }
-        }
-    }
-    func testBigRatComp() { runComp(forType: BigRat.self) }
-    func testIntRatComp() { runComp(forType: IntRat.self) }
-    //
-    static var allTests = [
-        ("testBigRatBasic", testBigRatBasic),
-        ("testIntRatBasic", testIntRatBasic),
-        ("testBigRatNaN", testBigRatNaN),
-        ("testIntRatNaN", testIntRatNaN),
-        ("testBigRatInf", testBigRatInf),
-        ("testIntRatInf", testIntRatInf),
-        ("testBigRatRound", testBigRatRound),
-        ("testIntRatRound", testIntRatRound)
-    ]
+    static let comparands:[Double] = [-.infinity, -1.5, -0.0, +0.0, 0.5, 1.0, +.infinity]
+
+    @Test(arguments: comparands)
+    func bigRatComp(_ x:Double) { for y in Self.comparands { runComp(forType:BigRat.self, x, y) } }
+    @Test(arguments: comparands)
+    func intRatComp(_ x:Double) { for y in Self.comparands { runComp(forType:IntRat.self, x, y) } }
 }
