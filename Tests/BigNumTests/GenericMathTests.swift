@@ -5,13 +5,14 @@ import Foundation
 /// `GenericMath` against `Double`'s `<math.h>`, one edge-case argument per test.
 ///
 /// `.serialized` is load-bearing, not a style choice. `GenericMath` memoizes
-/// √2, e, log 2, log 10 and π/4 in plain `static var`s with no synchronization,
-/// and it publishes the new `.precision` *before* it stores the new `.value`.
-/// Nested calls raise the working precision as they go (`logGamma` recurses at
-/// `px + 32`, `erfc` asks for `getEpsilon(precision: px * 2)`), so the write
-/// path is reachable at any precision -- pre-computing the constants up front
-/// does not close the window. Run two of these concurrently, as Swift Testing
-/// does by default, and they hand each other a half-written NaN.
+/// √2, e, log 2, log 10 and π/4 in plain `static var`s. They now store the
+/// value and its precision in one assignment rather than publishing the
+/// precision first, so a reader can no longer pick up a NaN that a writer has
+/// not filled in yet -- but a tuple of `Int` and a BigInt-backed struct still
+/// is not written atomically, so two threads can tear one. Nested calls raise
+/// the working precision constantly (`logGamma` recurses at `px + 32`, `erfc`
+/// asks for `getEpsilon(precision: px * 2)`), so the write path stays live at
+/// every precision and pre-computing the constants would not close the window.
 /// BigNumTests and RationalTests never reach these caches, so they stay parallel.
 @Suite(.serialized) struct GenericMathTests {
     typealias D = Double
@@ -41,18 +42,11 @@ import Foundation
         // exponentials -- Double overflows well before BigNum does
         (rd, rq) = (D.exp(d), T.exp(q, precision:px))
         check("exp", rd, rq, unless: d == D.log(rq.asDouble) || lgfm < d.magnitude)
-        // KNOWN BUG: expMinusOne() sums an alternating series and breaks out on
-        // `t < epsilon` with a *signed* t, so for -log 2 < x < 0 it returns after
-        // the very first term -- expMinusOne(-0.5) == -0.5, not -0.3934693...
-        // (exp() has the same test but is safe: it reflects negatives first.)
-        // The old suite could not see this: its error term was
-        // `abs(qrd - rq) / rq`, and dividing by the *signed* result made every
-        // negative answer compare as within tolerance no matter how wrong.
+        // NOTE: negative arguments are the interesting ones here -- this series
+        // alternates, and it used to break out of the loop on a *signed* term
+        // comparison, returning after the very first one.
         (rd, rq) = (D.expMinusOne(d), T.expMinusOne(q, precision:px))
-        withKnownIssue("expMinusOne() aborts its series for negative x",
-                       isIntermittent: true) {  // exact for arguments near zero
-            check("expMinusOne", rd, rq, unless: d == D.log(onePlus:rq.asDouble))
-        }
+        check("expMinusOne", rd, rq, unless: d == D.log(onePlus:rq.asDouble))
         // logarithms
         (rd, rq) = (D.log(d), T.log(q, precision:px))
         check("log", rd, rq, unless: d == D.exp(rq.asDouble))
@@ -98,7 +92,9 @@ import Foundation
 
     // BigRat is left out on purpose: exact rationals blow up on the
     // transcendentals, and BigFloat exercises the same GenericMath code.
-    @Test(arguments: edgeDoubles.filter { $0.magnitude != .greatestFiniteMagnitude })
+    // The two extremes are the expensive ones -- sin/cos of an angle that large
+    // make normalizeAngle() reduce it against pi at 128 + 1023 bits.
+    @Test(arguments: edgeDoubles)
     func unaryBigFloat(_ d:D) { runUnary(forType:BigFloat.self, d) }
 
     // MARK: atan2 -- all nine sign/zero/infinity quadrant cases
@@ -180,23 +176,4 @@ import Foundation
     @Test func erfGammaExactBigRat()   { runErfGammaExact(forType:BigRat.self) }
     @Test func erfGammaExactBigFloat() { runErfGammaExact(forType:BigFloat.self) }
 
-    // MARK: the two extremes of the exponent range
-
-    /// KNOWN BUG -- this test has to come last, and `.serialized` above is what
-    /// guarantees it does. `sin`/`cos`/`tan` of an angle this large make
-    /// `normalizeAngle()` ask for π at `128 + 1023` bits, and that poisons the
-    /// shared constant cache for good:
-    ///
-    ///   * `RationalType.truncate(width:)` sizes the denominator with
-    ///     `max(den.bitWidth - 1, width)`, so truncating that π/4 back down to
-    ///     128 bits keeps its 1153-bit denominator;
-    ///   * `BigRat.asDouble` then divides two BigInts that are each far past
-    ///     `Double`'s range, so `inf/inf` comes back as NaN.
-    ///
-    /// From that point on every `BigRat.PI()` at <= 1151 bits reads the cached
-    /// value and returns NaN, which takes `atan2`, `erf`, `gamma` and friends
-    /// with it. The old suite never noticed because XCTest ran its tests in
-    /// alphabetical order, which put `testUnaryBigFloat` last by luck.
-    @Test(arguments: [-D.greatestFiniteMagnitude, +D.greatestFiniteMagnitude])
-    func unaryBigFloatAtTheExtremes(_ d:D) { runUnary(forType:BigFloat.self, d) }
 }

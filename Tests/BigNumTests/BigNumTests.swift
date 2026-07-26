@@ -50,16 +50,9 @@ import Testing
     @Test(arguments: roundingDoubles)
     func bigRatRound(_ d:D)   { runRound(forType:BigRat.self,   d) }
 
-    // FIXME: BigFloat.round() is broken and was never actually exercised --
-    // the old testBigFloatRound() called runArithmetic() by mistake. It
-    //   * traps on -0.0 and NaN: their `scale` is Int.min/Int.max, so
-    //     `scale + (mantissa.bitWidth-1)` overflows,
-    //   * ignores the rule and truncates toward zero (2.5.rounded(.up) == 2),
-    //   * leaves the mantissa denormalized, so even a correct value compares
-    //     unequal to the same number built by init().
-    // BigRat.round() gets all three right by returning early on
-    // isZero/isInfinite/isNaN and going through asMixed.
-    @Test(.disabled("BigFloat.round() traps on -0.0 and ignores the rounding rule"),
-          arguments: roundingDoubles)
+    // NOTE: this never actually ran before -- the old testBigFloatRound() called
+    // runArithmetic() by copy-paste, which is how BigFloat.round() came to trap
+    // on -0.0, ignore the rule and denormalize its mantissa unnoticed.
+    @Test(arguments: roundingDoubles)
     func bigFloatRound(_ d:D) { runRound(forType:BigFloat.self, d) }
 }
