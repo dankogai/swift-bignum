@@ -8,10 +8,19 @@ on:
     branches: [ main ]
 jobs:
   build:
-
-    runs-on: macos-latest
-
+    name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        swift: ["5.10", "6.3"]
+        exclude:
+          - os: macos-latest
+            swift: "5.10"
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-    - name: Run tests
-      run: swift test -c release -Xswiftc -enable-testing -v
+      - uses: SwiftyLab/setup-swift@v1
+        with:
+          swift-version: ${{ matrix.swift }}
+      - uses: actions/checkout@v6
+      - name: Run tests
+        run: swift test -c release -Xswiftc -enable-testing -v
