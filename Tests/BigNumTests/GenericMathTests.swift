@@ -198,7 +198,7 @@ final class GenericMathTests: XCTestCase {
         }
         var doubles:[D] = [0.125, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.5, 6.0, 8.5, 10.5]
         doubles += doubles.map{ -$0 }
-        doubles += [-0.0, +0.0, -D.infinity, +D.infinity, D.nan]
+        doubles += [-D.zero, +D.zero, -D.infinity, +D.infinity, D.nan]
         for d in doubles {
             let q = T.init(d)
             var (rd, rq):(D, R)

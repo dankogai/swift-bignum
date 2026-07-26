@@ -1,7 +1,7 @@
 import XCTest
 @testable import BigNum
 
-#if compiler(<5.9)
+#if compiler(<6.0)
 extension BigRational : DoubleConvertible {}
 extension BigFloat: DoubleConvertible {}
 #else
