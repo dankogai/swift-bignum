@@ -22,11 +22,5 @@ jobs:
         with:
           swift-version: ${{ matrix.swift }}
       - uses: actions/checkout@v6
-      # the tests are written against Swift Testing, which ships with Swift 6.
-      # BigNum itself still builds on 5.10, so keep verifying that much there.
-      - name: Build
-        if: matrix.swift == '5.10'
-        run: swift build -c release -v
       - name: Run tests
-        if: matrix.swift != '5.10'
         run: swift test -c release -Xswiftc -enable-testing -v
