@@ -185,7 +185,7 @@ extension RationalType {
         let w = 2 * max(num.bitWidth, den.bitWidth, Swift.abs(px))
         return Self((num << w).squareRoot(), (den << w).squareRoot())
     }
-    public mutating func formSquareRoot(precision px:Int = Int64.bitWidth) {
+    public mutating func formSquareRoot(precision px:Int=Int64.bitWidth) {
         self = self.squareRoot(precision:px)
     }
     public mutating func formSquareRoot() {
@@ -553,6 +553,10 @@ extension Int8:     FixedWidthRationalElement {}
 extension Int16:    FixedWidthRationalElement {}
 extension Int32:    FixedWidthRationalElement {}
 extension Int64:    FixedWidthRationalElement {}
+#if compiler(>=6.0)
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+extension Int128:   FixedWidthRationalElement {}
+#endif
 
 extension FixedWidthRationalElement {
     public func over(_ den:Self)->FixedWidthRational<Self> {
@@ -583,6 +587,25 @@ extension FixedWidthRationalType {
     }
     public var debugDescription: String {
         return self.asBigRat.debugDescription
+    }
+    //
+    // override RationalType#{squareRoot,formSquareRoot}
+    //
+    public func squareRoot(precision px:Int=0)->Self {
+        if self.isNaN || self.isLess(than:0) { return Self.nan }
+        if self.isZero { return self }
+        let nd = num * den
+        if nd <= (1 << 20) {
+            return Self(Double(self).squareRoot())
+        } else {
+            return Self((num * den).squareRoot(), den)
+        }
+    }
+    public mutating func formSquareRoot(precision px:Int=0) {
+        self = self.squareRoot(precision:0)
+    }
+    public mutating func formSquareRoot() {
+        self = self.squareRoot(precision:0)
     }
 }
 
