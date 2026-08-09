@@ -1,40 +1,41 @@
-//: [Previous](@previous)
+/*:
+ # swift-bignum
 
+ Arbitrary-precision arithmetic for Swift, in Swift — with **no dependencies**.
+ `import BigNum` is the only import you need; `BigInt` comes with it.
+
+ Four types:
+
+ - `BigInt`   — signed integer, arbitrary width, two's complement
+ - `BigUInt`  — unsigned counterpart
+ - `BigRat`   — *exact* rational, `BigInt` over `BigInt`
+ - `BigFloat` — binary floating point with an arbitrary mantissa
+
+ Pages: [BigInt](BigInt) · [BigRat](BigRat) · [BigFloat](BigFloat) ·
+ [Precision](Precision) · [Scratch](Scratch)
+ */
 import BigNum
 
-BigInt(+1).over(+2)
-BigInt(+1).over(-2)
-BigInt(-1).over(+2)
-BigInt(-1).over(-2)
+//: ## Integers that do not overflow
+BigInt(2).power(256)
+BigInt(Int.max) * BigInt(Int.max)
+BigInt("123456789012345678901234567890")!
 
-let q:BigRat   = 1
-let qpi = BigRat(Double.pi)
+//: ## Rationals that are exact
+BigRat(1,3) + BigRat(1,3) + BigRat(1,3) == 1    // true
+0.1 + 0.2 == 0.3                                 // false, for a Double
+BigRat(1,10) + BigRat(2,10) == BigRat(3,10)      // true
 
-BigRat.cos(4).asDouble
-qpi.asMixed
-(qpi % 1.0).asDouble
+//: ## Floating point with as many bits as you ask for
+BigFloat.sqrt(2)
+BigFloat.sqrt(2, precision:256)
 
-BigRat.E(precision:128)
-BigRat.E(precision:-128)
-BigRat.E()
+//: ## And no overflow where the answer exists
+Double.exp(1000)                    // inf
+BigFloat.exp(1000).description      // all 435 digits of it
 
-BigRat(3, 1).sign
-BigRat(3, 1).exponent
-BigRat(3, 1).significand
-
-
-BigRat(-1, 3).sign
-BigRat(-1, 3).exponent
-BigRat(-1, 3).significand
-
-IntRat(-1, 3).sign
-IntRat(-1, 3).exponent
-IntRat(-1, 3).significand
-
-import Foundation
-let encoder = JSONEncoder()
-String(data:try encoder.encode(qpi), encoding:.utf8)
-String(data:try encoder.encode(IntRat(1).over(3)), encoding:.utf8)
-String(data:try encoder.encode([Int.max]), encoding:.utf8)
+//: ## The difference between the two real types
+BigRat(1)/BigRat(3)     * 3 == 1    // true  -- exact
+BigFloat(1)/BigFloat(3) * 3 == 1    // false -- rounded to `precision` bits
 
 //: [Next](@next)

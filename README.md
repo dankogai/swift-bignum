@@ -5,144 +5,161 @@
 
 # swift-bignum
 
-Arbitrary-precision arithmetic for Swift, in Swift
+Arbitrary-precision arithmetic for Swift, in Swift — **with no dependencies**.
 
-## Synopsis
-
-````swift
+```swift
 import BigNum
-BigRat.sqrt(2, precision:128)  // 240615969168004511545033772477625056927/170141183460469231731687303715884105728
-BigFloat.exp(1, precision:128) // 2.718281828459045235360287471352662497759
-````
 
-## Description
-
-This module offers two flavors of Arbitrary-precision types that conforms to [FloatingPoint].
-
-* `BigRat`   - Arbitrary-precision rational number.
-* `BigFloat` - Arbitrary-precision floating point.
-
-[FloatingPoint]: https://developer.apple.com/documentation/swift/floatingpoint
-
-In addition to all arithmetic operations that [FloatingPoint] supports.  Most of the functions in `<math.h>` are offered as static functions.  As you see in the synopsis above, all arithmetic functions and operators that are lossy can take `precision:Int` as an optional argument.  When omitted the value of `BigRat.precision` or `BigFloat.precision` is used (default:128).
-
-```swift
-BigFloat.sqrt(2) // 1.414213562373095048801688724209698078569
-BigFloat.precision = 256
-BigFloat.sqrt(2) // 1.414213562373095048801688724209698078569671875376948073176679737990732478462102
+BigInt(2).power(256)            // 115792089237316195423570985008687907853269984665640564039457584007913129639936
+BigRat(1,3) + BigRat(1,3) + BigRat(1,3) == 1    // true.  Not "true to 17 digits".
+BigFloat.sqrt(2)                // 1.414213562373095048801688724209698078569
+BigRat.exp(1, precision:256)    // e to 256 bits
 ```
 
-`BigInt`, an arbitrary-precision interger type is internally used and re-exported so you don't have to `import BigInt` just for that.  `BigInt` is also extended with `.over()` method so instead of constructing `BigRat` directly, you can:
+`swift build` fetches nothing. The whole package is this repository plus the Swift
+standard library and the platform's libm.
+
+## The four types
+
+| Type | Is | Use it when |
+|---|---|---|
+| [`BigInt`](BigInt.md) | Arbitrary-precision signed integer, two's complement | Integers that must not overflow |
+| [`BigUInt`](BigInt.md#biguint) | Its unsigned counterpart | Magnitudes, bit patterns wider than 64 |
+| [`BigRat`](BigRat.md) | Exact rational, `BigInt` over `BigInt` | You need `1/3 + 1/3 + 1/3` to be exactly 1 |
+| [`BigFloat`](BigFloat.md) | Binary floating point with an arbitrary mantissa | You need many digits, but bounded storage |
+
+`BigInt` and `BigUInt` are ordinary `SignedInteger` and `UnsignedInteger`
+conformances, so they behave the way `Int` and `UInt` do — including `&`, `|`,
+`^`, `~` and an arithmetic `>>`. `BigRat` and `BigFloat` are `FloatingPoint`, and
+both conform to `Real`, so the whole of `<math.h>` is available on them as static
+functions.
+
+`BigRat` and `BigFloat` divide the same job differently. A `BigRat` is *exact*:
+it is a fraction, and it stays one, so its numerator and denominator grow without
+bound as you compute. A `BigFloat` keeps a fixed number of significant bits, so
+its storage stays put and its arithmetic rounds. The one-line version:
 
 ```swift
-BigInt(3260954456333195553).over(BigInt(2305843009213693952)) // == BigRat.sqrt(2)
+BigRat(1)/BigRat(3) * 3 == 1        // true  -- exact
+BigFloat(1)/BigFloat(3) * 3 == 1    // false -- rounded to `precision` bits
 ```
+
+## Precision
+
+Every lossy operation takes an optional `precision:` in **bits**. Omit it and the
+type's `precision` static is used, which starts at 128:
+
+```swift
+BigFloat.sqrt(2)                 // 1.414213562373095048801688724209698078569
+BigFloat.sqrt(2, precision:32)   // 1.41421356215141713619
+BigFloat.sqrt(2, precision:256)  // 1.414213562373095048801688724209698078569671875376948073176679737990732478462102
+
+BigFloat.precision = 256         // or move the default
+BigFloat.sqrt(2)                 // now 256 bits
+```
+
+Note the 32-bit answer above: it is the *exact* decimal expansion of a value that
+is only accurate to 32 bits, so it stops agreeing with √2 after about ten digits.
+Precision bounds the error, not the number of digits printed.
+
+Unlike `Double`, neither type overflows where the answer exists:
+
+```swift
+Double.exp(1000)    // inf
+BigFloat.exp(1000)  // 197007111401704699388887 ... and 411 more digits
+```
+
+## Strings
+
+`toString(_:radix:)` renders three ways, and `description` and `debugDescription`
+are built from it:
+
+```swift
+let q = BigRat.sqrt(2)
+q.toString()                     // +1.414213562373095048801688724209698078569
+q.toString(.fraction)            // (+240615969168004511545033772477625056927/170141183460469231731687303715884105728)
+q.toString(.exponent)            // +0x1.6a09e667f3bcc908b2fb1366ea957d3ep0
+q.toString(.fraction, radix:16)  // the same ratio in hex -- what a BigRat debugs as
+```
+
+`.point` takes any radix; `.fraction` announces a non-decimal one with
+`0x`/`0o`/`0b`; `.exponent` is hexadecimal by definition — its `p` counts bits,
+the way C's `%a` prints a `double`. `BigInt` and `BigUInt` have their own
+`toString(radix:uppercase:)`, and both parse back with `init?(_:radix:)`.
 
 ## Usage
 
-### Build
+### Swift Package Manager
 
-```sh
-$ git clone https://github.com/dankogai/swift-bignum.git
-$ cd swift-bignum # the following assumes your $PWD is here
-$ swift buil
-```
-
-### REPL
-
-```sh
-$ swift run --repl
-```
-
-and in your repl,
-
-```sh
-% swift run --repl                
-Fetching https://github.com/attaswift/BigInt from cache
-Fetching https://github.com/apple/swift-numerics from cache
-Fetched https://github.com/attaswift/BigInt (0.51s)
-Fetched https://github.com/apple/swift-numerics (0.51s)
-Computing version for https://github.com/apple/swift-numerics
-Computed https://github.com/apple/swift-numerics at 1.1.0 (0.03s)
-Computing version for https://github.com/attaswift/BigInt
-Computed https://github.com/attaswift/BigInt at 5.7.0 (0.03s)
-Creating working copy for https://github.com/apple/swift-numerics
-Working copy of https://github.com/apple/swift-numerics resolved at 1.1.0
-Creating working copy for https://github.com/attaswift/BigInt
-Working copy of https://github.com/attaswift/BigInt resolved at 5.7.0
-Building for debugging...
-[59/59] Linking BigNumRun
-Build complete! (12.07s)
-Launching Swift REPL with arguments: repl -I/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/debug -L/Users/dankogai/github/swift-bignum/.build/x86_64-apple-macosx/debug -lswift-bignum__REPL -I/Users/dankogai/github/swift-bignum/.build/checkouts/swift-numerics/Sources/_NumericsShims/include
-Welcome to Apple Swift version 5.9.2 (swiftlang-5.9.2.2.56 clang-1500.1.0.2.5).
-Type :help for assistance.
-  1> import BigNum 
-  2> var bf = BigFloat.sqrt(2, precision:128) 
-bf: BigNum.BigFloat = {
-  scale = -127
-  mantissa = {
-    magnitude = {
-      kind = array
-      storage = 2 values {
-        [0] = 6448461645324402335
-        [1] = 13043817825332782212
-      }
-    }
-    sign = plus
-  }
-}
-  3> print(bf) 
-1.414213562373095048801688724209698078569
-  4>  
-````
-
-### via Xcode
-
-* simply open [./Package.swift] to open it lika project.
-
-[./Package.swift]: ./Package.swift
-
-* simply add `https://github.com/dankogai/swift-bignum.git` as package URL in your project
-
-### From Your SwiftPM-Managed Projects
-
-Add the following to the `dependencies` section:
+Add to the `dependencies` section:
 
 ```swift
-.package(
-  url: "https://github.com/dankogai/swift-bignum.git", .branch("main")
-)
+.package(url: "https://github.com/dankogai/swift-bignum.git", .branch("main"))
 ```
 
-and the following to the `.target` argument:
+and to your target:
 
 ```swift
-.target(
-  name: "YourSwiftyPackage",
-  dependencies: ["BigNum"])
+.target(name: "YourPackage", dependencies: ["BigNum"])
 ```
 
-Now all you have to do is:
+Then `import BigNum`. That is the only import you need — `BigInt` comes with it.
 
-```swift
-import BigNum
+### Build and test
+
+```bash
+git clone https://github.com/dankogai/swift-bignum.git && cd swift-bignum && swift test
 ```
 
-in your code.  Enjoy!
+### Playground
+
+`macOS.playground` has a page per type — Synopsis, BigInt, BigRat, BigFloat,
+Precision, and a Scratch page to work in. Open `Package.swift` in Xcode first so
+the `BigNum` module is built, then open the playground.
+
+## Documentation
+
+* [BigInt.md](BigInt.md) — `BigInt` and `BigUInt`: representation, bit twiddling,
+  division semantics, number theory
+* [BigRat.md](BigRat.md) — `BigRat`: exact rationals, the `FloatingPoint`
+  conformance, `IntRat` and the other fixed-width rationals
+* [BigFloat.md](BigFloat.md) — `BigFloat`: mantissa and scale, rounding,
+  truncation, parsing
 
 # Prerequisite
 
-Swift 6 and 5, OS X or Linux to build.
+Swift 6 or 5, macOS or Linux.
 
-* Depends on [attaswift/BigInt] for internal representation of
-`BigFloat` and `BigRat`.
-* Depends on [apple/swift-numerics] since
-version 5.1 for the `ElementaryFunctions` protocol.
-* Prior versions depended on [dankogai/swift-floatingpoint] for the
-`FloatingPointMath` protocols but it is replaced by the
-`ElementaryFunctions`.
+**No dependencies.** Up to version 5.x there were two:
+
+* `BigInt` and `BigUInt` came from [attaswift/BigInt], which had to be re-exported
+  with `@_exported import` for `import BigNum` alone to be enough — an
+  undocumented corner of the language to be resting a public API on. They are now
+  part of this package, and `BigInt` is stored in two's complement rather than
+  sign-and-magnitude, which is what makes `words`, the bitwise operators and `>>`
+  fall out correctly instead of needing to be re-derived.
+* `Real` and the three protocols it inherits came from [apple/swift-numerics],
+  which this package wanted for `ElementaryFunctions` alone. Apple's own `BigInt`
+  never arrived there to justify carrying the rest. They are now declared in
+  [Real.swift](Sources/BigNum/Real.swift) and
+  [ElementaryFunctions.swift](Sources/BigNum/ElementaryFunctions.swift).
+* Versions before that depended on [dankogai/swift-floatingpoint] for the
+  `FloatingPointMath` protocols, replaced by `ElementaryFunctions`.
+
+Code written against either former dependency keeps compiling: the protocol
+requirement sets are unchanged, and `BigInt` and `BigUInt` keep the names and the
+API attaswift gave them. Two deliberate breaks:
+
+* **`Codable`** — a `BigInt` now encodes as a base-16 string rather than
+  attaswift's sign-and-words form, so archives written by 5.x will not decode.
+* **`as*` conversions are now `to*()` methods** — `asDouble` became `toDouble()`,
+  matching the `toString()` that was already there. Likewise `asBigRat`,
+  `asMixed`, `asIntRat`, `asBigFloat`.
 
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
 [apple/swift-numerics]: https://github.com/apple/swift-numerics
 [dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
 
+# License
+
+[MIT](LICENSE)
