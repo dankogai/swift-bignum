@@ -420,6 +420,140 @@ import Foundation   // JSONEncoder, for the Codable round trip
         #expect(BigInt(0).squareRoot() == 0)
     }
 
+    // MARK: - modular exponentiation
+
+    /// The expected values here are Python's `pow(b, e, m)`, which is what
+    /// `power(_:mod:)` is meant to agree with.
+    @Test func powerModEdges() {
+        #expect(BigInt(2).power(10, mod: 1000) == 24)
+        #expect(BigInt(123456789).power(12345, mod: 1000000007) == 614455772)
+        #expect(BigUInt(2).power(10, mod: 1000) == 24)
+        // a modulus of 1 leaves nothing behind, not even for an exponent of 0
+        #expect(BigInt(2).power(0, mod: 1) == 0)
+        #expect(BigInt(5).power(3, mod: 1) == 0)
+        #expect(BigUInt(2).power(1, mod: 1) == 0)
+        #expect(BigInt(2).power(0, mod: 5) == 1)
+        #expect(BigInt(0).power(0, mod: 5) == 1)     // 0^0 is 1, as everywhere
+        #expect(BigInt(0).power(7, mod: 5) == 0)
+        // the result takes the sign of the modulus -- a floored remainder, not
+        // the truncated one `%` would give
+        #expect(BigInt(-2).power(3, mod: 5) == 2)
+        #expect(BigInt(-2).power(3) % 5 == -3)       // ... and this is the difference
+        #expect(BigInt(-2).power(2, mod: 5) == 4)
+        #expect(BigInt(2).power(3, mod: -5) == -2)
+        #expect(BigInt(-2).power(3, mod: -5) == -3)
+        #expect(BigInt(7).power(4, mod: -3) == -2)
+        #expect(BigInt(7).power(4, mod: 3) == 1)
+        // a negative exponent is the modular inverse
+        #expect(BigInt(2).power(-1, mod: 5) == 3)    // 2*3 == 6 ≡ 1
+        #expect(BigInt(3).power(-3, mod: 7) == 6)
+        #expect(BigInt(2).power(-5, mod: 7) == 2)
+        #expect(BigInt(10).power(-1, mod: 3) == 1)
+        #expect(BigInt(-3).power(-1, mod: 7) == 2)   // -3 ≡ 4, and 4*2 ≡ 1
+        #expect(BigInt(1).power(-1, mod: 1) == 0)
+        // exactly at a limb boundary
+        #expect(BigInt(2).power(64, mod: BigInt(1) << 64) == 0)
+        #expect(BigUInt(2).power(64, mod: (BigUInt(1) << 64) + 13) == BigUInt(1) << 64)
+    }
+
+    /// Repeated multiplication in `Int`: no square-and-multiply, no bignum, no
+    /// shared idea with what it is checking.  Needs `0 < m` small enough that
+    /// `r * base` cannot overflow, and a non-negative exponent.
+    func powModOracle(_ b:Int, _ e:Int, _ m:Int) -> Int {
+        let base = ((b % m) + m) % m
+        var r = 1 % m
+        for _ in 0 ..< e { r = r * base % m }
+        return r
+    }
+
+    @Test func powerModAgainstRepeatedMultiplication() {
+        for m in [1, 2, 3, 7, 10, 97, 1000, 65537] {
+            for b in -20 ... 20 {
+                for e in 0 ... 24 {
+                    let want = powModOracle(b, e, m)
+                    #expect(BigInt(b).power(e, mod: BigInt(m)) == BigInt(want),
+                            "\(b)^\(e) mod \(m)")
+                    #expect(BigInt(b).power(BigInt(e), mod: BigInt(m)) == BigInt(want),
+                            "\(b)^\(e) mod \(m), wide exponent")
+                    // a negative modulus shifts the answer down by |m| unless
+                    // it is zero, which is its own residue either way
+                    let negWant = want == 0 ? 0 : want - m
+                    #expect(BigInt(b).power(e, mod: BigInt(-m)) == BigInt(negWant),
+                            "\(b)^\(e) mod \(-m)")
+                    if b >= 0 {
+                        #expect(BigUInt(b).power(e, mod: BigUInt(m)) == BigUInt(want),
+                                "unsigned \(b)^\(e) mod \(m)")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test(arguments: seeds)
+    func powerModAgainstPlainPower(_ seed:UInt64) {
+        var rng = Random(seed: seed)
+        // Where `power(_:)` can still be computed, the two have to agree once
+        // the sign convention is accounted for.
+        for _ in 0 ..< 300 {
+            let b = rng.big(limbs: 2)
+            let m = rng.big(limbs: 1)
+            if m.isZero { continue }
+            let e = Int(rng.uint() % 40)
+            var want = b.power(e) % m
+            if want.isNegative != m.isNegative && !want.isZero { want += m }
+            #expect(b.power(e, mod: m) == want, "\(b)^\(e) mod \(m)")
+        }
+    }
+
+    /// `power(-1, mod:)` traps when there is no inverse to return, and a trap
+    /// cannot be `#expect`ed -- so the coprimality test is checked one level
+    /// down, where it still has a `nil` to give back.
+    @Test func modularInverseRejectsNonCoprime() {
+        #expect(BigInt(2)._inverse(mod: 4) == nil)
+        #expect(BigInt(6)._inverse(mod: 9) == nil)
+        #expect(BigInt(0)._inverse(mod: 5) == nil)
+        #expect(BigUInt(4)._inverse(mod: 8) == nil)
+        #expect(BigUInt(0)._inverse(mod: 6) == nil)
+        #expect(BigInt(0)._inverse(mod: 1) == 0)     // everything is 0 mod 1
+        // Exhaustively: an inverse exists exactly when the two are coprime, and
+        // when it exists it is the one `power(-1, mod:)` hands back.
+        // 256 for a modulus sharing factors with half its residues, 1021 for a
+        // prime where every non-zero residue must have an inverse
+        for m in [1, 2, 3, 7, 10, 97, 256, 1021] {
+            for a in 0 ..< m {
+                let inv = BigInt(a)._inverse(mod: BigInt(m))
+                let coprime = gcdOracle(UInt(a), UInt(m)) == 1
+                #expect((inv != nil) == coprime, "inverse of \(a) mod \(m)")
+                guard let inv = inv else { continue }
+                #expect(BigInt(a) * inv % BigInt(m) == 1 % BigInt(m),
+                        "\(a) * \(inv) should be 1 mod \(m)")
+                #expect(BigInt(a).power(-1, mod: BigInt(m)) == inv,
+                        "power(-1, mod:\(m)) of \(a)")
+            }
+        }
+    }
+
+    /// Fermat's little theorem is the one check that needs an exponent wider
+    /// than an `Int`: for a prime `p` and `a` not a multiple of it,
+    /// `a^(p-1) ≡ 1`.  2^61-1 and 2^127-1 are Mersenne primes.
+    @Test func powerModWideExponent() {
+        for bits in [61, 127] {
+            let p = BigInt(1) << bits - 1
+            for a in [BigInt(2), BigInt(3), BigInt(-7), p - 1, p << 3 | 5] {
+                #expect(a.power(p - 1, mod: p) == 1, "\(a)^(2^\(bits)-2) mod 2^\(bits)-1")
+                // and the inverse a negative exponent gives really is one
+                let inv = a.power(-1, mod: p)
+                #expect((a % p + p) % p * inv % p == 1, "\(a)^-1 mod 2^\(bits)-1")
+                // a^-1 == a^(p-2) for a prime modulus, by Fermat again
+                #expect(inv == a.power(p - 2, mod: p), "two routes to the inverse")
+            }
+        }
+        // the unsigned form takes a wide exponent too
+        let n = (BigUInt(1) << 127) - 1
+        #expect(BigUInt(3).power(n - 1, mod: n) == 1)
+        #expect(BigUInt(3).power(BigUInt(1) << 100, mod: 1000000007) == 870513414)
+    }
+
     // MARK: - strings
 
     @Test(arguments: seeds)
