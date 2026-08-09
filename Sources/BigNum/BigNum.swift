@@ -1,10 +1,36 @@
-@_exported import BigInt // imported and re-exported
-import RealModule
 
 ///
 /// Placeholder for utility functions and values
 ///
 public class BigNum {}
+
+extension BigNum {
+    ///
+    /// How `toString(_:radix:)` should render a value.
+    ///
+    public enum Format : Sendable {
+        /// Positional, with a radix point: `+1.41421356237309504876`.  Enough
+        /// digits to carry the value's own precision, and no radix prefix.
+        case point
+        /// The ratio it actually is: `(+3260954456333195553/2305843009213693952)`,
+        /// or `(+0x2d413cccfe779921/0x2000000000000000)` in radix 16.
+        case fraction
+        /// Significand and binary exponent, the way C's `%a` prints a `double`:
+        /// `+0x1.6a09e667f3bcc908p0`.  Hexadecimal by definition -- the `p`
+        /// counts bits, so `radix` does not apply and is ignored.
+        case exponent
+    }
+
+    /// The prefix that announces a radix, for the radices that have one.
+    internal static func radixPrefix(_ radix:Int)->String {
+        switch radix {
+        case 2:     return "0b"
+        case 8:     return "0o"
+        case 16:    return "0x"
+        default:    return ""
+        }
+    }
+}
 
 ///
 /// BigFloatingPoint protocol.
@@ -24,9 +50,9 @@ public protocol BigFloatingPoint : ExpressibleByFloatLiteral, Real {
     static var expLimit:Self { get set }
     static var precision:Int { get }
     static var roundingRule: FloatingPointRoundingRule { get }
-    var asBigRat:BigRat { get }
-    var asDouble:Double { get }
-    var asMixed:(IntType, Self) { get }
+    func toBigRat()->BigRat
+    func toDouble()->Double
+    func toMixed()->(IntType, Self)
     var decomposed:(sign:FloatingPointSign, exponent:Exponent, significand:Self) { get }
     static var ATAN1:(precision: Int, value:Self) { get set }
     static var E:    (precision: Int, value:Self) { get set }
@@ -52,8 +78,10 @@ extension BigFloatingPoint {
     public mutating func divide(by other:Self, precision px:Int, round rule:FloatingPointRoundingRule=Self.roundingRule) {
         self = self.divided(by:other, precision:px, round:Self.roundingRule)
     }
-    public func toFloatingPointString(radix:Int = 10)->String {
-        return self.asBigRat.toFloatingPointString(radix: radix)
+    /// Every arbitrary-precision value renders through `BigRat`, which is the one
+    /// type that can hold any of them exactly.
+    public func toString(_ format:BigNum.Format = .point, radix:Int = 10)->String {
+        return self.toBigRat().toString(format, radix:radix)
     }
 }
 extension BigFloatingPoint where Self:BinaryFloatingPoint {
@@ -64,7 +92,7 @@ extension BigFloatingPoint where Self:BinaryFloatingPoint {
     /// truncate does nothing for BinaryFloatingPoint
     public mutating func truncate(width:Int, round:FloatingPointRoundingRule) {}
     /// breaks it down to int part and float part
-    public var asMixed:(IntType, Self) {
+    public func toMixed()->(IntType, Self) {
         let rem = self.truncatingRemainder(dividingBy: 1.0)
         return (IntType(self - rem), rem)
     }
@@ -86,7 +114,7 @@ extension BigFloatingPoint where Self:BinaryFloatingPoint {
 
 public protocol DoubleConvertible {
     init(_:Double)
-    var asDouble:Double { get }
+    func toDouble()->Double
 }
 
 //extension Double: DoubleConvertible {}
@@ -94,7 +122,7 @@ public protocol DoubleConvertible {
 //
 //extension DoubleConvertible {
 //    init<T:BigFloatingPoint>(_ bf:T) {
-//        self = Self(bf.asDouble)
+//        self = Self(bf.toDouble())
 //    }
 //}
 

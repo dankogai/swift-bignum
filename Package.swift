@@ -10,21 +10,10 @@ let package = Package(
             name: "BigNum",
             targets: ["BigNum"]),
     ],
-    dependencies: [
-      .package(
-        url: "https://github.com/apple/swift-numerics", from: "1.0.0"
-      ),
-      .package(
-        url: "https://github.com/attaswift/BigInt", from: "5.0.0"
-      )
-    ],
+    dependencies: [],
     targets: [
         .target(
-            name: "BigNum",
-            dependencies: [
-                .product(name: "BigInt", package: "BigInt"),
-                .product(name: "Numerics", package: "swift-numerics")
-            ]),
+            name: "BigNum"),
         .target(
             name: "BigNumRun",
             dependencies: ["BigNum"]),

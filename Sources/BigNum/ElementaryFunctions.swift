@@ -1,3 +1,89 @@
+//
+//  ElementaryFunctions.swift -- what the transcendental functions are, and what
+//  they are at arbitrary precision.
+//
+//  The two protocols come first; `Real` inherits them and lives in Real.swift
+//  with `AlgebraicField` and `Double`'s conformance.  Everything after them is
+//  `BigFloatingPoint`'s implementation, in the `precision:`-taking form that is
+//  the reason BigNum exists -- with the fixed-arity shims that satisfy the
+//  protocol requirements (`exp(x)` forwarding to `exp(x, precision:
+//  Self.precision)`, and so on) at the bottom of the file.
+//
+
+///
+/// The transcendental functions that every real *and* complex type can offer.
+///
+public protocol ElementaryFunctions {
+    /// e^x
+    static func exp(_ x: Self) -> Self
+    /// e^x - 1, accurate even for tiny `x`
+    static func expMinusOne(_ x: Self) -> Self
+    /// cosh(x)
+    static func cosh(_ x: Self) -> Self
+    /// sinh(x)
+    static func sinh(_ x: Self) -> Self
+    /// tanh(x)
+    static func tanh(_ x: Self) -> Self
+    /// cos(x)
+    static func cos(_ x: Self) -> Self
+    /// sin(x)
+    static func sin(_ x: Self) -> Self
+    /// tan(x)
+    static func tan(_ x: Self) -> Self
+    /// log(x)
+    static func log(_ x: Self) -> Self
+    /// log(1 + x), accurate even for tiny `x`
+    static func log(onePlus x: Self) -> Self
+    /// acosh(x)
+    static func acosh(_ x: Self) -> Self
+    /// asinh(x)
+    static func asinh(_ x: Self) -> Self
+    /// atanh(x)
+    static func atanh(_ x: Self) -> Self
+    /// acos(x)
+    static func acos(_ x: Self) -> Self
+    /// asin(x)
+    static func asin(_ x: Self) -> Self
+    /// atan(x)
+    static func atan(_ x: Self) -> Self
+    /// x^y
+    static func pow(_ x: Self, _ y: Self) -> Self
+    /// x^n
+    static func pow(_ x: Self, _ n: Int) -> Self
+    /// √x
+    static func sqrt(_ x: Self) -> Self
+    /// The `n`th root of `x`
+    static func root(_ x: Self, _ n: Int) -> Self
+}
+
+///
+/// The functions that only make sense for a *real* type.
+///
+public protocol RealFunctions : ElementaryFunctions {
+    /// atan(y/x), resolved to the correct quadrant
+    static func atan2(y: Self, x: Self) -> Self
+    /// The error function
+    static func erf(_ x: Self) -> Self
+    /// 1 - erf(x), without the cancellation
+    static func erfc(_ x: Self) -> Self
+    /// 2^x
+    static func exp2(_ x: Self) -> Self
+    /// 10^x
+    static func exp10(_ x: Self) -> Self
+    /// √(x² + y²), without spurious overflow
+    static func hypot(_ x: Self, _ y: Self) -> Self
+    /// Γ(x)
+    static func gamma(_ x: Self) -> Self
+    /// log₂(x)
+    static func log2(_ x: Self) -> Self
+    /// log₁₀(x)
+    static func log10(_ x: Self) -> Self
+    /// log(|Γ(x)|) -- see `signGamma(_:)` for the sign it drops
+    static func logGamma(_ x: Self) -> Self
+    /// The sign `logGamma(_:)` discards
+    static func signGamma(_ x: Self) -> FloatingPointSign
+}
+
 extension BigFloatingPoint {
     // constants
     /// √2
@@ -126,7 +212,7 @@ extension BigFloatingPoint {
     /// self ** n where n is an integer
     public func power(_ y:IntType, precision px:Int=Self.precision, debug db:Bool=false)->Self  {
         if self.isNaN || self.isInfinite || self.isZero {
-            return Self(Double.pow(self.asDouble, Self(y).asDouble))
+            return Self(Double.pow(self.toDouble(), Self(y).toDouble()))
         }
         if self < 0 {
             let isOdd = y & 1 == 1
@@ -146,10 +232,10 @@ extension BigFloatingPoint {
     /// x ** y
     public static func pow(_ x:Self, _ y:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self  {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
-            return Self(Double.pow(x.asDouble, y.asDouble))
+            return Self(Double.pow(x.toDouble(), y.toDouble()))
         }
         if Swift.abs(x) < 1   { return 1/pow(1/x, y, precision:px) }
-        let (iy, fy) = y.asMixed
+        let (iy, fy) = y.toMixed()
         if Int.max <= iy.magnitude {
             return iy < 0 ? 0 : infinity
         }
@@ -184,7 +270,7 @@ extension BigFloatingPoint {
         }
         if x.isLess(than:0) { return 1/exp(-x, precision:px, debug:db) }
         let e = E(precision: px * 2)
-        let (ix, fx) = x.asMixed
+        let (ix, fx) = x.toMixed()
         var (ir, fr) = (e.power(ix, precision:px), Self(1))
         if !fr.isZero {
             let epsilon = getEpsilon(precision: px)
@@ -234,7 +320,7 @@ extension BigFloatingPoint {
             return x.sign == .minus ? 0 : +Self.infinity
         }
         if x.isLess(than:0) { return 1/exp2(-x, precision:px, debug:db) }
-        let (ix, fx) = x.asMixed
+        let (ix, fx) = x.toMixed()
         let (ir, fr) = (
           Self(2.0).power(ix, precision:px),
           exp(fx * LN2(precision:px, debug:db), precision:px, debug:db)
@@ -345,7 +431,7 @@ extension BigFloatingPoint {
         if db { print("\(Self.self).log1p: x = ", x, "x/(x + 2) =", a) }
         if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
             if db { print("\(Self.self).log1p: resorting to BigRat") }
-            return Self(BigRat.log1p(x.asBigRat, precision:px, debug:db))
+            return Self(BigRat.log1p(x.toBigRat(), precision:px, debug:db))
         }
         return 2*atanh(a, precision:px, debug:db)
     }
@@ -369,7 +455,7 @@ extension BigFloatingPoint {
     /// - returns: `(sin(x), cos(x))`
     public static func sincos(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->(sin:Self, cos:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
-            return (Self(Double.sin(x.asDouble)), Self(Double.cos(x.asDouble)))
+            return (Self(Double.sin(x.toDouble())), Self(Double.cos(x.toDouble())))
         }
         let epsilon = getEpsilon(precision: px)
         if x * x <= epsilon {
@@ -415,11 +501,11 @@ extension BigFloatingPoint {
     /// tan(x)
     public static func tan(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
         if x.isZero || x.isInfinite || x.isNaN {
-            return Self(Double.tan(x.asDouble))
+            return Self(Double.tan(x.toDouble()))
         }
         let (s, c) = sincos(x, precision:px, debug:db)
         if s.isNaN || s.isInfinite || c.isNaN || c.isInfinite {
-            return Self(Double.tan(x.asDouble))
+            return Self(Double.tan(x.toDouble()))
         }
         return s.divided(by:c, precision:px)
     }
@@ -492,7 +578,7 @@ extension BigFloatingPoint {
     /// arccos
     public static func acos(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if (x - 1).isZero || 1 < Swift.abs(x) {
-            return Self(Double.acos(x.asDouble))
+            return Self(Double.acos(x.toDouble()))
         }
         // print("acos:", x)
         return 2*ATAN1(precision:px) - asin(x, precision:px)
@@ -501,7 +587,7 @@ extension BigFloatingPoint {
     public static func asin(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if let dx = x as? Double { return Self(Double.asin(dx)) }
         if x.isZero || 1 < Swift.abs(x) || x.isInfinite {
-            return Self(Double.asin(x.asDouble))
+            return Self(Double.asin(x.toDouble()))
         }
         let a = x.divided(by:1 + sqrt(1 - x*x, precision:px), precision:px)
         return 2*atan(a, precision:px)
@@ -509,7 +595,7 @@ extension BigFloatingPoint {
     /// - returns: `(sinh(x), cosh(x))`
     public static func sinhcosh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->(sinh:Self, cosh:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
-            return (Self(Double.sinh(x.asDouble)), Self(Double.cosh(x.asDouble)))
+            return (Self(Double.sinh(x.toDouble())), Self(Double.cosh(x.toDouble())))
         }
         if 1 < x.magnitude {
             let ep = exp(x, precision:px)
@@ -554,7 +640,7 @@ extension BigFloatingPoint {
     /// hyperbolic tangent
     public static func tanh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if x.isZero || x.isInfinite || x.isNaN {
-            return Self(Double.tanh(x.asDouble))
+            return Self(Double.tanh(x.toDouble()))
         }
         let (s, c) = sinhcosh(x, precision:px, debug:db)
         if s.isInfinite {
@@ -580,7 +666,7 @@ extension BigFloatingPoint {
         if db { print("\(Self.self).asinh: x = ", x, "√(x*x + 1) = ", a) }
         if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
             if db { print("\(Self.self).asinh: resorting to BigRat") }
-            return Self(BigRat.asinh(x.asBigRat, precision:px, debug:db))
+            return Self(BigRat.asinh(x.toBigRat(), precision:px, debug:db))
         }
         return log(x + a, precision:px, debug:db)
     }
@@ -593,7 +679,7 @@ extension BigFloatingPoint {
         if db { print("\(Self.self).atanh: x = ", x, "(1 + x)/(1 - x) =", a) }
         if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
             if db { print("\(Self.self).atanh: resorting to BigRat") }
-            return Self(BigRat.atanh(x.asBigRat, precision:px, debug:db))
+            return Self(BigRat.atanh(x.toBigRat(), precision:px, debug:db))
         }
         return log(a, precision:px, debug:db)  / 2
     }
@@ -628,7 +714,7 @@ extension BigFloatingPoint {
         // the quotient needs the extra bits because only its fractional
         // part survives into the significand of the result
         let ln2 = LN2(precision:apx + 32)
-        let (ix, fx) = x.divided(by:ln2, precision:apx + 32).asMixed
+        let (ix, fx) = x.divided(by:ln2, precision:apx + 32).toMixed()
         let r = Self(2).power(ix, precision:apx) * exp(fx * ln2, precision:apx, debug:db)
         return 0 < px ? r : r.truncated(width:px)
     }
@@ -646,7 +732,7 @@ extension BigFloatingPoint {
     /// because only the fractional part of `x` is fed to `sin()`
     public static func sinPi(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
         if x.isNaN || x.isInfinite { return nan }
-        let (ix, fx) = x.asMixed    // x == ix + fx where |fx| < 1
+        let (ix, fx) = x.toMixed()    // x == ix + fx where |fx| < 1
         if fx.isZero { return 0 }   // sin(π*n) == 0
         let s = sin(PI(precision:px) * fx, precision:px, debug:db)
         return ix % 2 == 0 ? +s : -s
@@ -675,7 +761,7 @@ extension BigFloatingPoint {
             t.truncate(width:wpx)
             s += t
             s.truncate(width:wpx)
-            if db { print("\(Self.self).erf: i=\(i), t=\(t.asDouble), s=\(s.asDouble)") }
+            if db { print("\(Self.self).erf: i=\(i), t=\(t.toDouble()), s=\(s.toDouble())") }
             if t < s * epsilon { break }
         }
         // divide by exp(+x*x) rather than multiply by exp(-x*x) --
@@ -701,12 +787,12 @@ extension BigFloatingPoint {
         // as long as that is affordable the series above is the faster way
         if x.isLess(than:1) || x2 < Self(apx) * LN2(precision:apx + 32) {
             // this branch keeps `lost` below `apx`.  fall back to that bound
-            // when `asDouble` cannot tell us how large x*x actually is
-            let d2   = x2.asDouble
+            // when `toDouble()` cannot tell us how large x*x actually is
+            let d2   = x2.toDouble()
             let lost = x.isLess(than:0) ? 0
               : d2.isFinite ? Swift.min(apx, Int(d2 * 1.4426950408889634) + 1) : apx
             let wpx  = apx + lost + 32
-            if db { print("\(Self.self).erfc: x=\(x.asDouble), lost=\(lost) bits") }
+            if db { print("\(Self.self).erfc: x=\(x.toDouble()), lost=\(lost) bits") }
             let r = 1 - erf(x, precision:wpx, debug:db)
             return 0 < px ? r : r.truncated(width:px)
         }
@@ -730,7 +816,7 @@ extension BigFloatingPoint {
             c.truncate(width:wpx)
             let del = d * c
             h = (h * del).truncated(width:wpx)
-            if db { print("\(Self.self).erfc: i=\(i), del=\(del.asDouble)") }
+            if db { print("\(Self.self).erfc: i=\(i), del=\(del.toDouble())") }
             if (del - 1).magnitude < epsilon { break }
         }
         // erfc(x) = Γ(½,x²)/√π = x * h / (exp(x²) * √π)
@@ -774,7 +860,7 @@ extension BigFloatingPoint {
             let t = ck.divided(by:z + Self(k), precision:wpx)
             s += k & 1 == 1 ? +t : -t
             s.truncate(width:wpx)
-            if db { print("\(Self.self).spougeLogGamma: k=\(k), t=\(t.asDouble), s=\(s.asDouble)") }
+            if db { print("\(Self.self).spougeLogGamma: k=\(k), t=\(t.toDouble()), s=\(s.toDouble())") }
             fct *= Self(k)
         }
         emk = emk.divided(by:e, precision:wpx)  // exp(-a)
@@ -792,7 +878,7 @@ extension BigFloatingPoint {
         if x.isInfinite { return +infinity }
         let apx = Swift.abs(px)
         let wpx = apx + 32
-        let (ix, fx) = x.asMixed
+        let (ix, fx) = x.toMixed()
         if fx.isZero && ix <= 0 { return +infinity }    // poles at 0, -1, -2, …
         var r:Self
         if x.isLess(than:Self(1)/2) {
@@ -814,7 +900,7 @@ extension BigFloatingPoint {
         if x.isInfinite { return x.sign == .minus ? nan : +infinity }
         let apx = Swift.abs(px)
         let wpx = apx + 32
-        let (ix, fx) = x.asMixed
+        let (ix, fx) = x.toMixed()
         if fx.isZero {
             if ix == 0  { return x.sign == .minus ? -infinity : +infinity }
             if ix <  0  { return nan }  // poles
@@ -838,17 +924,18 @@ extension BigFloatingPoint {
 }
 
 extension FloatingPoint where Self:DoubleConvertible {
-    public var asBigRat : BigRat {
-        return self as? BigRat ?? BigRat(self.asDouble)
+    public func toBigRat()->BigRat {
+        return self as? BigRat ?? BigRat(self.toDouble())
     }
-    public func toFloatingPointString(radix:Int = 10)->String {
-        return self.asBigRat.toFloatingPointString(radix:radix)
+    public func toString(_ format:BigNum.Format = .point, radix:Int = 10)->String {
+        return self.toBigRat().toString(format, radix:radix)
     }
 }
 
-// make BigFloatingPoint conform to ElementaryFunction and RealFunctions
-// above extention supposed to suffice but as of Swift 5 we need the shim below
-import RealModule
+// Make BigFloatingPoint conform to the two protocols at the top of this file.
+// The `precision:`-taking versions above ought to satisfy them by way of their
+// default arguments, but as of Swift 5 they do not, so each requirement needs
+// the one-line shim below.
 extension BigFloatingPoint {
     public static func exp(_ x:Self) -> Self {
         return         exp(x, precision:Self.precision, debug:false)
