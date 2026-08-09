@@ -28,6 +28,14 @@ BigFloat(0.1).toBigRat().toString(.fraction)
 BigFloat(BigRat(1,3))
 BigFloat(BigRat(1,3), precision:16)
 
+/*:
+ Which makes `over` a tidy way in from two integers: build the exact fraction,
+ then round it once, where you can see it happen.
+ */
+BigFloat(BigInt(1).over(3))
+BigFloat(BigInt(1).over(3), precision:16)
+BigFloat(BigInt(355).over(113))
+
 //: ## Construction, including from text
 BigFloat(0.1)                   // the Double's real value, not one tenth
 let x: BigFloat = 1.5

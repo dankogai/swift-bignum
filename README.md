@@ -11,6 +11,7 @@ Arbitrary-precision arithmetic for Swift, in Swift — **with no dependencies**.
 import BigNum
 
 BigInt(2).power(256)            // 115792089237316195423570985008687907853269984665640564039457584007913129639936
+1.over(3) + 1.over(6)           // (1/2) -- `over` turns two integers into a fraction
 BigRat(1,3) + BigRat(1,3) + BigRat(1,3) == 1    // true.  Not "true to 17 digits".
 BigFloat.sqrt(2)                // 1.414213562373095048801688724209698078569
 BigRat.exp(1, precision:256)    // e to 256 bits
@@ -42,6 +43,48 @@ its storage stays put and its arithmetic rounds. The one-line version:
 ```swift
 BigRat(1)/BigRat(3) * 3 == 1        // true  -- exact
 BigFloat(1)/BigFloat(3) * 3 == 1    // false -- rounded to `precision` bits
+```
+
+## `over`: fractions from integers
+
+`over(_:)` is the idiomatic way to build a rational. It reads as the fraction bar —
+`a.over(b)` is *a over b* — and it is defined on the integers, so you rarely need
+to name a rational type at all:
+
+```swift
+1.over(3)                 // (1/3)  -- an IntRat, because 1 is an Int
+BigInt(1).over(3)         // (1/3)  -- a BigRat, because the numerator is a BigInt
+Int8(1).over(2)           // (1/2)  -- a FixedWidthRational<Int8>
+6.over(4)                 // (3/2)  -- reduced on construction
+6.over(-4)                // (-3/2) -- the sign moves to the numerator
+```
+
+**The numerator's type picks the rational's type.** An `Int` gives you an `IntRat`,
+a `BigInt` gives you a `BigRat`, and any other `FixedWidthRationalElement` gives
+you the `FixedWidthRational` over it. So `over` is how you choose between bounded
+and unbounded arithmetic — by choosing what you call it on:
+
+```swift
+1.over(3) + 1.over(6)                    // (1/2), in two Ints
+BigInt(1).over(3) + BigInt(1).over(6)    // (1/2), in two BigInts that can grow
+```
+
+Because they are ordinary fractions, the special values come out of the arithmetic
+rather than from anywhere special:
+
+```swift
+BigInt(1).over(0)         // (1/0)  -- infinity
+BigInt(0).over(0)         // (0/0)  -- NaN
+BigInt(3260954456333195553).over(2305843009213693952).toDouble()   // 1.4142135623730951
+BigRat.sqrt(2).toDouble()                                          // the same Double
+```
+
+On a rational rather than an integer, `over` divides — the same reading of the
+fraction bar, one level up:
+
+```swift
+BigRat(1,2).over(BigRat(1,3))   // (3/2), the same as `/`
+BigRat(1,2).over(BigInt(3))     // (1/6), dividing by a bare numerator type
 ```
 
 ## Precision

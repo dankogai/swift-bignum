@@ -18,10 +18,29 @@ BigRat(1,3).reciprocal!
 
 //: A sum that a Double gets wrong: 1/1 + 1/2 + ... + 1/10
 (1...10).reduce(BigRat.zero) { $0 + BigRat(1, $1) }   // exactly (7381/2520)
+//: the same thing written with `over`
+(1...10).reduce(BigRat.zero) { $0 + BigInt(1).over(BigInt($1)) }
+
+/*:
+ ## `over`: both directions of the fraction bar
+
+ On an *integer* it builds a fraction; on a *rational* it divides.  Both are
+ "x over y" — the difference is only what x was.
+ */
+BigInt(1).over(3)                   // builds: a BigRat
+1.over(3)                           // builds: an IntRat
+BigRat(1,2).over(BigRat(1,3))       // divides: the same as `/`
+BigRat(1,2).over(BigInt(3))         // divides by a bare numerator type
+IntRat(1,2).over(3)                 // same, fixed-width
+
+//: Which one you get is decided by the integer's type
+type(of: BigInt(1).over(3))
+type(of: 1.over(3))
+type(of: Int8(1).over(2))
 
 //: ## Construction, and one thing to watch
 BigRat(1, 3)
-BigInt(1).over(3)
+BigInt(1).over(3)                   // the same thing, via `over`
 BigRat(6, 4)                        // reduced
 BigRat(6, -4)                       // the sign moves to the numerator
 let one: BigRat = 1

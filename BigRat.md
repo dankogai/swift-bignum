@@ -35,11 +35,56 @@ BigRat(1)/BigRat(3)     * 3 == 1    // true
 BigFloat(1)/BigFloat(3) * 3 == 1    // false
 ```
 
+## `over`: both directions of the fraction bar
+
+The idiomatic way to make a rational is `over(_:)`, called on the *integers*:
+
+```swift
+BigInt(1).over(3)             // (1/3)
+BigInt(6).over(4)             // (3/2)  -- reduced on construction
+BigInt(6).over(-4)            // (-3/2) -- the sign moves to the numerator
+```
+
+It reads as the fraction bar: `a.over(b)` is *a over b*. Which rational you get
+is decided by what you call it on, so `over` doubles as the way you choose between
+unbounded and bounded arithmetic:
+
+```swift
+BigInt(1).over(3)             // (1/3), a BigRat -- grows without bound
+1.over(3)                     // (1/3), an IntRat -- two Ints, traps on overflow
+Int8(1).over(2)               // (1/2), a FixedWidthRational<Int8>
+Int64(3).over(9)              // (1/3), a FixedWidthRational<Int64>
+
+1.over(3) + 1.over(6)                    // (1/2), in Ints
+BigInt(1).over(3) + BigInt(1).over(6)    // (1/2), in BigInts
+```
+
+Because a `BigRat` *is* its fraction, the special values need no special case —
+they fall out of what you hand `over`:
+
+```swift
+BigInt(1).over(0)             // (1/0)  -- infinity
+BigInt(0).over(0)             // (0/0)  -- NaN
+BigInt(0).over(5)             // (0/1)  -- zero, normalized
+```
+
+Called on a rational instead of an integer, `over` **divides** — the same reading
+of the bar, one level up:
+
+```swift
+BigRat(1,2).over(BigRat(1,3))     // (3/2), the same as `/`
+BigRat(1,2).over(BigInt(3))       // (1/6), dividing by a bare numerator
+IntRat(1,2).over(3)               // (1/6), same for the fixed-width form
+```
+
+So `x.over(y)` builds a fraction when `x` is an integer and divides when `x` is
+already one. Both are "x over y"; the difference is only what `x` was.
+
 ## Construction
 
 ```swift
-BigRat(1, 3)                  // (1/3)
-BigInt(1).over(3)             // (1/3)  -- same thing
+BigRat(1, 3)                  // (1/3)  -- the direct form
+BigInt(1).over(3)             // (1/3)  -- the same thing, via `over`
 BigRat(6, 4)                  // (3/2)  -- reduced on construction
 BigRat(6, -4)                 // (-3/2) -- the sign moves to the numerator
 BigRat(-6, -4)                // (3/2)
@@ -187,10 +232,12 @@ The same arithmetic over fixed-width integers, for when you want a rational that
 cannot grow:
 
 ```swift
-IntRat(1,3)                  // FixedWidthRational<Int>
+1.over(3)                    // (1/3), a FixedWidthRational<Int> -- the usual way in
+IntRat(1,3)                  // the same thing, naming the type
 IntRat(1,3) + IntRat(1,6)    // (1/2)
 IntRat.max                   // (9223372036854775807/1)
 IntRat(1,3).toDouble()       // 0.3333333333333333
+1.over(3).toBigRat()         // widen when you need room
 Rational<BigInt>(1,3)        // the unconstrained generic form
 ```
 

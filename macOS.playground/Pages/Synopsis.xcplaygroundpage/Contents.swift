@@ -21,10 +21,23 @@ BigInt(2).power(256)
 BigInt(Int.max) * BigInt(Int.max)
 BigInt("123456789012345678901234567890")!
 
+/*:
+ ## `over` turns two integers into a fraction
+
+ It reads as the fraction bar, and the type you call it on decides which rational
+ you get — so you rarely have to name one.
+ */
+1.over(3)                       // an IntRat: two Ints
+BigInt(1).over(3)               // a BigRat: two BigInts, free to grow
+Int8(1).over(2)                 // a FixedWidthRational<Int8>
+6.over(4)                       // reduced on construction
+1.over(3) + 1.over(6)
+
 //: ## Rationals that are exact
 BigRat(1,3) + BigRat(1,3) + BigRat(1,3) == 1    // true
 0.1 + 0.2 == 0.3                                 // false, for a Double
 BigRat(1,10) + BigRat(2,10) == BigRat(3,10)      // true
+BigInt(1).over(3) + BigInt(1).over(3) + BigInt(1).over(3) == 1   // true, too
 
 //: ## Floating point with as many bits as you ask for
 BigFloat.sqrt(2)

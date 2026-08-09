@@ -208,14 +208,49 @@ and cannot be invalidated by a change of limb width. **This is not compatible wi
 attaswift/BigInt's encoding**, so archives written against swift-bignum 5.x will
 not decode.
 
-## Rationals from integers
+## `over`: making fractions out of integers
 
-`over(_:)` builds a `BigRat` — see [BigRat.md](BigRat.md):
+Every integer here has an `over(_:)`, which is the idiomatic way to build a
+rational. It reads as the fraction bar — `a.over(b)` is *a over b* — and it means
+you rarely have to name a rational type:
 
 ```swift
-BigInt(1).over(3)     // (1/3)
-BigInt(6).over(4)     // (3/2)  -- reduced on construction
+BigInt(1).over(3)     // (1/3)   -- a BigRat
+BigInt(6).over(4)     // (3/2)   -- reduced on construction
+BigInt(6).over(-4)    // (-3/2)  -- the sign moves to the numerator
+BigInt(1).over(0)     // (1/0)   -- infinity, no special case needed
+BigInt(0).over(0)     // (0/0)   -- NaN, likewise
 ```
+
+**Which rational you get is decided by the type you call it on**, so `over` is
+also how you choose between growing and bounded arithmetic:
+
+| called on | returns | grows? |
+|---|---|---|
+| `BigInt` | `BigRat` (`BigRational`) | yes, without bound |
+| `Int` | `IntRat` (`FixedWidthRational<Int>`) | no — traps on overflow |
+| `Int8`, `Int16`, `Int32`, `Int64`, `Int128` | `FixedWidthRational` over that type | no |
+| a custom `RationalElement` | `Rational<Self>` | depends on the element |
+
+```swift
+1.over(3)                // (1/3), an IntRat -- 1 is an Int
+Int8(1).over(2)          // (1/2), a FixedWidthRational<Int8>
+Int64(3).over(9)         // (1/3), reduced, a FixedWidthRational<Int64>
+BigInt(1).over(3)        // (1/3), a BigRat
+
+1.over(3) + 1.over(6)                    // (1/2), in two Ints
+BigInt(1).over(3) + BigInt(1).over(6)    // (1/2), in two BigInts that can grow
+```
+
+The three overloads that produce a fraction from an integer are on
+`RationalElement` (generic, giving `Rational<Self>`), `BigInt` (giving `BigRat`)
+and `FixedWidthRationalElement` (giving `FixedWidthRational<Self>`). Swift picks
+the most specific one, which is why `1.over(3)` is an `IntRat` and not a
+`Rational<Int>`.
+
+`over` on a *rational* divides instead of constructing — see
+[BigRat.md](BigRat.md#over-both-directions-of-the-fraction-bar) — and the whole of
+the resulting type is documented there.
 
 ## BigUInt
 

@@ -73,6 +73,15 @@ BigFloat(BigRat(1,3), precision:16)            // 0.333332061767578125
 Every `BigFloat` is exactly a `BigRat` (its denominator is a power of two), so
 `toBigRat()` loses nothing. Going the other way has to choose a precision.
 
+That makes `over` a convenient way into a `BigFloat` from two integers: build the
+exact fraction, then round it once, where you can see it happening.
+
+```swift
+BigFloat(BigInt(1).over(3))                  // one third, to `precision` bits
+BigFloat(BigInt(1).over(3), precision:16)    // 0.333332061767578125
+BigFloat(BigInt(355).over(113))              // 355/113, rounded once
+```
+
 ## Construction
 
 ```swift
