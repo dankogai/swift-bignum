@@ -53,7 +53,7 @@ extension BigRationalType {
         // gain -- but only skip the work when the fraction really does fit in
         // `w` bits. Bailing out unconditionally left the memoized constants at
         // their full width (π/4 to 1151 bits keeps a 1153-bit denominator),
-        // which then overflows asDouble().
+        // which then overflows toDouble().
         if den >> den.trailingZeroBitCount == 1 && num.bitWidth - 1 <= w { return }
         let s = max(den.bitWidth - 1, w)    // -1 for sign bit
         let d = Element(1) << s
@@ -203,7 +203,7 @@ extension RationalType {
     }
     public mutating func round(_ rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero) {
         if self.isZero || self.isInfinite || self.isNaN { return }
-        var (i, r) = self.asMixed
+        var (i, r) = self.toMixed()
         let a = Swift.abs(r)
         let s = self.sign == .minus ? IntType(-1) : IntType(+1)
         switch rule {
@@ -274,7 +274,7 @@ extension RationalType {
         }
     }
     /// - returns: `self` converted to `Double`
-    public var asDouble: Double {
+    public func toDouble()->Double {
         if self.isNaN {
             return Double.nan
         }
@@ -301,7 +301,7 @@ extension RationalType {
             return Double(BigInt(num)) / Double(BigInt(den >> w)) / Double(BigInt(1) << w)
         }
         if r.isInfinite {   // we know it is not infinite so try with integral part
-            return Double(BigInt(self.asMixed.0))
+            return Double(BigInt(self.toMixed().0))
         }
         return r
     }
@@ -345,12 +345,12 @@ extension RationalType {
     public func over(_ d:Element)->Self {
         return self.over(Self(d))
     }
-    public var asMixed:(IntType, Self) {
+    public func toMixed()->(IntType, Self) {
         let (q, r) = self.num.quotientAndRemainder(dividingBy: self.den)
         return (q, Self(r, self.den)) as! (Self.IntType, Self)
     }
     public func quotientAndRemainder(dividingBy other: Self)->(quotient:Self, remainder:Self) {
-        let (q, r) = self.over(other).asMixed
+        let (q, r) = self.over(other).toMixed()
         return (Self(q), r * other)
     }
     public func truncatingRemainder(dividingBy other: Self)->Self {
@@ -431,7 +431,7 @@ extension RationalType where Element:FixedWidthInteger {}
 
 extension Double {
     public init<Q:RationalType>(_ q:Q) {
-        self.init(q.asDouble)
+        self.init(q.toDouble())
     }
 }
 
@@ -481,8 +481,8 @@ public struct BigRational : BigRationalType & Codable {
     public init(floatLiteral: FloatLiteralType) {
         self.init(floatLiteral)
     }
-    public var asBigRat:BigRational { return self }
-    public var asBigFloat:BigFloat { return BigFloat(self) }
+    public func toBigRat()->BigRational { return self }
+    public func toBigFloat()->BigFloat { return BigFloat(self) }
     /// maximum magnitude of the argument to exponential functions.
     /// if smaller than `-expLimit` 0 is returned
     /// anything larger than `+expLimit` +infinity is returned
@@ -497,37 +497,82 @@ public struct BigRational : BigRationalType & Codable {
 public typealias BigRat = BigRational
 
 extension BigRational : CustomDebugStringConvertible {
-    public var asIntRat:IntRat {
+    public func toIntRat()->IntRat {
         let q = self.truncated(width: Int.bitWidth - 1)
         return IntRat(num:Int(q.num), den:Int(q.den))
     }
-    public func toString(radix:Int=10)->String {
-        return "(\(num < 0 ? "-" : "+")\(String(num.magnitude, radix:radix))/\(String(den, radix:radix)))"
-    }
-    public var debugDescription:String {
-        if self.isNaN || self.isSignalingNaN || self.isInfinite || self.isZero {
-            return self.toString(radix: 16)
+    ///
+    /// `self` as text.  `BigRat` is where all three of `BigNum.Format`'s shapes
+    /// are actually produced -- `BigFloat` and the fixed-width rationals convert
+    /// here first, since a `BigRat` can hold any of them exactly.
+    ///
+    public func toString(_ format:BigNum.Format = .point, radix:Int = 10)->String {
+        switch format {
+        case .point:    return self.pointString(radix:radix)
+        case .fraction: return self.fractionString(radix:radix)
+        case .exponent: return self.exponentString()
         }
-        let n = (num < 0 ? "-" : "+") + "0x" + String(num.magnitude, radix:16)
-        let d = "0x" + String(den.magnitude, radix:16)
-        return "(\(n)/\(d))"
     }
-    public func toFloatingPointString(radix:Int = 10)->String {
+
+    /// A `BigRat` debugs as the ratio it is, in hex -- the shape that shows what
+    /// is actually stored rather than a rounded rendering of it.
+    public var debugDescription:String {
+        return self.toString(.fraction, radix:16)
+    }
+
+    /// `(+22/7)`, or `(+0x16/0x7)` where the radix wants announcing.  NaN, the
+    /// infinities and zero print bare and keep the denominator's sign, because
+    /// their numerator and denominator *are* the value: `(+0/0)` is NaN in every
+    /// radix, and `(+0/-1)` is the only way to see a negative zero.
+    private func fractionString(radix:Int)->String {
+        let sign   = num < 0 ? "-" : "+"
+        let bare   = !self.isFinite || self.isZero
+        let prefix = bare ? "" : BigNum.radixPrefix(radix)
+        return "(\(sign)\(prefix)\(String(num.magnitude, radix:radix))"
+             + "/\(prefix)\(String(den, radix:radix)))"
+    }
+
+    /// `+0x1.6a09e667f3bcc908p0`: the `.point` form in radix 16 with the point
+    /// walked to just past the leading digit, and the four bits per hex digit
+    /// that cost accumulated into `p`.
+    private func exponentString()->String {
+        var s = self.pointString(radix:16)
+        if self.isNaN || self.isSignalingNaN || self.isInfinite { return s }
+        if self.isZero { return s + "p0" }
+        var p = 0
+        if s.hasPrefix("-0.0") || s.hasPrefix("+0.0") {
+            let idx = s.index(s.startIndex, offsetBy: 3)
+            while s[idx] == "0" {
+                s.remove(at:idx)
+                p -= 4
+            }
+        }
+        else {
+            while s.hasSuffix("0.0") {
+                s.remove(at: s.index(s.endIndex, offsetBy: -3))
+                p += 4
+            }
+        }
+        s.insert(contentsOf: "0x", at: s.index(s.startIndex, offsetBy:1))
+        return s + "p\(p)"
+    }
+
+    private func pointString(radix:Int)->String {
         let ssign = self.sign == .minus ? "-" : "+"
         if self.isNaN || self.isSignalingNaN { return "nan" }
         if self.isInfinite {
             return ssign + "infinity"
         }
-        let (iself, fself) = self.asMixed
+        let (iself, fself) = self.toMixed()
         let sint = String(iself.magnitude, radix:radix)
         let ilen = sint.count
         if fself.isZero { return ssign + sint + ".0" }
         let bitsPerDigit = Double.log2(Double(radix))
         let bitWidth = Swift.max(fself.num.bitWidth, fself.den.bitWidth, Int64.bitWidth)
         let ndigits = Int(Double(bitWidth) / bitsPerDigit) + 1
-        var (i, r) = (self * BigInt(radix).power(ndigits)).asMixed
+        var (i, r) = (self * BigInt(radix).power(ndigits)).toMixed()
         if 1 <= r.magnitude * 2 {
-            i += i.sign == .minus ? -1 : +1
+            i += i < 0 ? -1 : +1     // round the last digit away from zero
         }
         var s = String(i.magnitude, radix:radix)
         if self.magnitude < 1 {
@@ -576,17 +621,17 @@ extension FixedWidthRationalType {
     public static var min:Self {
         return Self(-Element.max, 1)
     }
-    public var asBigRat:BigRat {
+    public func toBigRat()->BigRat {
         return BigRat(self.num, self.den)
     }
     public var exponent:Element {
-        return Element(self.asDouble.exponent)
+        return Element(self.toDouble().exponent)
     }
-    public func toFloatingPointString(radix:Int = 10)->String {
-        return self.asBigRat.toFloatingPointString(radix:radix)
+    public func toString(_ format:BigNum.Format = .point, radix:Int = 10)->String {
+        return self.toBigRat().toString(format, radix:radix)
     }
     public var debugDescription: String {
-        return self.asBigRat.debugDescription
+        return self.toBigRat().debugDescription
     }
     //
     // override RationalType#{squareRoot,formSquareRoot}

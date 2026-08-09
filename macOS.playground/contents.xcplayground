@@ -2,6 +2,10 @@
 <playground version='6.0' target-platform='macos' last-migration='1000'>
     <pages>
         <page name='Synopsis'/>
+        <page name='BigInt'/>
+        <page name='BigRat'/>
+        <page name='BigFloat'/>
+        <page name='Precision'/>
         <page name='Scratch'/>
     </pages>
 </playground>

@@ -184,7 +184,7 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
         }
     }
     public init<T:BinaryFloatingPoint>(_ bf:T) { self.init(exactly:bf)! }
-    public var asDouble:Double { return Double(self) }
+    public func toDouble()->Double { return Double(self) }
     public init(floatLiteral value: Double) { self.init(value) }
     // implement truncate() here so init(_q:RationalType) can use it
     public mutating func truncate(width:Int, round:FloatingPointRoundingRule=roundingRule) {
@@ -243,7 +243,7 @@ extension BigFloat : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
     }
 }
 extension BigFloat {
-    public var asBigRat:BigRat {
+    public func toBigRat()->BigRat {
         return BigRat(self)
     }
 }
@@ -434,8 +434,8 @@ extension BigFloat : BigFloatingPoint {
     public static func getEpsilon(precision: Int) -> BigFloat {
         return BigFloat(scale:-Swift.abs(precision), mantissa:1)
     }
-    public var asMixed: (BigInt, BigFloat) {
-        let (i, f) = BigRat(self).asMixed
+    public func toMixed()->(BigInt, BigFloat) {
+        let (i, f) = BigRat(self).toMixed()
         return (i, BigFloat(f))
     }
     public static func % (_ lhs: BigFloat, _ rhs: BigFloat) -> BigFloat {
@@ -444,66 +444,60 @@ extension BigFloat : BigFloatingPoint {
 }
 // Custom{,Debug}StringConvertible
 extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
-    public func toString(radix:Int = 10)->String {
-        return self.toFloatingPointString(radix:radix)
-    }
     public var description:String {
         var s = self.toString()
         if s.first == "+" { s.removeFirst() }
         return s
     }
+    /// A `BigFloat` debugs as significand-and-exponent, which is how it is
+    /// stored -- see `BigNum.Format.exponent`.
     public var debugDescription:String {
-        var s = self.toString(radix:16)
-        if self.isNaN || self.isSignalingNaN || self.isInfinite { return s }
-        if self.isZero { return s + "p0" }
-        var p = 0
-        if s.hasPrefix("-0.0") || s.hasPrefix("+0.0") {
-            let idx = s.index(s.startIndex, offsetBy: 3)
-            while s[idx] == "0" {
-                s.remove(at:idx)
-                p -= 4
-            }
-        }
-        else {
-            while s.hasSuffix("0.0") {
-                let idx = s.index(s.endIndex, offsetBy: -3)
-                s.remove(at:idx)
-                p += 4
-            }
-        }
-        s.insert("x", at: s.index(s.startIndex, offsetBy:1))
-        s.insert("0", at: s.index(s.startIndex, offsetBy:1))
-        return s + "p\(p)"
+        return self.toString(.exponent)
     }
     public init?<S:StringProtocol>(_ str:S, radix:Int=10) {
         self = 0
-        guard 0 < str.count else { return nil }
+        // Every exit below is `nil` or a value -- a failable initializer that
+        // traps on malformed input is no use to a caller who is asking *whether*
+        // the text is a number.  `chars[0]` after a `removeFirst()`, and the two
+        // force-unwrapped exponents, used to crash on "+", "00", "1e", "0x1pz"
+        // and anything else with a stray "e" in it, "nonsense" included.
+        var chars = [Character](str.lowercased())
+        guard !chars.isEmpty else { return nil }
         var base   = radix
         var scale  = 0
         var factor = BigFloat(1)
         var signum = +1.0
-        var chars = [Character](str.lowercased())
-        if      chars[0] == "+" { signum = +1.0 ; chars.removeFirst() }
-        else if chars[0] == "-" { signum = -1.0 ; chars.removeFirst() }
-        if chars[0] == "0" {
+        if      chars.first == "+" { signum = +1.0 ; chars.removeFirst() }
+        else if chars.first == "-" { signum = -1.0 ; chars.removeFirst() }
+        // one sign only: the significand goes through `BigInt(_:radix:)`, which
+        // would happily read a second one and cancel this one out
+        guard let head = chars.first, head != "+", head != "-" else { return nil }
+        if head == "0" {
             chars.removeFirst()
-            if chars.count < 1 { return }
+            if chars.isEmpty { self = signum < 0 ? .negativeZero : .zero ; return }
             switch chars[0] {
-            case "x" : base = 16; chars.removeFirst()
-            case "o" : base = 8;  chars.removeFirst()
-            case "b" : base = 2;  chars.removeFirst()
-            default: while chars[0] == "0" { chars.removeFirst() }
+            case "x" : base = 16 ; chars.removeFirst()
+            case "o" : base =  8 ; chars.removeFirst()
+            case "b" : base =  2 ; chars.removeFirst()
+            default  :
+                while chars.first == "0" { chars.removeFirst() }
+                if chars.isEmpty { self = signum < 0 ? .negativeZero : .zero ; return }
             }
+            guard !chars.isEmpty else { return nil }    // a prefix and nothing else
         }
-        if base == 16 && chars.contains("p") {
-            let cs = chars.split(separator:"p").map{ [Character]($0) }
-            chars = cs[0]
-            scale = Exponent(String(cs[1]))!
-        }
-        else if base == 10 && chars.contains("e") {
-            let cs = chars.split(separator:"e").map{ [Character]($0) }
-            chars = cs[0]
-            factor = BigFloat(base).power(BigInt(String(cs[1]))!)
+        // `p` counts powers of two after a hex significand, `e` powers of ten
+        // after a decimal one.  Neither applies in the other radices.
+        let marker:Character? = base == 16 ? "p" : (base == 10 ? "e" : nil)
+        if let marker = marker, let i = chars.firstIndex(of:marker) {
+            let tail = String(chars[chars.index(after:i)...])
+            chars.removeSubrange(i...)
+            if base == 16 {
+                guard let e = Exponent(tail) else { return nil }
+                scale = e
+            } else {
+                guard let e = BigInt(tail) else { return nil }
+                factor = BigFloat(base).power(e)
+            }
         }
         var dlen = 0
         if let i = chars.firstIndex(of:".") {
@@ -516,8 +510,11 @@ extension BigFloat: CustomStringConvertible, CustomDebugStringConvertible {
     }
 }
 extension String {
-    init(_ bf:BigFloat, radix:Int=10, uppercase:Bool=false){
-        self = uppercase ? bf.toString(radix:radix).uppercased() : bf.toString(radix:radix)
+    /// `public` to match the `BigInt` and `BigUInt` overloads; without it this
+    /// was unreachable from outside the module, which cannot have been the intent.
+    public init(_ bf:BigFloat, radix:Int=10, uppercase:Bool=false){
+        let s = bf.toString(.point, radix:radix)
+        self = uppercase ? s.uppercased() : s
     }
 }
 

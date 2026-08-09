@@ -17,8 +17,8 @@ import Testing
         #expect(T.init(1, 2) - T.init(1, 3) == T.init(1, 6))
         #expect(T.init(1, 2) * T.init(1, 3) == T.init(1, 6))
         #expect(T.init(1, 2) / T.init(1, 3) == T.init(3, 2))
-        #expect(T.init(+Double.pi).asDouble == +Double.pi)
-        #expect(T.init(-Double.pi).asDouble == -Double.pi)
+        #expect(T.init(+Double.pi).toDouble() == +Double.pi)
+        #expect(T.init(-Double.pi).toDouble() == -Double.pi)
     }
     @Test func bigRatBasic() { runBasic(forType:BigRat.self) }
     @Test func intRatBasic() { runBasic(forType:IntRat.self) }
