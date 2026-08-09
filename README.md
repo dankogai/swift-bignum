@@ -11,6 +11,7 @@ Arbitrary-precision arithmetic for Swift, in Swift — **with no dependencies**.
 import BigNum
 
 BigInt(2).power(256)            // 115792089237316195423570985008687907853269984665640564039457584007913129639936
+BigInt(3).power(BigInt(1) << 100, mod: 1000000007)  // 870513414 -- Python's pow(b, e, m)
 1.over(3) + 1.over(6)           // (1/2) -- `over` turns two integers into a fraction
 BigRat(1,3) + BigRat(1,3) + BigRat(1,3) == 1    // true.  Not "true to 17 digits".
 BigFloat.sqrt(2)                // 1.414213562373095048801688724209698078569

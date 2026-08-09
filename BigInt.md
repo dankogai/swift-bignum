@@ -167,6 +167,69 @@ BigInt(-12).greatestCommonDivisor(with: 18)      // 6   -- always non-negative
 directly — it is on `BigRat`'s hot path, since every rational reduces on
 construction.
 
+## `power(_:mod:)`: modular exponentiation
+
+`power(_:mod:)` is Python's three-argument `pow()`. It is not `power(_:) % m`
+— the intermediates are reduced as they are formed, which is what makes it
+usable at all:
+
+```swift
+BigInt(2).power(10, mod: 1000)                    // 24
+BigInt(123456789).power(12345, mod: 1000000007)   // 614455772
+BigUInt(2).power(64, mod: (BigUInt(1) << 64) + 13)   // 18446744073709551616
+```
+
+Nothing ever grows past twice the modulus's width, so the cost is one squaring
+per exponent bit rather than a result with `exponent * self.bitWidth` bits of it.
+`BigInt(2).power(1000000, mod: 7)` is instant; `BigInt(2).power(1000000) % 7`
+builds a million-bit number first.
+
+Three conventions, all Python's:
+
+**The result takes the sign of the modulus.** That is a floored remainder, unlike
+the truncated one `%` gives:
+
+```swift
+BigInt(-2).power(3, mod: 5)     //  2      -- floored, in 0..<5
+BigInt(-2).power(3) % 5         // -3      -- what `%` would say
+BigInt(2).power(3, mod: -5)     // -2      -- a negative modulus, negative result
+```
+
+**A negative exponent raises the modular inverse**, by the extended Euclidean
+algorithm — so `power(-1, mod:)` *is* the inverse:
+
+```swift
+BigInt(2).power(-1, mod: 5)     // 3   -- because 2*3 == 6 ≡ 1 (mod 5)
+BigInt(3).power(-3, mod: 7)     // 6
+BigInt(-3).power(-1, mod: 7)    // 2   -- -3 ≡ 4, and 4*2 ≡ 1
+BigInt(2).power(-1, mod: 4)     // traps: 2 and 4 are not coprime
+```
+
+**A zero modulus traps**, and a modulus of 1 leaves nothing behind — not even for
+an exponent of zero:
+
+```swift
+BigInt(5).power(3, mod: 1)      // 0
+BigInt(2).power(0, mod: 5)      // 1
+BigInt(2).power(0, mod: 1)      // 0
+```
+
+### Exponents wider than an `Int`
+
+The exponent may also be a `Self`, which is the form cryptography needs — an RSA
+exponent is as wide as its modulus:
+
+```swift
+let p = BigInt(1) << 127 - 1                  // a Mersenne prime
+BigInt(3).power(p - 1, mod: p)                // 1, by Fermat's little theorem
+BigUInt(3).power(BigUInt(1) << 100, mod: 1000000007)   // 870513414
+```
+
+A 2048-bit modexp with a 2048-bit exponent runs in tens of milliseconds in a
+release build. There is deliberately no `power(_: Self)` without a modulus to match: an exponent
+past `Int` has no representable answer there, since the result would want more
+bits than the machine has.
+
 ## Conversions
 
 ```swift
@@ -280,6 +343,8 @@ public protocol BigIntegerType : BinaryInteger, LosslessStringConvertible, Codab
     init?<S: StringProtocol>(_ text: S, radix: Int)
     func squareRoot() -> Self
     func power(_ exponent: Int) -> Self
+    func power(_ exponent: Int, mod modulus: Self) -> Self
+    func power(_ exponent: Self, mod modulus: Self) -> Self
     func greatestCommonDivisor(with other: Self) -> Self
 }
 
@@ -288,7 +353,9 @@ public protocol BigIntType  : BigIntegerType, SignedInteger where Magnitude : Bi
 ```
 
 `BigIntegerType` adds the operations `BinaryInteger` lacks; the other two say
-nothing further. All six are implemented generically in an extension, so a new
+nothing further. All of them are implemented generically in an extension, so a new
 conformer gets a working version of each for free and overrides only what is worth
 specializing — which is what `BigInt` and `BigUInt` do for `squareRoot()` and
-`greatestCommonDivisor(with:)`.
+`greatestCommonDivisor(with:)`. The three `power`s share a single
+square-and-multiply loop, which takes the modulus as an `Optional` and reduces
+after each step when it has one.

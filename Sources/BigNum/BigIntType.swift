@@ -29,6 +29,11 @@ public protocol BigIntegerType : BinaryInteger, LosslessStringConvertible, Codab
     func squareRoot() -> Self
     /// `self` raised to `exponent`.
     func power(_ exponent: Int) -> Self
+    /// `self` raised to `exponent`, reduced modulo `modulus` -- Python's
+    /// three-argument `pow()`.
+    func power(_ exponent: Int, mod modulus: Self) -> Self
+    /// The same, for an exponent too wide to be an `Int`.
+    func power(_ exponent: Self, mod modulus: Self) -> Self
     /// The greatest common divisor of `self` and `other`, always non-negative.
     func greatestCommonDivisor(with other: Self) -> Self
 }
@@ -153,8 +158,36 @@ extension BigIntegerType {
 // MARK: - the arithmetic that only needs BinaryInteger
 
 extension BigIntegerType {
-    /// Square-and-multiply.  A negative `exponent` has no integral answer, so it
-    /// yields 0 except for the two values that are their own reciprocal.
+    /// Square-and-multiply, shared by every `power`.  With a `modulus` each
+    /// intermediate is reduced as it is formed, so nothing grows past twice the
+    /// modulus's width; without one the products run free.
+    ///
+    /// `exponent` is generic so a modular exponent can be a big integer while an
+    /// ordinary one stays an `Int`, and it is taken non-negative -- the callers
+    /// have dealt with the sign already.  `modulus`, when given, must be
+    /// positive, and `self` must already be reduced into `0 ..< modulus`.
+    internal func _squareAndMultiply<E:BinaryInteger>(_ exponent: E, mod modulus: Self?) -> Self {
+        var result = Self(1)
+        // 1 is not reduced when the modulus is 1, and an exponent of 0 returns
+        // it untouched -- so reduce up front rather than special-casing that.
+        if let m = modulus { result %= m }
+        var (base, n) = (self, exponent)
+        while n > 0 {
+            if n & 1 == 1 {
+                result *= base
+                if let m = modulus { result %= m }
+            }
+            n >>= 1
+            if n > 0 {
+                base *= base
+                if let m = modulus { base %= m }
+            }
+        }
+        return result
+    }
+
+    /// A negative `exponent` has no integral answer, so it yields 0 except for
+    /// the two values that are their own reciprocal.
     public func power(_ exponent: Int) -> Self {
         if exponent == 0 { return 1 }
         if exponent == 1 { return self }
@@ -166,12 +199,75 @@ extension BigIntegerType {
             if Self.isSigned && self == 0 - 1 { return exponent % 2 == 0 ? 1 : self }
             return 0
         }
-        var (result, base, n) = (Self(1), self, exponent)
-        while n > 0 {
-            if n & 1 == 1 { result *= base }
-            n >>= 1
-            if n > 0 { base *= base }
+        return self._squareAndMultiply(UInt(exponent), mod: nil)
+    }
+
+    /// `self`⁻¹ mod `modulus` by the extended Euclidean algorithm, or nil when
+    /// the two are not coprime and no inverse exists.  `modulus` must be
+    /// positive and `self` reduced into `0 ..< modulus`.
+    ///
+    /// The Bézout coefficient is carried reduced modulo `modulus` rather than as
+    /// the signed value the textbook tracks, which keeps every intermediate
+    /// non-negative -- an unsigned `Self` could not hold the signed form.
+    internal func _inverse(mod modulus: Self) -> Self? {
+        var (r, nextR) = (self, modulus)
+        var (s, nextS) = (Self(1) % modulus, Self(0))    // self * s ≡ r (mod modulus)
+        while !nextR.isZero {
+            let q = r / nextR
+            (r, nextR) = (nextR, r - q * nextR)
+            let qs = ((q % modulus) * nextS) % modulus
+            (s, nextS) = (nextS, s >= qs ? s - qs : s + modulus - qs)
         }
+        return r == 1 ? s : nil
+    }
+
+    /// `self` raised to `exponent`, reduced modulo `modulus` -- Python's
+    /// three-argument `pow()`, with the same three conventions:
+    ///
+    /// * The result carries the **sign of `modulus`**, so it lands in
+    ///   `0 ..< modulus` for a positive one.  That is a floored remainder, not
+    ///   the truncated one `%` gives: `BigInt(-2).power(3, mod:5)` is 2, where
+    ///   `BigInt(-2).power(3) % 5` is -3.
+    /// * A **negative `exponent`** raises the modular inverse of `self`, so
+    ///   `x.power(-1, mod:m)` *is* that inverse.  It traps when `self` and
+    ///   `modulus` are not coprime, there being no inverse to return.
+    /// * A **zero `modulus`** traps.
+    ///
+    /// Only the modulus bounds the intermediates, so this stays cheap where
+    /// `power(_:)` could not run at all: `e` squarings of a value no wider than
+    /// `modulus`, rather than a result with `e * self.bitWidth` bits.
+    public func power(_ exponent: Int, mod modulus: Self) -> Self {
+        return self._power(exponent, mod: modulus)
+    }
+
+    /// `power(_:mod:)` for an exponent too large to be an `Int`, which is the
+    /// usual case in cryptography -- an RSA exponent is as wide as its modulus.
+    ///
+    /// There is deliberately no `power(_: Self)` to match: without a modulus an
+    /// exponent past `Int` has no representable answer anyway, since the result
+    /// would need more bits than the machine has.
+    public func power(_ exponent: Self, mod modulus: Self) -> Self {
+        return self._power(exponent, mod: modulus)
+    }
+
+    /// The two `power(_:mod:)`s, differing only in how wide an exponent they let
+    /// you write.
+    internal func _power<E:BinaryInteger>(_ exponent: E, mod modulus: Self) -> Self {
+        precondition(!modulus.isZero, "power(_:mod:) with a modulus of zero")
+        // Work in |modulus| throughout and put the sign back at the end.  The
+        // `< 0` tests all fold away for an unsigned `Self`, which could not
+        // evaluate `0 - modulus` anyway.
+        let m = modulus < 0 ? 0 - modulus : modulus
+        var base = self % m
+        if base < 0 { base += m }
+        if exponent < 0 {
+            guard let inverse = base._inverse(mod: m) else {
+                preconditionFailure("\(self) has no inverse modulo \(modulus)")
+            }
+            base = inverse
+        }
+        var result = base._squareAndMultiply(exponent.magnitude, mod: m)
+        if modulus < 0 && !result.isZero { result -= m }
         return result
     }
 

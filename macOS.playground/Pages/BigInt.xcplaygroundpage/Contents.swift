@@ -66,6 +66,29 @@ let m127 = BigInt(2).power(127) - 1
 m127                                // 170141183460469231731687303715884105727
 m127.description.count              // 39 digits
 
+//: ## Modular exponentiation -- `power(_:mod:)`, Python's three-argument `pow()`.
+//: Intermediates are reduced as they are formed, so nothing ever grows past
+//: twice the modulus's width.
+BigInt(2).power(10, mod: 1000)                      // 24
+BigInt(123456789).power(12345, mod: 1000000007)
+BigInt(2).power(1000000, mod: 7)    // instant; `power(1000000) % 7` would not be
+
+//: The result takes the sign of the modulus -- a floored remainder, where `%`
+//: gives a truncated one
+BigInt(-2).power(3, mod: 5)         //  2
+BigInt(-2).power(3) % 5             // -3, the same value in the other convention
+BigInt(2).power(3, mod: -5)         // -2
+
+//: A negative exponent raises the modular inverse
+BigInt(2).power(-1, mod: 5)         // 3, because 2*3 == 6 ≡ 1 (mod 5)
+BigInt(3).power(-3, mod: 7)         // 6
+//: BigInt(2).power(-1, mod: 4)     // would trap: 2 and 4 share a factor
+
+//: The exponent can be a BigInt too, which is what a Fermat test needs.  If
+//: m127 were composite this would almost certainly not be 1.
+BigInt(3).power(m127 - 1, mod: m127)            // 1
+BigInt(3).power(BigInt(1) << 100, mod: 1000000007)
+
 //: ## Strings and conversions
 BigInt(255).toString(radix:16)
 BigInt(255).toString(radix:16, uppercase:true)
