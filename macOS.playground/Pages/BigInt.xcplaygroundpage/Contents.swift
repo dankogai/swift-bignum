@@ -89,6 +89,67 @@ BigInt(3).power(-3, mod: 7)         // 6
 BigInt(3).power(m127 - 1, mod: m127)            // 1
 BigInt(3).power(BigInt(1) << 100, mod: 1000000007)
 
+//: ## Primality.  `isPrime` is a Bool? -- nil means "not proven", never "no"
+BigInt(1000003).isPrime                         // true
+BigInt(1000001).isPrime                         // false, 101 * 9901
+BigInt(561).isPrime                             // false -- a Carmichael number
+m127.isPrime                                    // true, since Lucas-Lehmer settles it
+(BigInt(1) << 300).nextPrime.isPrime            // nil -- probably prime, unproven
+
+//: At or below UInt64.max it is never nil -- that range is exhaustively
+//: verified -- so for numbers that size the force unwrap cannot trap
+BigInt(1000003).isPrime!                        // true
+BigInt(UInt64.max).isPrime!                     // false
+BigInt(-7).isPrime!                             // false
+
+//: The probable answer is still there under its own name, and `isSurelyPrime`
+//: hands back both halves.  A composite is provable at any size; a prime needs
+//: to be below 2^64, below A014233's last entry, or a Mersenne number.
+(BigInt(1) << 300).nextPrime.isProbablePrime    // true, where isPrime said nil
+BigInt(65537).isSurelyPrime                     // (true, surely: true)
+BigInt(561).isSurelyPrime                       // (false, surely: true)
+(BigInt(1) << 300).nextPrime.isSurelyPrime      // (true, surely: false)
+
+//: Both halves of BPSW pull their weight: 2047 == 23 * 89 slips past Miller-Rabin
+//: on base 2, and only the Lucas test catches it
+BigInt(2047).millerRabinTest(base: 2)           // true
+BigInt(2047).isLucasProbablePrime               // false
+BigInt(7).jacobiSymbol(3)                       // -1
+
+//: A Mersenne number has an exact test -- and `nil` means "not 2^p - 1 at all",
+//: which is not the same answer as `false`
+m127.isMersennePrime                            // true
+(BigInt(1) << 523 - 1).isMersennePrime          // false
+BigInt(100).isMersennePrime                     // nil
+
+//: Walking the primes.  nextPrime needs no Optional: there is no ceiling here.
+BigInt(1000).nextPrime                          // 1009
+(BigInt(1) << 64).nextPrime                     // 18446744073709551629
+(BigInt(1) << 64).prevPrime                     // 18446744073709551557
+BigInt(2).prevPrime                             // nil
+Array(BigInt.primes.prefix(10))
+
+/*:
+ ## All of the above, on the built-in integers
+
+ `Int`, `UInt`, `Int8` ... `UInt64` and `Int128` get every one of these.  Each
+ widens to `BigInt`, works there, and comes back -- so an answer that does not
+ fit traps, just as `*` would.
+ */
+Int(2).power(10)                                // 1024
+1000003.isPrime!                                // true -- never nil at this width
+UInt8(200).nextPrime                            // 211
+Int(1071).greatestCommonDivisor(with: 462)      // 21
+UInt(4611686018427387904).squareRoot()          // 2147483648
+Array(Int.primes.prefix(5))                     // [2, 3, 5, 7, 11]
+
+//: The modular form cannot overflow -- the answer is bounded by the modulus,
+//: which is an Int already.  `power(_:) % m` could not manage this.
+Int(2).power(1024, mod: 1_000_000_007)          // 812734592
+UInt8(200).power(200, mod: 251)                 // 1, where 200*200 overflows a UInt8
+//: Int(2).power(1024)                          // would trap: an Int has no such number
+//: Int8(127).nextPrime                         // would trap: 131 does not fit
+
 //: ## Strings and conversions
 BigInt(255).toString(radix:16)
 BigInt(255).toString(radix:16, uppercase:true)
