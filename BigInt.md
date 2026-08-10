@@ -162,6 +162,9 @@ BigInt(1071).greatestCommonDivisor(with: 462)    // 21
 BigInt(-12).greatestCommonDivisor(with: 18)      // 6   -- always non-negative
 ```
 
+There is a `**` operator for `power(_:)`, in a separate module so that it stays
+off unless imported — see [the README](README.md#the-exponentiation-operator-on-demand).
+
 `squareRoot()` is ⌊√self⌋ by Newton's method and traps on a negative value.
 `greatestCommonDivisor(with:)` is Stein's binary GCD, working on the limbs
 directly — it is on `BigRat`'s hot path, since every rational reduces on

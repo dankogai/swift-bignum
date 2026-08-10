@@ -68,6 +68,36 @@ modular form never overflows, which is what makes it worth having.
 [BigInt.md](BigInt.md#on-the-built-in-integers-too) has the full table of which
 operations can trap.
 
+## The exponentiation operator, on demand
+
+`**` is not part of `BigNum`. It lives in a second module, so it appears only
+where you ask for it:
+
+```swift
+import BigNum                 // no ** in scope
+import BigNumOperators        // ** available, and BigNum comes with it
+```
+
+```swift
+2 ** 10                       // 1024              -- Int.power(10)
+BigInt(2) ** 256              // exact              -- BigInt.power(256)
+2.0 ** 0.5                    // 1.4142135623730951 -- Double.pow(2, 0.5)
+BigFloat(2) ** 10             // 1024               -- BigFloat.pow(x, 10)
+```
+
+It forwards to `power` on the integers and to `pow` on the `Real`s, and carries
+whatever those carry: `Int(2) ** 1024` traps like `*`, and `**` on a `BigRat`
+rounds to `precision` bits — it is `pow`, not repeated multiplication, so
+`BigRat(1,3) ** 2` is not `(1/9)` while `BigRat(1,3) * BigRat(1,3)` is.
+
+Two notes on parsing. `**` binds tighter than `*` and associates to the right, so
+`2 ** 3 ** 2` is 512. But Swift binds prefix `-` tighter than any infix operator,
+so `-2 ** 2` is 4 where Python says -4; write `-(2 ** 2)` when you mean that.
+
+Swift has no submodules, so `import BigNum.operators` is not a spelling that can
+be built — a separate module is what the language offers, and it gates the
+operator exactly the way you would want.
+
 ## `over`: fractions from integers
 
 `over(_:)` is the idiomatic way to build a rational. It reads as the fraction bar —
