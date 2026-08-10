@@ -12,6 +12,8 @@ import BigNum
 
 BigInt(2).power(256)            // 115792089237316195423570985008687907853269984665640564039457584007913129639936
 BigInt(3).power(BigInt(1) << 100, mod: 1000000007)  // 870513414 -- Python's pow(b, e, m)
+BigInt(1000003).isPrime!        // true -- a Bool?, but never nil below 2^64
+1000003.isPrime!                // ... and all of this works on Int and UInt8 too
 1.over(3) + 1.over(6)           // (1/2) -- `over` turns two integers into a fraction
 BigRat(1,3) + BigRat(1,3) + BigRat(1,3) == 1    // true.  Not "true to 17 digits".
 BigFloat.sqrt(2)                // 1.414213562373095048801688724209698078569
@@ -45,6 +47,26 @@ its storage stays put and its arithmetic rounds. The one-line version:
 BigRat(1)/BigRat(3) * 3 == 1        // true  -- exact
 BigFloat(1)/BigFloat(3) * 3 == 1    // false -- rounded to `precision` bits
 ```
+
+## The built-in integers get all of it
+
+`power`, `power(_:mod:)`, `isPrime`, `squareRoot`, `greatestCommonDivisor`,
+`nextPrime` and the rest are on `Int`, `UInt`, `Int8` … `UInt64` and `Int128` as
+well as on `BigInt`:
+
+```swift
+Int(2).power(10)                        // 1024
+1000003.isPrime!                        // true
+UInt8(200).nextPrime                    // 211
+Int(2).power(1024, mod: 1_000_000_007)  // 812734592 -- no overflow, ever
+```
+
+Each widens to `BigInt`, computes there, and comes back — so where the answer
+does not fit, it traps, exactly as `*` would. `Int(2).power(1024)` is not a number
+an `Int` has, and `BigInt(2).power(1024)` is right there when you need it. The
+modular form never overflows, which is what makes it worth having.
+[BigInt.md](BigInt.md#on-the-built-in-integers-too) has the full table of which
+operations can trap.
 
 ## `over`: fractions from integers
 
@@ -164,7 +186,7 @@ the `BigNum` module is built, then open the playground.
 ## Documentation
 
 * [BigInt.md](BigInt.md) — `BigInt` and `BigUInt`: representation, bit twiddling,
-  division semantics, number theory
+  division semantics, number theory, primality
 * [BigRat.md](BigRat.md) — `BigRat`: exact rationals, the `FloatingPoint`
   conformance, `IntRat` and the other fixed-width rationals
 * [BigFloat.md](BigFloat.md) — `BigFloat`: mantissa and scale, rounding,
