@@ -207,9 +207,11 @@ BigRat.atan2(y:1,x:1)           // +0.7853981633974483096156608458198757210488
 BigRat(2).power(10)             // (1024/1) -- integer exponent, exact
 ```
 
-√2, e, log 2, log 10 and π/4 are memoized per precision, so asking twice at the
-same precision is free. The memo is a plain `static var`, which is why
-`ElementaryFunctionsTests` is `.serialized`.
+√2, e, log 2, log 10 and π/4 are not computed at all below 512 bits: each is a
+640-bit literal, truncated to what you asked for. Above 512 bits, √2 is refined
+from its seed by Newton-Raphson and the rest are summed. Nothing is cached, so
+there is no shared state to synchronise and the answer does not depend on what ran
+before it — see [Constants.swift](Sources/BigNum/Constants.swift).
 
 ## Strings
 

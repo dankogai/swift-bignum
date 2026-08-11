@@ -49,27 +49,25 @@ that is a migration and not a recompile.
 
 ### Thread safety
 
-`BigRat` and `BigFloat` memoise π/4, e, √2, ln 2 and ln 10 per precision in
-`static var`s — the only mutable globals in the package. They were unsynchronised,
-which was worse than it sounds: the cached value owns a reference-counted array,
-so two threads populating one at once corrupted a refcount rather than merely
-disagreeing about a number, and the symptom was an aborted process. It showed up
-as one flaky Linux CI run and took a concurrent stress test under the thread
-sanitiser to pin down, which named `static BigRational.E.setter`.
+Safe, and with nothing to synchronise.
 
-**That is now fixed.** Every read and every write of those five goes through one
-mutex ([Lock.swift](Sources/BigNum/Lock.swift)), and the lock is held only across
-a tuple copy — never across a computation, because computing one constant asks for
-another (`BigFloat.E` delegates to `BigRat.E`; `LN10` goes through `log`, which
-wants `LN2`) and a lock spanning that would deadlock on itself. Two threads can
-therefore compute the same constant at once and one result is dropped: wasted work,
-never a wrong answer, since the value is a deterministic function of the precision.
+π/4, e, √2, ln 2 and ln 10 used to be memoised per precision in `static var`s —
+the only mutable globals in the package, and the source of its only data race. The
+cached value owns a reference-counted array, so two threads filling one at once
+corrupted a refcount rather than merely disagreeing about a number, and the symptom
+was an aborted process. It showed up as one flaky Linux CI run and took a
+concurrent stress test under the thread sanitiser to pin down.
 
-So concurrent arithmetic, concurrent transcendentals and concurrent integer work
-are all safe. `BigInt` and `BigUInt` never had a problem — they have no mutable
-static state at all.
+They are no longer cached. Each is a 640-bit literal, verified against an
+independent source, and a request at or below 512 bits is a truncation of it. Above
+512 bits, √2 is refined from the seed by Newton-Raphson and the others are summed —
+computed fresh, not stored. So the answer never depends on what ran before it, on
+which thread, or in what order, and there is no lock to contend for either. See
+[Constants.swift](Sources/BigNum/Constants.swift).
 
-What remains is **configuration**, and it is a contract rather than a fix:
+`BigInt` and `BigUInt` never had a problem: no mutable static state at all.
+
+What remains is **configuration**, and it is a contract rather than a defect:
 
 ```swift
 BigFloat.precision      // settable, and read pervasively
@@ -77,17 +75,17 @@ BigFloat.roundingRule
 BigFloat.expLimit
 ```
 
-These are read in default arguments all over the package — `truncated(width:)` and
-every `precision:`-taking function reach for them — so guarding each read would
-cost more than it buys, and a lock cannot be wrapped around a default argument
-anyway. **Set them before you start concurrent work.** Reading them concurrently
-is fine; writing one while other threads compute is a data race, and `expLimit`
-holds a value type, so a concurrent write to *that* one corrupts rather than
-merely going stale.
+These are read in default arguments throughout the package — `truncated(width:)`
+and every `precision:`-taking function reaches for them — so a lock cannot be
+wrapped around a default argument, and guarding each read would cost more than it
+buys. **Set them before you start concurrent work.** Reading them concurrently is
+fine; writing one while other threads compute is a data race, and `expLimit` holds
+a value type, so a concurrent write to that one corrupts rather than merely going
+stale.
 
-attaswift has no mutable static state anywhere, so it needed none of this. If you
-are porting from it and you set `precision` at startup — which is the ordinary
-thing to do — there is nothing here to change.
+attaswift has no mutable static state anywhere, so it needed none of this. Porting
+from it and setting `precision` at startup — the ordinary thing to do — there is
+nothing here to change.
 
 ## Missing: the same capability under another name
 

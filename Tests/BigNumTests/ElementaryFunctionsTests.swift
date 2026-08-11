@@ -16,13 +16,11 @@ import Testing
 /// wrong branch of its continued fraction, or `logGamma` drifting at 256 bits.
 /// Those need a value-comparison suite, which this deliberately is not.
 ///
-/// `.serialized` is load-bearing, not a style choice.  ElementaryFunctions.swift
-/// memoizes √2, e, log 2, log 10 and π/4 in plain `static var`s, and `asin`,
-/// `acos`, `log2`, `log10` and `atan2` all reach them.  Value and precision go
-/// into one assignment, so a reader cannot pick up a NaN a writer has not filled
-/// in yet, but an `Int` beside a BigInt-backed struct still is not written
-/// atomically and two threads can tear one.
-///
+/// `.serialized` is kept for run-to-run stability of the timings this suite prints,
+/// not for correctness.  It used to be load-bearing: the constants were memoised in
+/// `static var`s and two tests touching them at once could corrupt the cache.  They
+/// are literals now (see Constants.swift), with nothing to share, so
+/// `ConcurrencyTests` exercises them from 64 threads on purpose.
 @Suite(.serialized) struct ElementaryFunctionsTests {}
 
 private typealias D = Double
