@@ -135,6 +135,39 @@ internal func _multiply(_ a: [UInt], byLimb k: UInt) -> [UInt] {
     return r
 }
 
+/// `a = a * k + addend`, in place.  One pass and at most one append, where
+/// `_multiply(_:byLimb:)` followed by `_add` would allocate twice -- which is the
+/// difference between one allocation and two per digit chunk when parsing.
+internal func _multiplyInPlace(_ a: inout [UInt], byLimb k: UInt, adding addend: UInt) {
+    if k == 0 {
+        a.removeAll(keepingCapacity: true)
+        if addend != 0 { a.append(addend) }
+        return
+    }
+    var carry = addend
+    for i in 0 ..< a.count {
+        let (high, low) = k.multipliedFullWidth(by: a[i])
+        let (s, o) = low.addingReportingOverflow(carry)
+        a[i] = s
+        carry = high &+ (o ? 1 : 0)
+    }
+    if carry != 0 { a.append(carry) }
+}
+
+/// `a /= d`, in place, returning the remainder.  The counterpart of the above,
+/// for the loop that peels digit chunks off a value on the way out.
+internal func _divideInPlace(_ a: inout [UInt], byLimb d: UInt) -> UInt {
+    precondition(d != 0, "division by zero")
+    var rem: UInt = 0
+    var i = a.count - 1
+    while 0 <= i {
+        (a[i], rem) = d.dividingFullWidth((high: rem, low: a[i]))
+        i -= 1
+    }
+    _normalize(&a)
+    return rem
+}
+
 /// Below this many limbs, schoolbook multiplication beats Karatsuba's bookkeeping.
 internal let _karatsubaLimit = 40
 
@@ -203,29 +236,42 @@ internal func _shiftLeft(_ a: [UInt], _ k: Int) -> [UInt] {
 /// `a << k` where `a` is two's complement with `ext` above it, so the bits
 /// shifted in at the top are sign and not zero.
 internal func _shiftLeft(_ a: [UInt], signExtension ext: UInt, _ k: Int) -> [UInt] {
-    let (limbs, bits) = (k / UInt.bitWidth, k % UInt.bitWidth)
-    let n = a.count + limbs + 1
-    var r = [UInt](repeating: 0, count: n)
-    for i in 0 ..< n {
-        let j = i - limbs
-        let cur  = j     < 0 ? 0 : (j     < a.count ? a[j]     : ext)
-        let prev = j - 1 < 0 ? 0 : (j - 1 < a.count ? a[j - 1] : ext)
-        r[i] = bits == 0 ? cur : (cur << bits) | (prev >> (UInt.bitWidth - bits))
+    let (whole, bits) = (k / UInt.bitWidth, k % UInt.bitWidth)
+    // A whole number of limbs moves without touching a bit.
+    if bits == 0 {
+        var r = [UInt](repeating: 0, count: whole)
+        r.reserveCapacity(whole + a.count + 1)
+        r.append(contentsOf: a)
+        r.append(ext)
+        return r
     }
+    // Otherwise one pass, carrying each limb's displaced top bits into the next.
+    // The bounds and the bits == 0 test used to be inside the loop, which cost
+    // four branches per limb on the package's second-cheapest operation.
+    let inverse = UInt.bitWidth - bits
+    var r = [UInt](repeating: 0, count: a.count + whole + 1)
+    var carried: UInt = 0
+    for i in 0 ..< a.count {
+        r[i + whole] = (a[i] << bits) | carried
+        carried = a[i] >> inverse
+    }
+    r[a.count + whole] = (ext << bits) | carried
     return r
 }
 
 /// `a >> k`, arithmetically: `ext` fills in from the left.
 internal func _shiftRight(_ a: [UInt], signExtension ext: UInt, _ k: Int) -> [UInt] {
-    let (limbs, bits) = (k / UInt.bitWidth, k % UInt.bitWidth)
-    if a.count <= limbs { return [ext] }    // everything shifted out: 0 or -1
-    var r = [UInt](repeating: 0, count: a.count - limbs)
-    for i in 0 ..< r.count {
-        let j = i + limbs
-        let cur  = j     < a.count ? a[j]     : ext
-        let next = j + 1 < a.count ? a[j + 1] : ext
-        r[i] = bits == 0 ? cur : (cur >> bits) | (next << (UInt.bitWidth - bits))
+    let (whole, bits) = (k / UInt.bitWidth, k % UInt.bitWidth)
+    if a.count <= whole { return [ext] }    // everything shifted out: 0 or -1
+    let count = a.count - whole
+    if bits == 0 { return Array(a[whole ..< a.count]) }
+    let inverse = UInt.bitWidth - bits
+    var r = [UInt](repeating: 0, count: count)
+    for i in 0 ..< count - 1 {
+        r[i] = (a[i + whole] >> bits) | (a[i + whole + 1] << inverse)
     }
+    // only the last limb reaches past the end, where the sign extension lives
+    r[count - 1] = (a[a.count - 1] >> bits) | (ext << inverse)
     return r
 }
 
@@ -237,6 +283,24 @@ internal func _shiftRight(_ a: [UInt], signExtension ext: UInt, _ k: Int) -> [UI
 /// builds -- and going through `BinaryInteger`'s witnesses there cost an
 /// unspecialized call and a fresh array per iteration.  Same algorithm, in place.
 ///
+/// Binary GCD on single words, for the operands that fit in one -- which is
+/// every `Int`-sized pair, and is `BigRat`'s hot path since every rational
+/// reduces on construction.
+internal func _gcdLimb(_ a: UInt, _ b: UInt) -> UInt {
+    if a == 0 { return b }
+    if b == 0 { return a }
+    var (x, y) = (a, b)
+    let twos = Swift.min(x.trailingZeroBitCount, y.trailingZeroBitCount)
+    x >>= x.trailingZeroBitCount
+    y >>= y.trailingZeroBitCount
+    while x != y {
+        if x < y { swap(&x, &y) }
+        x -= y
+        x >>= x.trailingZeroBitCount
+    }
+    return x << twos
+}
+
 internal func _gcd(_ a: [UInt], _ b: [UInt]) -> [UInt] {
     if a.isEmpty { return b }
     if b.isEmpty { return a }
@@ -586,6 +650,10 @@ extension BigUInt : Strideable {
 
 extension BigUInt {
     public func greatestCommonDivisor(with other: BigUInt) -> BigUInt {
+        if limbs.count <= 1 && other.limbs.count <= 1 {
+            let g = _gcdLimb(limbs.first ?? 0, other.limbs.first ?? 0)
+            return BigUInt(normalized: g == 0 ? [] : [g])
+        }
         return BigUInt(normalized: _gcd(self.limbs, other.limbs))
     }
 

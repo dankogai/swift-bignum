@@ -19,8 +19,14 @@ set -e
 cd "$(dirname "$0")/.."
 mkdir -p .out
 
+# macOS ships /usr/bin/ruby, and a Mac with Homebrew or MacPorts on PATH has a
+# much newer one that measures very differently.  Default to the system copy and
+# say which was used; override with RUBY=/path/to/ruby.
+RUBY="${RUBY:-/usr/bin/ruby}"
+command -v "$RUBY" > /dev/null 2>&1 || RUBY=ruby
+
 missing=""
-for tool in node python3 ruby; do
+for tool in node python3 "$RUBY"; do
     command -v "$tool" > /dev/null 2>&1 || missing="$missing $tool"
 done
 if [ -n "$missing" ]; then
@@ -35,8 +41,8 @@ echo "=== node" >&2
 node    cross/bench.js .out/inputs.tsv .out
 echo "=== python" >&2
 python3 cross/bench.py .out/inputs.tsv .out
-echo "=== ruby" >&2
-ruby    cross/bench.rb .out/inputs.tsv .out
+echo "=== ruby ($RUBY, $("$RUBY" -e 'print RUBY_VERSION'))" >&2
+"$RUBY" cross/bench.rb .out/inputs.tsv .out
 
 echo "=== merging" >&2
 python3 cross/merge.py .out
