@@ -26,15 +26,18 @@
 //
 //   *  ln 2 by Newton is `x ← x - 1 + 2·exp(-x)`, and `exp` reduces its argument
 //      by ln 2.
-//   *  π/4 by Newton wants a trigonometric function, and those reduce their
-//      arguments by π.
+//   *  π/4 does not refine from its seed either -- Newton would want a
+//      trigonometric function, and those reduce their arguments by π -- but it does
+//      not need to: Gauss-Legendre doubles its correct bits every pass, so it
+//      reaches any precision in a number of passes proportional to the logarithm
+//      of it.
 //   *  ln 10 could be refined through `exp` (which needs only ln 2, so no cycle),
 //      and e through `log` for the same reason -- but e's own series converges
 //      superexponentially, so from-scratch is already fast, and ln 10 is one `log`
 //      call either way.
 //
-//  Above 512 bits those four run the series they always ran, at the precision
-//  asked for and without caching the result.  Those series were slow and are less
+//  Above 512 bits e, ln 2 and ln 10 run the series they always ran, at the
+//  precision asked for and without caching the result; π/4 runs Gauss-Legendre.  Those series were slow and are less
 //  so: at 4096 bits pi/4 went from 502ms to 68ms, ln 2 from 3.2s to 0.8s, e from
 //  475ms to 235ms and sqrt 2 from 2.1ms to 1.1ms.  Almost none of that came from
 //  the loops -- it came from `_gcd` learning that a power-of-two operand shares
@@ -186,38 +189,41 @@ extension BigFloatingPoint {
         let apx = Swift.abs(px)
         if apx <= _Constant.seedBits { return Self(_Constant.atan1).truncated(width: apx) }
         if Self.self != BigRat.self { return Self(BigRat.ATAN1(precision: apx)) }
-        let epsilon = getEpsilon(precision: apx)
-        // Working width for the running sum.  Without this the sum is an *exact*
-        // rational, so its denominator becomes the least common multiple of every
-        // term's -- one new odd factor and ten more powers of two per iteration --
-        // and the arithmetic slows down as it goes.  Truncating each step holds the
-        // denominator at a power of two of fixed size.  The spare bits cover the
-        // truncation error accumulating over the iterations: there are about
-        // `apx/10` of them, so 64 is generous.
+        // Gauss-Legendre.  `a` and `b` converge on their arithmetic-geometric mean
+        // and the number of correct bits doubles every pass, so 4096 bits is ten
+        // passes rather than the four hundred terms a Machin-like series needs.
+        //
+        // It replaced Bellard's formula here, which was correct and slower: at 4096
+        // bits 68ms became 27ms, at 2048 15ms became 9ms.  Less than the change in
+        // shape suggests, because each pass needs a square root and ours is not
+        // asymptotically sharp -- so the advantage narrows as precision grows rather
+        // than widening.  The cost now sits in a primitive that can be improved on
+        // its own.
+        //
+        // `b` starts at 1/√2, which the seed above hands over for nothing.
         let working = apx + 64
-        var p64 = Self(0)
-        for i in 0 ..< Int(apx.magnitude) {
-            var t = Self(0)
-            t -= Self(1<<5) / Self( 4 * i + 1)
-            t -= Self(1<<0) / Self( 4 * i + 3)
-            t += Self(1<<8) / Self(10 * i + 1)
-            t -= Self(1<<6) / Self(10 * i + 3)
-            t -= Self(1<<2) / Self(10 * i + 5)
-            t -= Self(1<<2) / Self(10 * i + 7)
-            t += Self(1<<0) / Self(10 * i + 9)
-            if 0 < i { t /= Self(IntType(1) << (10 * i)) }
-            // Truncated as well as the sum: with a power-of-two denominator on both
-            // sides the addition is a shift and an add, where an exact term would
-            // drag its own odd factors through every remaining iteration.
-            t.truncate(width: working)
-            // The terms alternate.  Dropping this sign is exactly the mistake I
-            // made transcribing the series, and no test below 512 bits could see
-            // it, since those are answered by the seed.
-            p64 += i & 1 == 1 ? -t : t
-            p64.truncate(width: working)
-            if db && i % 16 == 0 { print("\(Self.self).ATAN1: i=\(i)") }
-            if t < epsilon { break }
+        let epsilon = getEpsilon(precision: apx)
+        var a = Self(1)
+        var b = (SQRT2(precision: working) / 2).truncated(width: working)
+        var t = Self(1) / Self(4)
+        var p = Self(1)
+        var passes = 0
+        while passes < 64 {
+            let aNext = ((a + b) / 2).truncated(width: working)
+            let bNext = (a * b).truncated(width: working)
+                          .squareRoot(precision: working).truncated(width: working)
+            let d = (a - aNext).truncated(width: working)
+            t = (t - p * d * d).truncated(width: working)
+            p = p * 2
+            passes += 1
+            let converged = (aNext - bNext).magnitude < epsilon
+            a = aNext
+            b = bNext
+            if db { print("\(Self.self).ATAN1: pass \(passes)") }
+            if converged { break }
         }
-        return (p64 / Self(1<<8)).truncated(width: apx)
+        let sum = (a + b).truncated(width: working)
+        // π = (a+b)²/4t, so π/4 is that over four again
+        return (sum * sum / (16 * t)).truncated(width: apx)
     }
 }
