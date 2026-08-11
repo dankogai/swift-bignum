@@ -413,6 +413,57 @@ though it were a fact. Here that case is `nil`.
 [A014233]: https://oeis.org/A014233
 [swift2-pons]: https://github.com/dankogai/swift2-pons
 
+## Random values
+
+```swift
+BigUInt.random(withMaximumWidth: 1024)      // 0 ..< 2^1024
+BigUInt.random(withExactWidth: 1024)        // exactly 1024 bits, so 2^1023 ..< 2^1024
+BigUInt.random(lessThan: n)                 // 0 ..< n
+BigInt.random(from: -100, to: 100)          // -100 ... 100
+```
+
+Each takes an optional generator — `random(lessThan: n, using: &myGenerator)` —
+and uses `SystemRandomNumberGenerator` without one. Seed your own and the
+sequence is reproducible, which is what the tests do.
+
+**`random(from:to:)` is closed: `to:` is reachable.** Swift usually reads `to:` as
+excluding and `through:` as including, so this is worth knowing. Both ends of an
+arbitrary-precision range are ordinary values with nothing special about either,
+and "a number between these two" wants both of them.
+
+```swift
+BigInt.random(from: 0, to: 1)               // 0 or 1, never anything else
+BigUInt.random(from: 5, to: 5)              // 5
+```
+
+The width forms return non-negative values on `BigInt` too: a width says how many
+bits the magnitude has and nothing about a sign. Negate on a coin flip if you want
+one.
+
+**`lessThan:` and `from:to:` sample without bias.** They draw exactly as many bits
+as the bound needs and draw again if the result is out of range — rejection, which
+discards under half the draws, so fewer than two tries on average and no value
+favoured. Scaling a draw down with `%` would be shorter and would skew the low
+end: for a limit of 5, three bits give 0…7, and remainder hands 0, 1 and 2 twice
+the share of 3 and 4. `RandomTests` asserts the even distribution and would catch
+that.
+
+These are on the built-in integers too, delegating like everything else:
+
+```swift
+Int.random(from: -100, to: 100)
+UInt8.random(lessThan: 200)
+UInt64.random(withExactWidth: 64)
+Int8.random(withMaximumWidth: 100)          // traps: 100 bits is not an Int8
+```
+
+The standard library's `Int.random(in: 1...10)` is untouched and remains the
+idiomatic spelling for a fixed-width range. These exist so generic code can say
+`T.random(...)` for any integer this package touches, `BigInt` included.
+
+attaswift spells the first three `randomInteger(...)`; see
+[CAVEAT.md](CAVEAT.md#missing-the-same-capability-under-another-name).
+
 ## `over`: making fractions out of integers
 
 Every integer here has an `over(_:)`, which is the idiomatic way to build a
