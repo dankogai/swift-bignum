@@ -248,6 +248,9 @@ the `BigNum` module is built, then open the playground.
   truncation, parsing
 * [Benchmark.md](Benchmark.md) — `BigInt` against attaswift/BigInt, JavaScript,
   Python and Ruby, and the one place any of them disagree
+* [CAVEAT.md](CAVEAT.md) — every way this `BigInt` is *not* a drop-in replacement
+  for attaswift's, measured by compiling all 106 of its public members against
+  ours
 
 # Prerequisite
 
@@ -269,9 +272,15 @@ Swift 6 or 5, macOS or Linux.
 * Versions before that depended on [dankogai/swift-floatingpoint] for the
   `FloatingPointMath` protocols, replaced by `ElementaryFunctions`.
 
-Code written against either former dependency keeps compiling: the protocol
-requirement sets are unchanged, and `BigInt` and `BigUInt` keep the names and the
-API attaswift gave them. Two deliberate breaks:
+Code written against swift-numerics keeps compiling — the protocol requirement
+sets are unchanged. Code written against attaswift's `BigInt` mostly does, but not
+entirely: of its 106 public members, 50 compile against ours and 56 do not.
+**[CAVEAT.md](CAVEAT.md) lists all of them**, along with the two differences that
+compile and then behave differently. The largest groups are attaswift's random
+generators, its `Data` serialization, and the API through which it publishes its
+sign-and-magnitude word representation.
+
+Two of those differences are worth repeating here:
 
 * **`Codable`** — a `BigInt` now encodes as a base-16 string rather than
   attaswift's sign-and-words form, so archives written by 5.x will not decode.
