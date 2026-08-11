@@ -423,11 +423,6 @@ extension BigFloat : FloatingPoint{
 // and finally
 extension BigFloat : BigFloatingPoint {
     public typealias IntType = BigInt
-    public static var ATAN1 = (precision:0, value:nan)
-    public static var E     = (precision:0, value:nan)
-    public static var SQRT2 = (precision:0, value:nan)
-    public static var LN2   = (precision:0, value:nan)
-    public static var LN10  = (precision:0, value:nan)
     public init(_ value: BigRat) {
         self.init(value, precision:BigFloat.precision, round:BigFloat.roundingRule)
     }

@@ -85,95 +85,10 @@ public protocol RealFunctions : ElementaryFunctions {
 }
 
 extension BigFloatingPoint {
-    // constants
-    /// √2
-    public static func SQRT2(precision px:Int=Self.precision, debug db:Bool=false)->Self {
-        let apx = Swift.abs(px)
-        if apx <= SQRT2.precision { return SQRT2.value.truncated(width: apx) }
-        let v = Self(2).squareRoot(precision: apx)
-        SQRT2 = (precision: apx, value: v)  // publish together, value first
-        return v
-    }
-    /// euler's constant
-    public static func E(precision px:Int=Self.precision, debug db:Bool=false)->Self {
-        let apx = Swift.abs(px)
-        if apx <= E.precision { return E.value.truncated(width: apx) }
-        let v:Self = E.value is BigRat ? {
-            let epsilon = getEpsilon(precision: px)
-            var (e, d) = (Self(1), Self(1))
-            for i in 1 ... apx {
-                d *= Self(i)
-                let t = d.reciprocal!
-                e += t
-                if t < epsilon { break }
-            }
-            return e.truncated(width: apx)
-        }() : Self(BigRat.E(precision: apx))
-        E = (precision: apx, value: v)      // publish together, value first
-        return v
-    }
-    /// log(2)
-    public static func LN2(precision px:Int=Self.precision, debug db:Bool = false)->Self {
-        let apx = Swift.abs(px)
-        if apx <= LN2.precision { return LN2.value.truncated(width: apx) }
-        let v:Self = LN2.value is BigRat ? {
-            let epsilon = getEpsilon(precision: px)
-            var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
-            for i in 1...px.magnitude {
-                t *= Self(1)/Self(9)
-                if db { print("\(Self.self).LN2: i=\(i), r=~\(r)") }
-                if t < epsilon { break }
-                r += t / Self(2 * i + 1)
-            }
-            return (2*r).truncated(width: apx)
-        }() : Self(BigRat.LN2(precision: apx))
-        LN2 = (precision: apx, value: v)    // publish together, value first
-        return v
-    }
-    /// log(10)
-    public static func LN10(precision px:Int=Self.precision, debug db:Bool=false)->Self {
-        let apx = Swift.abs(px)
-        if apx <= LN10.precision { return LN10.value.truncated(width: apx) }
-        let v = Self.log(10, precision:apx)
-        LN10 = (precision: apx, value: v)   // publish together, value first
-        return v
-    }
-    /// π/4 in precision `px`.  Bellard's Formula
-    public static func ATAN1(precision px:Int=Self.precision, debug db:Bool=false)->Self {
-        if leastNormalMagnitude != 0 {  // FIXME: this trick is dirty
-            return Self.pi / 4
-        }
-        let apx = Swift.abs(px)
-        if apx <= ATAN1.precision { return ATAN1.value.truncated(width: apx) }
-        let v:Self = ATAN1.value is BigRat ? {
-            let epsilon = getEpsilon(precision: px)
-            var p64 = Self(0)
-            for i in 0..<Int(apx.magnitude) {
-                var t = Self(0)
-                t -= Self(1<<5) / Self( 4 * i + 1)
-                t -= Self(1<<0) / Self( 4 * i + 3)
-                t += Self(1<<8) / Self(10 * i + 1)
-                t -= Self(1<<6) / Self(10 * i + 3)
-                t -= Self(1<<2) / Self(10 * i + 5)
-                t -= Self(1<<2) / Self(10 * i + 7)
-                t += Self(1<<0) / Self(10 * i + 9)
-                if 0 < i {
-                    t /= Self(IntType(1) << (10 * i))
-                }
-                p64 += i & 1 == 1 ? -t : t
-                // p64.truncate(px)
-                if db {
-                    print("\(Self.self).ATAN1(precision:\(px)):i=\(i),t.bits=\(t)")
-                }
-                // t.truncate(px)
-                if t < epsilon { break }
-            }
-            p64 /= Self(1<<8)
-            return p64.truncated(width: apx)
-        }() : Self(BigRat.ATAN1(precision: apx))
-        ATAN1 = (precision: apx, value: v)  // publish together, value first
-        return v
-    }
+    // The five constants live in Constants.swift, where they are literals refined
+    // on demand rather than a cache filled on first use.  That file says why the
+    // memo -- and the lock that had to guard it -- are gone.
+
     /// π in precision `px`.  4*atan(1)
     public static func PI(precision px:Int=Self.precision, debug db:Bool=false)->Self {
         return ATAN1(precision: Swift.abs(px)) * 4

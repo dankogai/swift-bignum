@@ -49,40 +49,43 @@ that is a migration and not a recompile.
 
 ### Thread safety
 
-`BigRat` and `BigFloat` memoise π/4, e, √2, ln 2 and ln 10 per precision in
-`static var`s, and their `precision`, `roundingRule` and `expLimit` are settable
-statics too. **None of it is synchronised.** Two threads asking for a
-transcendental at the same time can read and write one of those memos at once,
-and because the stored value owns a reference-counted array, the failure mode is
-not a wrong answer but a corrupted heap.
+Safe, and with nothing to synchronise.
 
-It is intermittent and it does happen: one Linux CI run of this very pull request
-aborted with `SIGABRT` and passed on re-run, and the thread sanitiser, given a
-concurrent stress test, names the race — `static BigRational.E.setter`. It
-reproduces perhaps one run in ten, which is why it went unnoticed.
+π/4, e, √2, ln 2 and ln 10 used to be memoised per precision in `static var`s —
+the only mutable globals in the package, and the source of its only data race. The
+cached value owns a reference-counted array, so two threads filling one at once
+corrupted a refcount rather than merely disagreeing about a number, and the symptom
+was an aborted process. It showed up as one flaky Linux CI run and took a
+concurrent stress test under the thread sanitiser to pin down.
 
-Scope, which is narrower than it sounds:
+They are no longer cached. Each is a 640-bit literal, verified against an
+independent source, and a request at or below 512 bits is a truncation of it. Above
+512 bits, √2 is refined from the seed by Newton-Raphson and the others are summed —
+computed fresh, not stored. So the answer never depends on what ran before it, on
+which thread, or in what order, and there is no lock to contend for either. See
+[Constants.swift](Sources/BigNum/Constants.swift).
 
-* **`BigInt` and `BigUInt` are unaffected.** They have no mutable static state at
-  all — checked file by file — so integer code is as safe concurrently as any
-  other value type.
-* **`BigRat` and `BigFloat` arithmetic** (`+`, `*`, `/`, comparison, conversion)
-  is also unaffected. Only the transcendental functions and `precision` touch the
-  shared statics.
-* So the exposure is concurrent calls to `exp`, `log`, `pow`, `sqrt`, the
-  trigonometrics, `pi`, or assignment to `precision`.
+`BigInt` and `BigUInt` never had a problem: no mutable static state at all.
 
-Until it is fixed, confine those to one thread or serialise around them.
+What remains is **configuration**, and it is a contract rather than a defect:
 
-**attaswift has no mutable static state anywhere**, so this is a way code that was
-thread-safe against it can stop being thread-safe here. Both libraries declare
-their types `Sendable`; ours is telling the truth about the values and not about
-the constants beside them.
+```swift
+BigFloat.precision      // settable, and read pervasively
+BigFloat.roundingRule
+BigFloat.expLimit
+```
 
-This is a defect rather than a design difference, and unlike everything else in
-this document it should be fixed rather than documented. It is written down here
-because it was found while checking the rest, and because a known crash deserves
-to be findable before it is fixed.
+These are read in default arguments throughout the package — `truncated(width:)`
+and every `precision:`-taking function reaches for them — so a lock cannot be
+wrapped around a default argument, and guarding each read would cost more than it
+buys. **Set them before you start concurrent work.** Reading them concurrently is
+fine; writing one while other threads compute is a data race, and `expLimit` holds
+a value type, so a concurrent write to that one corrupts rather than merely going
+stale.
+
+attaswift has no mutable static state anywhere, so it needed none of this. Porting
+from it and setting `precision` at startup — the ordinary thing to do — there is
+nothing here to change.
 
 ## Missing: the same capability under another name
 

@@ -340,7 +340,7 @@ BigInt(1000003).isProbablePrime               // true
 
 No composite is known to pass BPSW, and none below 2^64 exists — that range has
 been checked exhaustively — so below 2^64 the two agree by construction. A
-300-bit number takes under 2 ms.
+300-bit number takes around 2 ms.
 
 `isSurelyPrime` gives both halves at once, which is what `isPrime` is built from:
 
