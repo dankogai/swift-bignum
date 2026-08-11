@@ -133,9 +133,12 @@ import Dispatch     // concurrentPerform; on Linux this is not re-exported by Fo
 ///
 @Suite struct ConstantTests {
 
-    /// Enough digits of each to check well past the seed. π/4 comes from the
-    /// published expansion of π; the others are checkable against identities below.
-    static let piOver4 = "0.785398163397448309615660845819875721049292349843776455243736148076954101571552249657008706335529266995537021628320576661773461152387645557931339852032120279362571025675484630276389911155737238732595491107202743916483361532118912058446695791317800477286412141730865087152613581662053348401815062285318"
+    /// π/4 to 650 digits, enough to check every precision this suite asks for.
+    ///
+    /// Generated, not pasted. The first version of this constant was 503 digits of a
+    /// string I had typed, and comparing against it made a correct 2048-bit result
+    /// look 113 digits short — the reference ran out, not the library.
+    static let piOver4 = "0.78539816339744830961566084581987572104929234984377645524373614807695410157155224965700870633552926699553702162832057666177346115238764555793133985203212027936257102567548463027638991115573723873259549110720274391648336153211891205844669579131780047728641214173086508715261358166205334840181506228531843114675165157889704372038023024070731352292884109197314759000283263263720511663034603673798537790235826431759143989798827304652934548315294827627963701861559499068739183797143818122280698454575298728245841834061016416077150534873659880618429767554496523592569263480429407329418809616870461691735128300014203178631589020694644283568944740229340929468"
 
     @Test func belowTheSeedIsTheSeed() {
         // The seed is a literal, so these are exact truncations and must not move
@@ -157,7 +160,7 @@ import Dispatch     // concurrentPerform; on Linux this is not re-exported by Fo
     /// Above the seed each constant is computed, and √2 by refining the seed.
     /// Checked against the identity each satisfies, since that needs no table.
     @Test func aboveTheSeedIsStillCorrect() {
-        for px in [513, 640, 768] {
+        for px in [513, 640, 768, 2048] {
             // √2 · √2 == 2, to the precision asked for
             let r2 = BigRat.SQRT2(precision: px)
             let err = (r2 * r2 - 2).magnitude
@@ -176,8 +179,13 @@ import Dispatch     // concurrentPerform; on Linux this is not re-exported by Fo
             // π/4 against the published digits -- this is the one that caught the
             // dropped sign, and an identity would not have
             let a = BigRat.ATAN1(precision: px).toString()
-            #expect(Self.piOver4.hasPrefix(String(a.dropFirst().prefix(140))),
-                    "π/4 at \(px) bits disagrees with the published expansion:\n      \(a)")
+            // Compare as many digits as the precision actually carries, less a
+            // couple for the last-bit rounding -- the point is to catch a wrong
+            // series, and a fixed 140 digits would have passed a value that went
+            // wrong at 200.
+            let digits = Int(Double(px) * 0.30103) - 2
+            #expect(Self.piOver4.hasPrefix(String(a.dropFirst().prefix(digits))),
+                    "π/4 at \(px) bits disagrees with π/4 in its first \(digits) digits:\n      \(a)")
         }
     }
 

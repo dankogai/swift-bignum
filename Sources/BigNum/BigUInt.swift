@@ -308,6 +308,14 @@ internal func _gcd(_ a: [UInt], _ b: [UInt]) -> [UInt] {
     var (x, y) = (a, b)
     _shiftRightInPlace(&x, _trailingZeros(x))
     _shiftRightInPlace(&y, _trailingZeros(y))
+    // If either odd part is 1, the two share nothing but their factors of two.
+    // Worth its own line because it is not a rare case: a denominator that is a
+    // power of two lands here every time, and every `truncate(width:)` produces
+    // one -- so this is the shape `BigRat` reduces most often.  Without it the loop
+    // below takes 1 off the other side and shifts, over and over, which is O(n²)
+    // to discover an answer that is already known.  It was most of the time in
+    // computing π/4 at 4096 bits.
+    if x == [1] || y == [1] { return _shiftLeft([1], twos) }
     // Both odd from here, so every difference is even and the loop shrinks.
     if _compare(x, y) < 0 { swap(&x, &y) }
     while !x.isEmpty {

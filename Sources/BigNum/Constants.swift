@@ -34,7 +34,13 @@
 //      call either way.
 //
 //  Above 512 bits those four run the series they always ran, at the precision
-//  asked for and without caching the result.  That is slower than a cache for a
+//  asked for and without caching the result.  Those series were slow and are less
+//  so: at 4096 bits pi/4 went from 502ms to 68ms, ln 2 from 3.2s to 0.8s, e from
+//  475ms to 235ms and sqrt 2 from 2.1ms to 1.1ms.  Almost none of that came from
+//  the loops -- it came from `_gcd` learning that a power-of-two operand shares
+//  nothing (BigUInt.swift), because every `truncate` produces one and `BigRat`
+//  reduces every fraction it builds.  The loops contribute by keeping their
+//  accumulators truncated, so the reduction has that shape to begin with.  That is slower than a cache for a
 //  caller who asks repeatedly for 1024 bits, and it is the trade being made: a
 //  correct answer with no shared state, against a faster one with a lock around
 //  it.  Raising `seedBits` is the lever if the boundary is in the wrong place --
@@ -112,12 +118,18 @@ extension BigFloatingPoint {
         if apx <= _Constant.seedBits { return Self(_Constant.e).truncated(width: apx) }
         if Self.self != BigRat.self { return Self(BigRat.E(precision: apx)) }
         let epsilon = getEpsilon(precision: apx)
-        var (e, d) = (Self(1), Self(1))
+        let working = apx + 64
+        // `t` is carried and divided rather than rebuilt as `1/i!`.  Keeping the
+        // factorial exact meant `d` grew a few bits per term and every reciprocal
+        // was taken against all of it; dividing the running term instead keeps both
+        // operands the same bounded size.
+        var (e, t) = (Self(1), Self(1))
         for i in 1 ... apx {
-            d *= Self(i)
-            let t = d.reciprocal!
-            e += t
+            t /= Self(i)
+            t.truncate(width: working)
             if t < epsilon { break }
+            e += t
+            e.truncate(width: working)
         }
         return e.truncated(width: apx)
     }
@@ -132,12 +144,22 @@ extension BigFloatingPoint {
         if apx <= _Constant.seedBits { return Self(_Constant.ln2).truncated(width: apx) }
         if Self.self != BigRat.self { return Self(BigRat.LN2(precision: apx)) }
         let epsilon = getEpsilon(precision: apx)
+        let working = apx + 64          // see ATAN1 for why the sum is bounded
         var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
         for i in 1 ... apx.magnitude {
             t *= Self(1)/Self(9)
+            t.truncate(width: working)
             if db { print("\(Self.self).LN2: i=\(i)") }
             if t < epsilon { break }
-            r += t / Self(2 * i + 1)
+            // Truncated *before* it is added.  `t / (2i+1)` has an odd denominator,
+            // and adding that to the running sum gives the sum an odd factor too --
+            // which is precisely the case the gcd fast path cannot help with, so
+            // every addition would reduce the hard way.  Rounding the term to a
+            // power-of-two denominator first keeps both sides cheap to reduce.
+            var term = t / Self(2 * i + 1)
+            term.truncate(width: working)
+            r += term
+            r.truncate(width: working)
         }
         return (2*r).truncated(width: apx)
     }
@@ -165,6 +187,14 @@ extension BigFloatingPoint {
         if apx <= _Constant.seedBits { return Self(_Constant.atan1).truncated(width: apx) }
         if Self.self != BigRat.self { return Self(BigRat.ATAN1(precision: apx)) }
         let epsilon = getEpsilon(precision: apx)
+        // Working width for the running sum.  Without this the sum is an *exact*
+        // rational, so its denominator becomes the least common multiple of every
+        // term's -- one new odd factor and ten more powers of two per iteration --
+        // and the arithmetic slows down as it goes.  Truncating each step holds the
+        // denominator at a power of two of fixed size.  The spare bits cover the
+        // truncation error accumulating over the iterations: there are about
+        // `apx/10` of them, so 64 is generous.
+        let working = apx + 64
         var p64 = Self(0)
         for i in 0 ..< Int(apx.magnitude) {
             var t = Self(0)
@@ -176,10 +206,15 @@ extension BigFloatingPoint {
             t -= Self(1<<2) / Self(10 * i + 7)
             t += Self(1<<0) / Self(10 * i + 9)
             if 0 < i { t /= Self(IntType(1) << (10 * i)) }
+            // Truncated as well as the sum: with a power-of-two denominator on both
+            // sides the addition is a shift and an add, where an exact term would
+            // drag its own odd factors through every remaining iteration.
+            t.truncate(width: working)
             // The terms alternate.  Dropping this sign is exactly the mistake I
             // made transcribing the series, and no test below 512 bits could see
             // it, since those are answered by the seed.
             p64 += i & 1 == 1 ? -t : t
+            p64.truncate(width: working)
             if db && i % 16 == 0 { print("\(Self.self).ATAN1: i=\(i)") }
             if t < epsilon { break }
         }
