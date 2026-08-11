@@ -61,6 +61,7 @@ Int(2).power(10)                        // 1024
 UInt8(200).nextPrime                    // 211
 Int(2).power(1024, mod: 1_000_000_007)  // 812734592 -- no overflow, ever
 Int.random(from: -100, to: 100)         // and .random, closed at both ends
+Int.random()                            // ... or the whole range, min through max
 ```
 
 Each widens to `BigInt`, computes there, and comes back — so where the answer

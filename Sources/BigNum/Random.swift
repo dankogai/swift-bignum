@@ -64,12 +64,31 @@ internal func _randomLimbs<R:RandomNumberGenerator>(lessThan limit: [UInt],
     precondition(!limit.isEmpty, "random(lessThan: 0) has nothing to return")
     let top = limit[limit.count - 1]
     let width = (limit.count - 1) * UInt.bitWidth + (UInt.bitWidth - top.leadingZeroBitCount)
-    // Rejection, not remainder: a draw of exactly `width` bits lands below the
-    // limit better than half the time, so this returns quickly and evenly.
+    // A power of two is every value of `width - 1` bits and nothing else, so the
+    // draw is already uniform and rejection would only throw away half of them.
+    // `random()` over a whole fixed-width range lands here every time, its span
+    // being 2^bitWidth exactly.
+    if _isPowerOfTwo(limit) {
+        return _randomLimbs(bits: width - 1, using: &g)
+    }
+    // Otherwise rejection, not remainder: a draw of exactly `width` bits lands
+    // below the limit better than half the time, so this returns quickly and
+    // evenly.
     while true {
         let candidate = _randomLimbs(bits: width, using: &g)
         if _compare(candidate, limit) < 0 { return candidate }
     }
+}
+
+/// Whether exactly one bit is set across all the limbs.
+@inline(__always) internal func _isPowerOfTwo(_ limbs: [UInt]) -> Bool {
+    var seen = false
+    for limb in limbs {
+        if limb == 0 { continue }
+        if seen || limb & (limb - 1) != 0 { return false }
+        seen = true
+    }
+    return seen
 }
 
 // MARK: - BigUInt
@@ -208,6 +227,21 @@ extension FixedWidthInteger {
     public static func random<R:RandomNumberGenerator>(from lower: Self, to upper: Self,
                                                        using generator: inout R) -> Self {
         return Self(BigInt.random(from: BigInt(lower), to: BigInt(upper), using: &generator))
+    }
+
+    /// A uniform value across the type's whole range, which is to say
+    /// `random(from: Self.min, to: Self.max)` -- and it is exactly that, so the
+    /// two give the same value from the same seeded generator.
+    ///
+    /// There is deliberately no `BigInt.random()` or `BigUInt.random()`: an
+    /// unbounded type has no `min` or `max` for this to mean anything against.
+    /// `random()` exists precisely where the type is bounded.
+    public static func random<R:RandomNumberGenerator>(using generator: inout R) -> Self {
+        return random(from: Self.min, to: Self.max, using: &generator)
+    }
+    public static func random() -> Self {
+        var g = SystemRandomNumberGenerator()
+        return random(using: &g)
     }
 
     public static func random(withMaximumWidth width: Int) -> Self {
