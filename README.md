@@ -218,11 +218,15 @@ cd Benchmarks && swift run -c release      # against attaswift
 cd Benchmarks && sh cross/run.sh           # and against node, python, ruby
 ```
 
-Briefly: faster than attaswift as operands grow and slower at one or two limbs;
-comfortably behind V8's `BigInt` everywhere; ahead of CPython and Ruby below 1024
-bits and behind them on multiplication and division above it. Five
-implementations were asked to right-shift a negative number and attaswift is the
-only one that answers differently.
+Briefly: ahead of attaswift on most operations at every size; ahead of CPython
+above 256 bits and of macOS's Ruby from 256 bits up; behind V8's `BigInt` everywhere,
+and behind all three on 64-bit operands, where one heap allocation per result is
+the floor. Five implementations were asked to right-shift a negative number and
+attaswift is the only one that answers differently.
+
+The first run of that benchmark is also why radix conversion is 9–33× faster than
+it was, `-` 2.4×, and small `*` and `gcd` 4–7× — [Benchmark.md](Benchmark.md#what-benchmarking-changed)
+records what it found and what each fix bought.
 
 That is a separate package on purpose. A benchmark target in this manifest would
 pull attaswift back in as a dependency of the root, and `swift build` would stop

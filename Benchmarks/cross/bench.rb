@@ -92,5 +92,10 @@ semantics = [-1, -2, -3, -5, -7, -8, -1025].map { |v| [v, v >> 1] }
 write(out_dir, 'results-ruby.tsv', %w[op bits ns], results)
 write(out_dir, 'values-ruby.tsv', %w[op bits value], values)
 write(out_dir, 'semantics-ruby.tsv', %w[value shifted], semantics)
-gmp = RbConfig::CONFIG['configure_args'].to_s.include?('without-gmp') ? 'no GMP' : 'GMP possible'
-$stderr.puts "\nruby #{RUBY_VERSION} (#{gmp}). Checksum: #{$checksum}"
+args = RbConfig::CONFIG['configure_args'].to_s
+gmp = if args.include?('without-gmp') then 'built without GMP'
+      elsif args.include?('with-gmp') then 'built with GMP'
+      else 'GMP not mentioned either way in configure_args'
+      end
+File.write("#{out_dir}/version-ruby.txt", "ruby #{RUBY_VERSION} (#{RbConfig.ruby}, #{gmp})\n")
+$stderr.puts "\nruby #{RUBY_VERSION} at #{RbConfig.ruby} (#{gmp}). Checksum: #{$checksum}"
