@@ -132,10 +132,16 @@ func bench(_ op: String, _ bits: Int,
 
 let sizes = [64, 256, 1024, 4096]
 
+/// The inputs, kept so they can be handed to the other languages' harnesses.
+/// Node, Python and Ruby read this file rather than generating their own, so
+/// "same inputs" holds across all four and not just across the two Swift ones.
+var sharedInputs: [(bits: Int, a: String, b: String, wide: String)] = []
+
 for bits in sizes {
     var rng = Random(seed: 0x5EED_0000 &+ UInt64(bits))
     let ha = rng.hex(bits: bits), hb = rng.hex(bits: bits)
     let hwide = rng.hex(bits: bits * 2)
+    sharedInputs.append((bits: bits, a: ha, b: hb, wide: hwide))
     let (oa, ob) = (Ours(ha, radix: 16)!, Ours(hb, radix: 16)!)
     let (ta, tb) = (Theirs(ha, radix: 16)!, Theirs(hb, radix: 16)!)
     let (owide, twide) = (Ours(hwide, radix: 16)!, Theirs(hwide, radix: 16)!)
@@ -145,6 +151,11 @@ for bits in sizes {
     let decimal = oa.description
     precondition(decimal == ta.description, "inputs differ at \(bits) bits")
 
+    // The floor: the timing loop and the fold, with no arithmetic in them.  Every
+    // other row sits on top of this, and in an interpreted language it is most of
+    // what a small operation costs.
+    bench("baseline", bits, same: { true },
+          ours: { fold(oa) }, theirs: { fold(ta) })
     bench("+", bits, same: { (oa + ob).description == (ta + tb).description },
           ours: { fold(oa + ob) }, theirs: { fold(ta + tb) })
     bench("-", bits, same: { (oa - ob).description == (ta - tb).description },
@@ -266,3 +277,69 @@ if !deviating.isEmpty {
 }
 print("")
 print("Cores: \(ProcessInfo.processInfo.activeProcessorCount). Checksum: \(checksum).")
+
+// MARK: - hand the inputs and the timings to the cross-language run
+//
+// Written unconditionally, so `cross/run.sh` can run this first and then give
+// Node, Python and Ruby exactly the same numbers to work on.
+
+let outDir = ".out"
+try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
+
+var inputLines = ["bits\ta\tb\twide"]
+for i in sharedInputs { inputLines.append("\(i.bits)\t\(i.a)\t\(i.b)\t\(i.wide)") }
+try? inputLines.joined(separator: "\n").appending("\n")
+      .write(toFile: "\(outDir)/inputs.tsv", atomically: true, encoding: .utf8)
+
+var resultLines = ["op\tbits\tns"]
+for r in results { resultLines.append("\(r.op)\t\(r.bits)\t\(r.ours)") }
+try? resultLines.joined(separator: "\n").appending("\n")
+      .write(toFile: "\(outDir)/results-swift.tsv", atomically: true, encoding: .utf8)
+
+// The answers, so the merge step can check that four independent implementations
+// computed the same thing before it prints a table comparing how fast they did.
+// Recomputed here rather than captured during timing, which keeps the timed
+// closures exactly as they were.
+var valueLines = ["op\tbits\tvalue"]
+for i in sharedInputs {
+    let a = Ours(i.a, radix: 16)!, b = Ours(i.b, radix: 16)!, wide = Ours(i.wide, radix: 16)!
+    let dec = a.description
+    func put(_ op: String, _ v: String) { valueLines.append("\(op)\t\(i.bits)\t\(v)") }
+    put("baseline", dec)
+    put("+", (a + b).description)
+    put("-", (a - b).description)
+    put("*", (a * b).description)
+    put("/", (wide / b).description)
+    put("%", (wide % b).description)
+    put("<", a < b ? "1" : "0")
+    put("<< 61", (a << 61).description)
+    put(">> 61", (a >> 61).description)
+    put("description", "\(dec.count)")
+    put("init(radix: 10)", Ours(dec)!.description)
+    put("init(radix: 16)", Ours(i.a, radix: 16)!.description)
+    put("squareRoot", a.squareRoot().description)
+    put("gcd", a.greatestCommonDivisor(with: b).description)
+    put("power(5)", a.power(5).description)
+    if i.bits <= 1024 { put("power(e, mod:)", a.power(b, mod: wide).description) }
+}
+try? valueLines.joined(separator: "\n").appending("\n")
+      .write(toFile: "\(outDir)/values-swift.tsv", atomically: true, encoding: .utf8)
+
+// `>> 1` on negatives, for the same table in every language.  attaswift is the
+// outlier among Swift libraries; this is where we find out whether it is an
+// outlier among languages too.
+var semanticLines = ["value\tshifted"]
+for v in [-1, -2, -3, -5, -7, -8, -1025] {
+    semanticLines.append("\(v)\t\(Ours(v) >> 1)")
+}
+try? semanticLines.joined(separator: "\n").appending("\n")
+      .write(toFile: "\(outDir)/semantics-swift.tsv", atomically: true, encoding: .utf8)
+var attaLines = ["value\tshifted"]
+for v in [-1, -2, -3, -5, -7, -8, -1025] {
+    attaLines.append("\(v)\t\(Theirs(v) >> 1)")
+}
+try? attaLines.joined(separator: "\n").appending("\n")
+      .write(toFile: "\(outDir)/semantics-attaswift.tsv", atomically: true, encoding: .utf8)
+
+FileHandle.standardError.write("\nwrote \(outDir)/inputs.tsv and \(outDir)/results-swift.tsv\n"
+                                 .data(using: .utf8)!)

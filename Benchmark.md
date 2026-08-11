@@ -1,13 +1,15 @@
 # Benchmark
 
-`BigInt` here against [attaswift/BigInt], the dependency this package used to
-have. Same inputs, same machine, same run.
+`BigInt` here against [attaswift/BigInt] — the dependency this package used to
+have — and against the arbitrary-precision integers built into JavaScript,
+Python and Ruby. Same inputs, same machine, same run.
 
-**This is not part of `swift test`.** The benchmark is a package of its own, so
-running it is something you ask for:
+**None of this is part of `swift test`.** The benchmarks are a package of their
+own, so running them is something you ask for:
 
 ```bash
-cd Benchmarks && swift run -c release
+cd Benchmarks && swift run -c release      # against attaswift
+cd Benchmarks && sh cross/run.sh           # and against node, python, ruby
 ```
 
 It has to be its own package rather than a target in the root manifest, because
@@ -18,31 +20,205 @@ package.
 
 ## The one thing to read if you read nothing else
 
-**The two libraries disagree on `>>` for negative values, and attaswift is the
-one that departs from the standard library.** `Int` shifts arithmetically — it
-floors — and so does this package. attaswift shifts the magnitude and keeps the
-sign, which truncates toward zero:
+**Five implementations were asked to right-shift a negative number. Four agree,
+and the one that does not is attaswift.** `Int` shifts arithmetically — it floors
+— and so do this package, JavaScript, Python and Ruby. attaswift shifts the
+magnitude and keeps the sign, which truncates toward zero:
 
-| value | `Int` | swift-bignum | attaswift |
-|---:|---:|---:|---:|
-| -1 | -1 | -1 | -1 |
-| -2 | -1 | -1 | -1 |
-| -3 | -2 | -2 | -1 **differs** |
-| -5 | -3 | -3 | -2 **differs** |
-| -7 | -4 | -4 | -3 **differs** |
-| -8 | -4 | -4 | -4 |
-| -1025 | -513 | -513 | -512 **differs** |
-
-swift-bignum matches `Int` in 7 of 7 cases; attaswift in 3.
+| value | `Int` | swift-bignum | node | python | ruby | attaswift |
+|---:|---:|---:|---:|---:|---:|---:|
+| -1 | -1 | -1 | -1 | -1 | -1 | -1 |
+| -2 | -1 | -1 | -1 | -1 | -1 | -1 |
+| -3 | -2 | -2 | -2 | -2 | -2 | **-1** |
+| -5 | -3 | -3 | -3 | -3 | -3 | **-2** |
+| -7 | -4 | -4 | -4 | -4 | -4 | **-3** |
+| -8 | -4 | -4 | -4 | -4 | -4 | -4 |
+| -1025 | -513 | -513 | -513 | -513 | -513 | **-512** |
 
 `BinaryInteger` specifies the flooring behaviour, which is why this package
-matches `Int` exactly. If you are porting code off attaswift and it right-shifts
-negative numbers, the results will change — and they will change to the answers
-`Int` would have given. This is the only behavioural disagreement the benchmark
-found across 75 cases; the `>> (negative)` rows below are therefore marked `n/c`,
-since timing two functions that compute different things is not a comparison.
+matches `Int` exactly — and, as it turns out, matches every other language's
+bigint too. If you are porting code off attaswift and it right-shifts negative
+numbers, the results will change, and they will change to the answer everything
+else gives.
 
-## Where each one wins
+This was the only behavioural disagreement found anywhere: 75 cases against
+attaswift and 63 against the three languages, and this operation is the whole of
+it. The affected rows carry `n/c` rather than a ratio, because timing two
+functions that compute different things is not a comparison.
+
+## Against JavaScript, Python and Ruby
+
+Node's `BigInt`, CPython's `int` and Ruby's `Integer` are all C or C++
+implementations that have had far more attention than this package has, so the
+question is not whether they win but where and by how much.
+
+**Read the `baseline` row first.** It is the timing loop with no arithmetic in
+it, and in an interpreted language it is most of what a small operation costs:
+135 ns in Python and 153–249 ns in Ruby, against 11 ns in Swift and Node. A `†`
+marks any cell within 2× of its own harness's floor — those numbers are mostly
+the interpreter's loop, not its arithmetic, and they are excluded from the
+summary. At 64 bits nearly every Python and Ruby row carries one.
+
+All four implementations agree on every one of the 63 shared answers they were asked for, at every size.
+
+### 64 bits
+
+| operation | swift-bignum | node | python | ruby |
+|---|---:|---:|---:|---:|
+| `baseline` | 11 ns | 11 ns (0.93×) | 135 ns (**11.80×**) | 153 ns (**13.36×**) |
+| `+` | 77 ns | 22 ns (0.29×) | 153 ns (**1.99×**) † | 198 ns (**2.57×**) † |
+| `-` | 193 ns | 24 ns (0.13×) | 153 ns (0.79×) † | 154 ns (0.80×) † |
+| `*` | 233 ns | 24 ns (0.10×) | 174 ns (0.75×) † | 212 ns (0.91×) † |
+| `/` | 279 ns | 30 ns (0.11×) | 196 ns (0.70×) † | 260 ns (0.93×) † |
+| `%` | 280 ns | 30 ns (0.11×) | 195 ns (0.70×) † | 183 ns (0.66×) † |
+| `<` | 5 ns | 7 ns (**1.31×**) † | 74 ns (**14.56×**) † | 106 ns (**20.76×**) † |
+| `<< 61` | 167 ns | 24 ns (0.14×) | 154 ns (0.92×) † | 205 ns (**1.23×**) † |
+| `>> 61` | 166 ns | 24 ns (0.14×) | 155 ns (0.93×) † | 152 ns (0.92×) † |
+| `description` | 899 ns | 34 ns (0.04×) | 180 ns (0.20×) † | 199 ns (0.22×) † |
+| `init(radix: 10)` | 1.95 µs | 70 ns (0.04×) | 210 ns (0.11×) † | 235 ns (0.12×) † |
+| `init(radix: 16)` | 1.71 µs | 70 ns (0.04×) | 201 ns (0.12×) † | 229 ns (0.13×) † |
+| `squareRoot` | 140 ns | — | 188 ns (**1.35×**) † | 121 ns (0.87×) † |
+| `gcd` | 798 ns | — | 293 ns (0.37×) | 290 ns (0.36×) † |
+| `power(5)` | 1.61 µs | 78 ns (0.05×) | 444 ns (0.28×) | 330 ns (0.21×) |
+| `power(e, mod:)` | 100.11 µs | — | 13.16 µs (0.13×) | 13.66 µs (0.14×) |
+
+### 256 bits
+
+| operation | swift-bignum | node | python | ruby |
+|---|---:|---:|---:|---:|
+| `baseline` | 12 ns | 14 ns (**1.24×**) | 134 ns (**11.66×**) | 158 ns (**13.69×**) |
+| `+` | 79 ns | 25 ns (0.32×) † | 159 ns (**2.00×**) † | 207 ns (**2.61×**) † |
+| `-` | 197 ns | 36 ns (0.18×) | 166 ns (0.84×) † | 244 ns (**1.24×**) † |
+| `*` | 309 ns | 42 ns (0.13×) | 307 ns (0.99×) | 266 ns (0.86×) † |
+| `/` | 929 ns | 189 ns (0.20×) | 443 ns (0.48×) | 385 ns (0.41×) |
+| `%` | 902 ns | 191 ns (0.21×) | 442 ns (0.49×) | 353 ns (0.39×) |
+| `<` | 5 ns | 10 ns (**1.99×**) † | 81 ns (**16.17×**) † | 104 ns (**20.71×**) † |
+| `<< 61` | 169 ns | 28 ns (0.16×) † | 154 ns (0.91×) † | 209 ns (**1.23×**) † |
+| `>> 61` | 165 ns | 27 ns (0.16×) † | 157 ns (0.95×) † | 205 ns (**1.24×**) † |
+| `description` | 2.58 µs | 187 ns (0.07×) | 270 ns (0.10×) | 405 ns (0.16×) |
+| `init(radix: 10)` | 4.65 µs | 119 ns (0.03×) | 289 ns (0.06×) | 905 ns (0.19×) |
+| `init(radix: 16)` | 4.16 µs | 158 ns (0.04×) | 247 ns (0.06×) † | 393 ns (0.09×) |
+| `squareRoot` | 6.08 µs | — | 477 ns (0.08×) | 710 ns (0.12×) |
+| `gcd` | 2.97 µs | — | 942 ns (0.32×) | 6.09 µs (**2.05×**) |
+| `power(5)` | 1.66 µs | 204 ns (0.12×) | 1.39 µs (0.84×) | 775 ns (0.47×) |
+| `power(e, mod:)` | 920.19 µs | — | 466.28 µs (0.51×) | 342.30 µs (0.37×) |
+
+### 1024 bits
+
+| operation | swift-bignum | node | python | ruby |
+|---|---:|---:|---:|---:|
+| `baseline` | 11 ns | 14 ns (**1.28×**) | 133 ns (**11.86×**) | 174 ns (**15.45×**) |
+| `+` | 96 ns | 33 ns (0.35×) | 173 ns (**1.81×**) † | 241 ns (**2.52×**) † |
+| `-` | 227 ns | 35 ns (0.15×) | 171 ns (0.76×) † | 242 ns (**1.07×**) † |
+| `*` | 573 ns | 219 ns (0.38×) | 2.20 µs (**3.83×**) | 1.06 µs (**1.85×**) |
+| `/` | 2.47 µs | 905 ns (0.37×) | 2.90 µs (**1.17×**) | 2.41 µs (0.98×) |
+| `%` | 2.45 µs | 905 ns (0.37×) | 2.92 µs (**1.19×**) | 2.32 µs (0.94×) |
+| `<` | 5 ns | 7 ns (**1.48×**) † | 74 ns (**14.68×**) † | 106 ns (**20.96×**) † |
+| `<< 61` | 181 ns | 33 ns (0.18×) | 165 ns (0.91×) † | 235 ns (**1.30×**) † |
+| `>> 61` | 179 ns | 32 ns (0.18×) | 173 ns (0.97×) † | 228 ns (**1.28×**) † |
+| `description` | 9.39 µs | 1.46 µs (0.16×) | 1.47 µs (0.16×) | 1.99 µs (0.21×) |
+| `init(radix: 10)` | 16.54 µs | 551 ns (0.03×) | 1.14 µs (0.07×) | 6.45 µs (0.39×) |
+| `init(radix: 16)` | 15.06 µs | 361 ns (0.02×) | 457 ns (0.03×) | 1.04 µs (0.07×) |
+| `squareRoot` | 15.29 µs | — | 1.65 µs (0.11×) | 2.35 µs (0.15×) |
+| `gcd` | 28.99 µs | — | 3.76 µs (0.13×) | 44.44 µs (**1.53×**) |
+| `power(5)` | 4.57 µs | 1.78 µs (0.39×) | 11.15 µs (**2.44×**) | 9.21 µs (**2.02×**) |
+| `power(e, mod:)` | 25.15 ms | — | 16.33 ms (0.65×) | 17.78 ms (0.71×) |
+
+### 4096 bits
+
+| operation | swift-bignum | node | python | ruby |
+|---|---:|---:|---:|---:|
+| `baseline` | 11 ns | 14 ns (**1.20×**) | 136 ns (**11.92×**) | 249 ns (**21.76×**) |
+| `+` | 190 ns | 89 ns (0.47×) | 305 ns (**1.60×**) | 406 ns (**2.13×**) † |
+| `-` | 439 ns | 140 ns (0.32×) | 347 ns (0.79×) | 455 ns (**1.04×**) † |
+| `*` | 6.25 µs | 2.52 µs (0.40×) | 17.88 µs (**2.86×**) | 14.41 µs (**2.30×**) |
+| `/` | 16.47 µs | 8.22 µs (0.50×) | 37.71 µs (**2.29×**) | 30.10 µs (**1.83×**) |
+| `%` | 16.06 µs | 8.29 µs (0.52×) | 37.96 µs (**2.36×**) | 29.93 µs (**1.86×**) |
+| `<` | 5 ns | 10 ns (**1.92×**) † | 83 ns (**16.08×**) † | 102 ns (**19.82×**) † |
+| `<< 61` | 276 ns | 64 ns (0.23×) | 272 ns (0.98×) † | 365 ns (**1.32×**) † |
+| `>> 61` | 262 ns | 68 ns (0.26×) | 280 ns (**1.07×**) | 330 ns (**1.26×**) † |
+| `description` | 53.28 µs | 17.59 µs (0.33×) | 17.83 µs (0.33×) | 16.55 µs (0.31×) |
+| `init(radix: 10)` | 65.78 µs | 3.28 µs (0.05×) | 11.49 µs (0.17×) | 11.28 µs (0.17×) |
+| `init(radix: 16)` | 61.54 µs | 1.08 µs (0.02×) | 1.29 µs (0.02×) | 3.44 µs (0.06×) |
+| `squareRoot` | 92.03 µs | — | 12.30 µs (0.13×) | 11.67 µs (0.13×) |
+| `gcd` | 553.87 µs | — | 24.55 µs (0.04×) | 513.02 µs (0.93×) |
+| `power(5)` | 132.94 µs | 21.14 µs (0.16×) | 124.83 µs (0.94×) | 89.07 µs (0.67×) |
+
+### Summary
+
+Median of the per-operation ratios, over the operations all four have.
+Greater than 1 means swift-bignum was faster.
+
+| | 64 bits | 256 bits | 1024 bits | 4096 bits |
+|---|---:|---:|---:|---:|
+| node | 0.11× | 0.13× | 0.18× | 0.32× |
+| python | 0.28× | 0.49× | **1.17×** | **1.07×** |
+| ruby | 0.21× | 0.39× | 0.94× | 0.67× |
+
+Operations counted: those that clear 2× their own harness's `baseline` on both sides, out of `+`, `-`, `*`, `/`, `%`, `<`, `<< 61`, `>> 61`, `description`, `init(radix: 10)`, `init(radix: 16)`, `power(5)`. A † in the tables above marks a cell that does not, and is therefore mostly measuring the loop rather than the arithmetic.
+
+### What this says
+
+* **V8 wins nearly everything.** Node is 0.11×–0.52× at every size and every
+  operation except `<` and the `baseline` row itself. Its BigInt is a tuned C++
+  implementation with a fast path for small values, and the gap narrows as
+  operands grow — 0.11× median at 64 bits to 0.32× at 4096 — which is the same
+  asymptotic story as the attaswift comparison, told from further behind.
+* **Python and Ruby lose small, and win where the operands are large.** Both sit
+  at 0.2–0.5× below 1024 bits, where their interpreter loop dominates. Above that
+  the picture splits: Python's median crosses 1 (1.17× at 1024, 1.07× at 4096),
+  while Ruby's peaks at 0.94× and falls back to 0.67× — but both beat us
+  decisively on the two operations that dominate real bignum work. At 4096 bits
+  CPython is 2.86× our `*` and 2.29× our `/`; Ruby is 2.30× and 1.83×.
+* **Two gaps widen as the operands grow**, which is the signature of a
+  different algorithm rather than a slower constant. See below.
+
+### Where the gap widens with size, and where it is just a constant
+
+Whether a gap grows as the operands grow is the interesting question: a widening
+gap means a different algorithm, a flat one means a slower version of the same
+idea. Ratios of CPython's time to ours, below 1 meaning CPython is faster:
+
+| operation | 64 bits | 256 bits | 1024 bits | 4096 bits | |
+|---|---:|---:|---:|---:|---|
+| `init(radix: 16)` | 0.118 | 0.059 | 0.030 | 0.021 | widens |
+| `gcd` | 0.367 | 0.317 | 0.130 | 0.044 | widens |
+| `squareRoot` | 1.345 | 0.079 | 0.108 | 0.134 | flat |
+| `description` | 0.200 | 0.105 | 0.157 | 0.335 | flat |
+
+**Two of these are ours to fix, and the evidence is internal rather than
+comparative:**
+
+* **`init(radix: 16)` does work it does not need to.** At 4096 bits it costs
+  61.5 µs against 1.08 µs in Node and 1.29 µs in Python, and the gap widens by
+  nearly 6× from 64 bits to 4096 — the signature of quadratic against linear. The
+  telling comparison is with our own decimal parser: hex costs 61.5 µs and
+  decimal 65.8 µs, essentially the same. Decimal *has* to multiply. Hex does not,
+  since 16 is a power of two and its digits can be packed straight into limbs. We
+  run the same chunked multiply-and-add for both.
+* **`gcd` stops scaling.** 553.9 µs at 4096 bits against CPython's 24.6 µs, the
+  ratio falling from 0.37 to 0.04 as operands grow. Stein's binary GCD is a good
+  choice when small — it beats attaswift by 1.6–2.9× at every size — but each step
+  removes about one bit while touching every limb, so it is quadratic in the limb
+  count. The subquadratic methods work on the leading words and apply the result
+  to the whole number; a gap that widens like this is what points to one. Ruby, at
+  513 µs, sits beside us rather than beside CPython.
+
+**`squareRoot` and `description` are flat**, which makes them constant factors
+rather than wrong algorithms — roughly 8–12× on the square root above 256 bits and
+3–10× on decimal output, steady across sizes. Worth less than the two above.
+
+`power(e, mod:)` is the near miss: 25.2 ms against Python's 16.3 ms at 1024 bits,
+so 0.65×. Ours is square-and-multiply with a full reduction per exponent bit,
+which is the naive schedule; windowed exponentiation and Montgomery
+multiplication are the standard improvements, and neither is implemented here.
+
+None of this is addressed in this change. Measuring is one job; fixing is another,
+with its own tests.
+
+## Against attaswift/BigInt
+
+### Where each one wins
 
 Ratios are attaswift's time over ours, so **greater than 1 means swift-bignum is
 faster**. Anything within about 1.15× is noise (run-to-run variation on the same
@@ -90,7 +266,7 @@ Three groups stand out:
   bits. Chunking by the largest power of the radix that fits a limb was supposed
   to settle this and evidently does not; attaswift is simply better at it.
 
-## Two things this measured that look fixable
+### Two things this measured that look fixable
 
 Neither is a design consequence, so they are worth recording as leads rather than
 as facts about two's complement:
@@ -106,25 +282,45 @@ as facts about two's complement:
 
 ## Method
 
-* Both libraries parse the *same* hex string for each input, so neither is handed
-  a representation the other has to convert first.
+* All four implementations parse the *same* hex string for each input. The Swift
+  harness generates them and writes `.out/inputs.tsv`; Node, Python and Ruby read
+  that file rather than generating their own, so "same inputs" holds across
+  languages and not just across the two Swift libraries.
 * Every case is checked for agreement **before** it is timed, and disagreements
   are reported rather than averaged away. This is how the `>>` difference above
-  surfaced — it was not something either library documented.
+  surfaced — it was not something any implementation documented.
 * Iteration count scales until a batch takes 50 ms, then the best of five batches
   is reported. Best-of rather than mean, because interference can only make a
   batch slower.
-* Every result is folded into a checksum that gets printed, so nothing measured
-  is dead code.
+* Every result is folded into a checksum that gets printed, so nothing measured is
+  dead code. In JavaScript the operands are loop-invariant, which a JIT is free to
+  hoist; measured against a form that varies its operand per iteration, the
+  marginal cost of a 64-bit `*` was 8.5 ns invariant against 11.8 ns varying — a
+  1.4× difference rather than the ~10× that hoisting would show, so V8 is doing
+  the work.
+* Each harness measures its own `baseline` — the loop and the result-folding with
+  no arithmetic — and it is reported as a row rather than subtracted, because the
+  fold is not the same cost for every operation and a subtracted number would
+  imply a precision that is not there.
 * A debug build reports the absence of the optimizer rather than the algorithms,
-  so the harness says so loudly if it is built without `-c release`.
+  so the Swift harness says so loudly if it is built without `-c release`.
+
+Two things the numbers cannot tell you. The interpreted harnesses pay for their
+own loop on every iteration and the compiled one does not, so any row within a
+small multiple of its `baseline` is not a measurement of arithmetic. And Node,
+CPython and Ruby have no equivalent of the others' *language* overhead — a
+tight Swift loop over `BigInt` is not what code in those languages looks like, so
+these ratios are about the bignum implementations, not about the languages.
 
 Measured on an Apple M1 (8 cores), macOS 26.6.1, Swift 6.3.3, against
-attaswift/BigInt **5.7.0**. `Package.resolved` is not checked in, so a later run
-may pick up a newer 5.x — `swift package resolve && cat Package.resolved` in
-`Benchmarks/` says which version you actually got.
+attaswift/BigInt **5.7.0**, node **v24.18.0** (V8 13.6), CPython **3.9.6**, and
+Ruby **4.0.6** built `--without-gmp` — which matters, since a GMP-backed Ruby
+would be a different measurement entirely at the large sizes.
+`Package.resolved` is not checked in, so a later run may pick up a newer
+attaswift 5.x; `swift package resolve && cat Package.resolved` in `Benchmarks/`
+says which version you actually got.
 
-Absolute times, as generated:
+## Appendix: absolute times against attaswift
 
 | operation | bits | swift-bignum | attaswift | ratio |
 | `+` | 64 | 75 ns | 111 ns | **1.48×** |

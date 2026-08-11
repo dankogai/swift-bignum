@@ -73,3 +73,6 @@ fastlane/screenshots
 
 # Anything out of the sight of git
 .attic/
+
+# Benchmark output
+Benchmarks/.out/

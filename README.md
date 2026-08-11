@@ -209,13 +209,20 @@ git clone https://github.com/dankogai/swift-bignum.git && cd swift-bignum && swi
 
 ### Benchmark
 
-`BigInt` is measured against [attaswift/BigInt] in [Benchmark.md](Benchmark.md) —
-faster as operands grow, slower at one or two limbs, and the two libraries turn
-out to disagree about `>>` on negative values. It runs only when asked:
+[Benchmark.md](Benchmark.md) measures `BigInt` against [attaswift/BigInt] and
+against the bigints built into JavaScript, Python and Ruby. Both run only when
+asked:
 
 ```bash
-cd Benchmarks && swift run -c release
+cd Benchmarks && swift run -c release      # against attaswift
+cd Benchmarks && sh cross/run.sh           # and against node, python, ruby
 ```
+
+Briefly: faster than attaswift as operands grow and slower at one or two limbs;
+comfortably behind V8's `BigInt` everywhere; ahead of CPython and Ruby below 1024
+bits and behind them on multiplication and division above it. Five
+implementations were asked to right-shift a negative number and attaswift is the
+only one that answers differently.
 
 That is a separate package on purpose. A benchmark target in this manifest would
 pull attaswift back in as a dependency of the root, and `swift build` would stop
@@ -235,8 +242,8 @@ the `BigNum` module is built, then open the playground.
   conformance, `IntRat` and the other fixed-width rationals
 * [BigFloat.md](BigFloat.md) — `BigFloat`: mantissa and scale, rounding,
   truncation, parsing
-* [Benchmark.md](Benchmark.md) — `BigInt` against attaswift/BigInt, and the one
-  place they disagree
+* [Benchmark.md](Benchmark.md) — `BigInt` against attaswift/BigInt, JavaScript,
+  Python and Ruby, and the one place any of them disagree
 
 # Prerequisite
 
