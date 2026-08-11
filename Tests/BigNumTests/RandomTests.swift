@@ -253,6 +253,112 @@ import Testing
         #expect(sawTop, "UInt64.max must be reachable")
     }
 
+    // MARK: - the no-argument form
+
+    /// `random()` is defined as `random(from: .min, to: .max)`, so it is worth
+    /// asserting that it *is* that and not merely distributed like it: the same
+    /// seed must give the same value through either spelling.
+    @Test func randomIsTheFullRange() {
+        var a = Seeded(seed: 11), b = Seeded(seed: 11)
+        for _ in 0 ..< 50 {
+            #expect(Int.random(using: &a) == Int.random(from: .min, to: .max, using: &b))
+        }
+        var c = Seeded(seed: 12), d = Seeded(seed: 12)
+        for _ in 0 ..< 50 {
+            #expect(UInt8.random(using: &c) == UInt8.random(from: .min, to: .max, using: &d))
+            #expect(Int64.random(using: &c) == Int64.random(from: .min, to: .max, using: &d))
+        }
+    }
+
+    /// The whole range, both extremes included, and evenly spread.  A narrow type
+    /// makes that checkable exhaustively.
+    @Test func randomCoversEveryValueOfANarrowType() {
+        var g = Seeded(seed: 13)
+        var counts = [Int](repeating: 0, count: 256)
+        let draws = 256 * 400
+        for _ in 0 ..< draws {
+            counts[Int(UInt8.random(using: &g))] += 1
+        }
+        #expect(!counts.contains(0), "some UInt8 value never came up")
+        let expected = Double(draws) / 256
+        let low = counts.min()!, high = counts.max()!
+        #expect(Double(low) / expected > 0.80, "value seen only \(low) times, expected ~\(Int(expected))")
+        #expect(Double(high) / expected < 1.20, "value seen \(high) times, expected ~\(Int(expected))")
+        // signed, where both extremes are the interesting ones
+        var sawMin = false, sawMax = false, sawNegative = false, sawPositive = false
+        for _ in 0 ..< 20_000 {
+            let v = Int8.random(using: &g)
+            if v == Int8.min { sawMin = true }
+            if v == Int8.max { sawMax = true }
+            if v < 0 { sawNegative = true }
+            if v > 0 { sawPositive = true }
+        }
+        #expect(sawMin && sawMax, "Int8.random() must reach both extremes")
+        #expect(sawNegative && sawPositive, "and both signs")
+    }
+
+    @Test func randomWorksOnEveryBuiltInWidth() {
+        var g = Seeded(seed: 14)
+        // nothing to assert about the value of a full-range draw beyond its type,
+        // so this is a compile-and-run check across the family
+        _ = Int.random(using: &g) ; _ = UInt.random(using: &g)
+        _ = Int8.random(using: &g) ; _ = UInt8.random(using: &g)
+        _ = Int16.random(using: &g) ; _ = UInt16.random(using: &g)
+        _ = Int32.random(using: &g) ; _ = UInt32.random(using: &g)
+        _ = Int64.random(using: &g) ; _ = UInt64.random(using: &g)
+        _ = Int.random() ; _ = UInt8.random()
+        // a full-range unsigned draw must sometimes set the top bit, which a
+        // signed-only path would never do
+        var sawTopBit = false
+        for _ in 0 ..< 200 where !sawTopBit {
+            if UInt64.random(using: &g) >> 63 == 1 { sawTopBit = true }
+        }
+        #expect(sawTopBit, "UInt64.random() should reach above 2^63")
+    }
+
+    /// The power-of-two shortcut is chosen by a helper, and a wrong answer from it
+    /// biases the draw by one value in `limit` — astronomically small for a
+    /// multi-limb bound and so invisible to any distribution test. Checked here
+    /// directly instead.
+    @Test func powerOfTwoDetection() {
+        #expect(_isPowerOfTwo([1]))
+        #expect(_isPowerOfTwo([2]))
+        #expect(_isPowerOfTwo([1 << 63]))
+        #expect(_isPowerOfTwo([0, 1]), "2^64")
+        #expect(_isPowerOfTwo([0, 0, 1]), "2^128")
+        #expect(!_isPowerOfTwo([]), "zero is not a power of two")
+        #expect(!_isPowerOfTwo([0]), "nor is a zero limb")
+        #expect(!_isPowerOfTwo([3]))
+        #expect(!_isPowerOfTwo([UInt.max]))
+        #expect(!_isPowerOfTwo([1, 1]), "2^64 + 1 is one bit per limb across two limbs")
+        #expect(!_isPowerOfTwo([1, 2]))
+        #expect(!_isPowerOfTwo([0, 3]))
+        #expect(!_isPowerOfTwo([1, 0, 1]))
+    }
+
+    /// A power-of-two bound needs no rejection, which is the path `random()` takes
+    /// every time.  It must stay uniform.
+    @Test func powerOfTwoBoundsStayUniform() {
+        var g = Seeded(seed: 15)
+        for k in [1, 2, 3, 8] {
+            let limit = BigUInt(1) << k
+            var counts = [Int](repeating: 0, count: 1 << k)
+            let draws = (1 << k) * 2000
+            for _ in 0 ..< draws {
+                let v = BigUInt.random(lessThan: limit, using: &g)
+                #expect(v < limit)
+                counts[Int(v)] += 1
+            }
+            let expected = Double(draws) / Double(1 << k)
+            for (value, count) in counts.enumerated() {
+                let ratio = Double(count) / expected
+                #expect(0.93 < ratio && ratio < 1.07,
+                        "2^\(k): value \(value) came up \(count) times, expected ~\(Int(expected))")
+            }
+        }
+        #expect(BigUInt.random(lessThan: 1, using: &g) == 0, "only zero is under one")
+    }
+
     /// Every width form can ask for more than the type holds, and then it traps
     /// like any other conversion here. A trap cannot be `#expect`ed, so what is
     /// checked is the boundary either side of it.

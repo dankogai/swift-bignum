@@ -457,6 +457,23 @@ UInt64.random(withExactWidth: 64)
 Int8.random(withMaximumWidth: 100)          // traps: 100 bits is not an Int8
 ```
 
+And there `random()` takes no arguments at all, meaning the whole range:
+
+```swift
+Int.random()                                // Int.min ... Int.max
+UInt8.random()                              // 0 ... 255
+```
+
+It is defined as `random(from: Self.min, to: Self.max)` and *is* that call, so a
+seeded generator gives the same value through either spelling. **`BigInt` and
+`BigUInt` have no `random()`** — an unbounded type has no `min` or `max` for it to
+mean anything against, so the no-argument form exists exactly where the type is
+bounded.
+
+A whole fixed-width range is a span of 2^bitWidth, a power of two, and a
+power-of-two bound is already uniform at one bit fewer — so that path skips the
+rejection step rather than throwing away half of its draws.
+
 The standard library's `Int.random(in: 1...10)` is untouched and remains the
 idiomatic spelling for a fixed-width range. These exist so generic code can say
 `T.random(...)` for any integer this package touches, `BigInt` included.
