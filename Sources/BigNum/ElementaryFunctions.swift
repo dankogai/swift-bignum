@@ -85,20 +85,41 @@ public protocol RealFunctions : ElementaryFunctions {
 }
 
 extension BigFloatingPoint {
-    // constants
+    // MARK: - constants
+    //
+    // Each of these caches its result per precision in a `static var`, and each
+    // access to that var happens inside `_memoLock` -- the read as well as the
+    // write, since an unsynchronised read of a tuple holding a reference-counted
+    // value is exactly as damaging as an unsynchronised write.  The read has to be
+    // *lexically* inside the closure: passing the var to a helper, or by `inout`,
+    // evaluates its getter before the lock is taken and protects nothing.
+    //
+    // The computation itself runs with no lock held.  That is deliberate -- see
+    // Lock.swift -- because constants ask for other constants, and a lock spanning
+    // the computation would deadlock on itself.  The cost is that two threads may
+    // compute the same constant at once and one result is dropped, which wastes
+    // work and cannot give a wrong answer.
+
     /// √2
     public static func SQRT2(precision px:Int=Self.precision, debug db:Bool=false)->Self {
         let apx = Swift.abs(px)
-        if apx <= SQRT2.precision { return SQRT2.value.truncated(width: apx) }
-        let v = Self(2).squareRoot(precision: apx)
-        SQRT2 = (precision: apx, value: v)  // publish together, value first
+        let cached = _memoLock.withLock { SQRT2 }
+        if apx <= cached.precision { return cached.value.truncated(width: apx) }
+        // Truncated for the same reason LN10 is: `squareRoot(precision:)` returns a
+        // little more than was asked for, and the cache-hit path above truncates,
+        // so without this the first call at a precision disagrees with the rest.
+        let v = Self(2).squareRoot(precision: apx).truncated(width: apx)
+        _memoLock.withLock { if SQRT2.precision < apx { SQRT2 = (precision: apx, value: v) } }
         return v
     }
     /// euler's constant
     public static func E(precision px:Int=Self.precision, debug db:Bool=false)->Self {
         let apx = Swift.abs(px)
-        if apx <= E.precision { return E.value.truncated(width: apx) }
-        let v:Self = E.value is BigRat ? {
+        let cached = _memoLock.withLock { E }
+        if apx <= cached.precision { return cached.value.truncated(width: apx) }
+        // `Self.self == BigRat.self` where this used to ask `E.value is BigRat`:
+        // the same question, without reading the memo to answer it
+        let v:Self = Self.self == BigRat.self ? {
             let epsilon = getEpsilon(precision: px)
             var (e, d) = (Self(1), Self(1))
             for i in 1 ... apx {
@@ -109,14 +130,15 @@ extension BigFloatingPoint {
             }
             return e.truncated(width: apx)
         }() : Self(BigRat.E(precision: apx))
-        E = (precision: apx, value: v)      // publish together, value first
+        _memoLock.withLock { if E.precision < apx { E = (precision: apx, value: v) } }
         return v
     }
     /// log(2)
     public static func LN2(precision px:Int=Self.precision, debug db:Bool = false)->Self {
         let apx = Swift.abs(px)
-        if apx <= LN2.precision { return LN2.value.truncated(width: apx) }
-        let v:Self = LN2.value is BigRat ? {
+        let cached = _memoLock.withLock { LN2 }
+        if apx <= cached.precision { return cached.value.truncated(width: apx) }
+        let v:Self = Self.self == BigRat.self ? {
             let epsilon = getEpsilon(precision: px)
             var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
             for i in 1...px.magnitude {
@@ -127,15 +149,22 @@ extension BigFloatingPoint {
             }
             return (2*r).truncated(width: apx)
         }() : Self(BigRat.LN2(precision: apx))
-        LN2 = (precision: apx, value: v)    // publish together, value first
+        _memoLock.withLock { if LN2.precision < apx { LN2 = (precision: apx, value: v) } }
         return v
     }
     /// log(10)
     public static func LN10(precision px:Int=Self.precision, debug db:Bool=false)->Self {
         let apx = Swift.abs(px)
-        if apx <= LN10.precision { return LN10.value.truncated(width: apx) }
-        let v = Self.log(10, precision:apx)
-        LN10 = (precision: apx, value: v)   // publish together, value first
+        let cached = _memoLock.withLock { LN10 }
+        if apx <= cached.precision { return cached.value.truncated(width: apx) }
+        // Truncated like the other four.  Without this, `log` hands back more bits
+        // than were asked for and LN10 returns them -- so the *first* call at a
+        // precision gave a wider value than every call after it, which comes back
+        // through the cache truncated.  Concurrency made that visible (the same
+        // request answered differently depending on who got there first) but it
+        // was never a race: it is one call disagreeing with the next.
+        let v = Self.log(10, precision:apx).truncated(width: apx)
+        _memoLock.withLock { if LN10.precision < apx { LN10 = (precision: apx, value: v) } }
         return v
     }
     /// π/4 in precision `px`.  Bellard's Formula
@@ -144,8 +173,9 @@ extension BigFloatingPoint {
             return Self.pi / 4
         }
         let apx = Swift.abs(px)
-        if apx <= ATAN1.precision { return ATAN1.value.truncated(width: apx) }
-        let v:Self = ATAN1.value is BigRat ? {
+        let cached = _memoLock.withLock { ATAN1 }
+        if apx <= cached.precision { return cached.value.truncated(width: apx) }
+        let v:Self = Self.self == BigRat.self ? {
             let epsilon = getEpsilon(precision: px)
             var p64 = Self(0)
             for i in 0..<Int(apx.magnitude) {
@@ -171,7 +201,7 @@ extension BigFloatingPoint {
             p64 /= Self(1<<8)
             return p64.truncated(width: apx)
         }() : Self(BigRat.ATAN1(precision: apx))
-        ATAN1 = (precision: apx, value: v)  // publish together, value first
+        _memoLock.withLock { if ATAN1.precision < apx { ATAN1 = (precision: apx, value: v) } }
         return v
     }
     /// π in precision `px`.  4*atan(1)
