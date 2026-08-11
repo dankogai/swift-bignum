@@ -1,5 +1,6 @@
 import Testing
-import Foundation   // Dispatch, for concurrentPerform
+import Foundation
+import Dispatch     // concurrentPerform; on Linux this is not re-exported by Foundation
 @testable import BigNum
 
 ///
@@ -17,6 +18,24 @@ import Foundation   // Dispatch, for concurrentPerform
 ///
 @Suite struct ConcurrencyTests {
 
+    /// Runs `body` on `count` workers and returns how many times it reported a
+    /// mismatch.
+    ///
+    /// Each worker writes only its own slot, so there is nothing shared to
+    /// synchronise and no atomic to reach for -- which matters because the obvious
+    /// atomic, `OSAtomicIncrement32`, is Darwin-only and this package builds on
+    /// Linux too.  That is exactly how the first version of this file broke CI.
+    static func tally(_ count: Int, _ body: (Int) -> Int) -> Int {
+        let slots = UnsafeMutableBufferPointer<Int>.allocate(capacity: count)
+        defer { slots.deallocate() }
+        slots.initialize(repeating: 0)
+        let base = slots.baseAddress!
+        DispatchQueue.concurrentPerform(iterations: count) { i in
+            base[i] = body(i)
+        }
+        return slots.reduce(0, +)
+    }
+
     /// Computed serially first, so the concurrent runs have something to be
     /// compared against that is not itself concurrent.
     static let expected: [Int: [String]] = {
@@ -33,10 +52,8 @@ import Foundation   // Dispatch, for concurrentPerform
 
     @Test func constantsAgreeAcrossThreads() {
         let precisions = [64, 128, 192, 256, 320]
-        let wrong = UnsafeMutablePointer<Int32>.allocate(capacity: 1)
-        wrong.initialize(to: 0)
-        defer { wrong.deallocate() }
-        DispatchQueue.concurrentPerform(iterations: 64) { i in
+        let wrong = Self.tally(64) { i in
+            var bad = 0
             for k in 0 ..< 12 {
                 let px = precisions[(i + k) % precisions.count]
                 let got = [BigRat.E(precision: px).toString(),
@@ -44,10 +61,11 @@ import Foundation   // Dispatch, for concurrentPerform
                            BigRat.LN10(precision: px).toString(),
                            BigRat.ATAN1(precision: px).toString(),
                            BigRat.SQRT2(precision: px).toString()]
-                if got != Self.expected[px]! { OSAtomicIncrement32(wrong) }
+                if got != Self.expected[px]! { bad += 1 }
             }
+            return bad
         }
-        #expect(wrong.pointee == 0, "\(wrong.pointee) concurrent constant reads disagreed with the serial value")
+        #expect(wrong == 0, "\(wrong) concurrent constant reads disagreed with the serial value")
     }
 
     /// The same, across both types at once — `BigFloat.E` delegates to `BigRat.E`,
@@ -56,19 +74,18 @@ import Foundation   // Dispatch, for concurrentPerform
     @Test func bothTypesAtOnce() {
         let serialFloat = BigFloat.exp(1).description
         let serialRat = BigRat.exp(1).toString()
-        let mismatches = UnsafeMutablePointer<Int32>.allocate(capacity: 1)
-        mismatches.initialize(to: 0)
-        defer { mismatches.deallocate() }
-        DispatchQueue.concurrentPerform(iterations: 48) { i in
+        let mismatches = Self.tally(48) { i in
+            var bad = 0
             for _ in 0 ..< 10 {
                 if i & 1 == 0 {
-                    if BigFloat.exp(1).description != serialFloat { OSAtomicIncrement32(mismatches) }
+                    if BigFloat.exp(1).description != serialFloat { bad += 1 }
                 } else {
-                    if BigRat.exp(1).toString() != serialRat { OSAtomicIncrement32(mismatches) }
+                    if BigRat.exp(1).toString() != serialRat { bad += 1 }
                 }
             }
+            return bad
         }
-        #expect(mismatches.pointee == 0, "\(mismatches.pointee) results differed under concurrency")
+        #expect(mismatches == 0, "\(mismatches) results differed under concurrency")
     }
 
     /// Transcendentals that reach for a constant on the way, hammered together.
@@ -77,17 +94,14 @@ import Foundation   // Dispatch, for concurrentPerform
                     BigRat.exp(1).toString(), BigRat.pi.toString(),
                     BigRat.atan2(y: 1, x: 1).toString(),
                     BigRat.pow(2, BigRat(1, 2)).toString()]
-        let bad = UnsafeMutablePointer<Int32>.allocate(capacity: 1)
-        bad.initialize(to: 0)
-        defer { bad.deallocate() }
-        DispatchQueue.concurrentPerform(iterations: 40) { _ in
+        let bad = Self.tally(40) { _ in
             let got = [BigRat.sqrt(2).toString(), BigRat.log(2).toString(),
                        BigRat.exp(1).toString(), BigRat.pi.toString(),
                        BigRat.atan2(y: 1, x: 1).toString(),
                        BigRat.pow(2, BigRat(1, 2)).toString()]
-            if got != want { OSAtomicIncrement32(bad) }
+            return got == want ? 0 : 1
         }
-        #expect(bad.pointee == 0, "\(bad.pointee) transcendental results differed under concurrency")
+        #expect(bad == 0, "\(bad) transcendental results differed under concurrency")
     }
 
     /// Integer work never had shared state. Worth a test anyway, since "by
@@ -95,18 +109,16 @@ import Foundation   // Dispatch, for concurrentPerform
     @Test func integerWorkIsIndependent() {
         let m = (BigInt(1) << 127) - 1
         let expected = BigInt(3).power(m - 1, mod: m).description
-        let bad = UnsafeMutablePointer<Int32>.allocate(capacity: 1)
-        bad.initialize(to: 0)
-        defer { bad.deallocate() }
-        DispatchQueue.concurrentPerform(iterations: 32) { i in
-            if BigInt(3).power(m - 1, mod: m).description != expected { OSAtomicIncrement32(bad) }
-            if (BigInt(1) << (100 + i)).squareRoot() != BigInt(1) << ((100 + i) / 2) {
-                if (100 + i) % 2 == 0 { OSAtomicIncrement32(bad) }   // exact only for even powers
-            }
-            if !BigInt(1000003).isPrime! { OSAtomicIncrement32(bad) }
-            if BigUInt("deadbeef", radix: 16)! != 3735928559 { OSAtomicIncrement32(bad) }
+        let bad = Self.tally(32) { i in
+            var n = 0
+            if BigInt(3).power(m - 1, mod: m).description != expected { n += 1 }
+            // 2^k has an exact integer square root only for even k
+            if (100 + i) % 2 == 0 && (BigInt(1) << (100 + i)).squareRoot() != BigInt(1) << ((100 + i) / 2) { n += 1 }
+            if BigInt(1000003).isPrime != true { n += 1 }
+            if BigUInt("deadbeef", radix: 16)! != 3735928559 { n += 1 }
+            return n
         }
-        #expect(bad.pointee == 0, "\(bad.pointee) integer results differed under concurrency")
+        #expect(bad == 0, "\(bad) integer results differed under concurrency")
     }
 }
 
