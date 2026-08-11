@@ -13,6 +13,7 @@ import BigNum
 BigInt(2).power(256)            // 115792089237316195423570985008687907853269984665640564039457584007913129639936
 BigInt(3).power(BigInt(1) << 100, mod: 1000000007)  // 870513414 -- Python's pow(b, e, m)
 BigInt(1000003).isPrime!        // true -- a Bool?, but never nil below 2^64
+BigUInt.random(withExactWidth: 1024)   // a random 1024-bit value, unbiased
 1000003.isPrime!                // ... and all of this works on Int and UInt8 too
 1.over(3) + 1.over(6)           // (1/2) -- `over` turns two integers into a fraction
 BigRat(1,3) + BigRat(1,3) + BigRat(1,3) == 1    // true.  Not "true to 17 digits".
@@ -51,14 +52,15 @@ BigFloat(1)/BigFloat(3) * 3 == 1    // false -- rounded to `precision` bits
 ## The built-in integers get all of it
 
 `power`, `power(_:mod:)`, `isPrime`, `squareRoot`, `greatestCommonDivisor`,
-`nextPrime` and the rest are on `Int`, `UInt`, `Int8` … `UInt64` and `Int128` as
-well as on `BigInt`:
+`nextPrime`, `random` and the rest are on `Int`, `UInt`, `Int8` … `UInt64` and
+`Int128` as well as on `BigInt`:
 
 ```swift
 Int(2).power(10)                        // 1024
 1000003.isPrime!                        // true
 UInt8(200).nextPrime                    // 211
 Int(2).power(1024, mod: 1_000_000_007)  // 812734592 -- no overflow, ever
+Int.random(from: -100, to: 100)         // and .random, closed at both ends
 ```
 
 Each widens to `BigInt`, computes there, and comes back — so where the answer

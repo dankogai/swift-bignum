@@ -86,7 +86,7 @@ to be findable before it is fixed.
 
 ## Missing: the same capability under another name
 
-Eleven members — 22 of the 56 usages — all of which we can already do. Nothing is stopping these from
+Twelve members — 28 of the 56 usages — all of which we can already do. Nothing is stopping these from
 being added; they are not, because each one is a name we would have to keep.
 
 | attaswift | here | difference |
@@ -101,21 +101,10 @@ being added; they are not, because each one is a name we would have to keep.
 | `&<<`, `&>>` | `<<`, `>>` | masking shifts, which at arbitrary precision are the plain ones — there is no width to mask against |
 | `init(words:)` | `init(_:)` from any `BinaryInteger` | no construction from a word sequence |
 | `let x: BigInt = "123"` | `BigInt("123")!` | not `ExpressibleByStringLiteral`. The literal form traps on nonsense; the initializer returns nil |
+| `randomInteger(withMaximumWidth:)`, `(withExactWidth:)`, `(lessThan:)`, each with `using:` | `random(withMaximumWidth:)`, `random(withExactWidth:)`, `random(lessThan:)` | the name only. The type is the noun, so `Integer` in the method said nothing twice |
 | `leadingZeroBitCount` | — | attaswift counts within its word storage. For an unbounded value there is no width to count from, so it would have to mean "within `bitWidth`" and that is a different question than the one `FixedWidthInteger` answers |
 
 ## Missing: capability we do not have
-
-### Random values — 6 usages
-
-```swift
-BigUInt.randomInteger(withMaximumWidth: 1024)
-BigUInt.randomInteger(withExactWidth: 1024)
-BigUInt.randomInteger(lessThan: n)
-// and each with `using: &generator`
-```
-
-There is no equivalent. Build one from `SystemRandomNumberGenerator` and
-`init(words:)`… which is also missing, so from `<<` and `|` over `UInt.random(in:)`.
 
 ### Byte serialization — 10 usages
 
@@ -221,7 +210,8 @@ compile unchanged.
 
 And a good deal that attaswift has no answer for: `isPrime`/`isSurelyPrime` and
 the primality family, `power(_:mod:)` with an exponent as wide as the modulus,
-`over(_:)`, the rational and floating-point types, and all of it on the built-in
-integers as well. See the [README](README.md).
+`random(from:to:)` over a closed range of any width, `over(_:)`, the rational and
+floating-point types, and all of it on the built-in integers as well. See the
+[README](README.md).
 
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
