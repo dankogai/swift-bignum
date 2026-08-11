@@ -101,6 +101,10 @@ BigInt(1)  >> 100         //   0
 BigInt(1)  << -3          //   0       -- a negative count shifts the other way
 ```
 
+Worth knowing if you are porting off attaswift/BigInt, which shifts the magnitude
+and keeps the sign instead, so its `BigInt(-5) >> 1` is -2. `Int` floors, this
+floors; see [Benchmark.md](Benchmark.md).
+
 `~` on `BigUInt` is the one operator that cannot mean what it usually does: an
 unsigned value has no width to complement within, so it flips the bits the value
 currently occupies.

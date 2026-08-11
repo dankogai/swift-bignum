@@ -207,6 +207,20 @@ Then `import BigNum`. That is the only import you need — `BigInt` comes with i
 git clone https://github.com/dankogai/swift-bignum.git && cd swift-bignum && swift test
 ```
 
+### Benchmark
+
+`BigInt` is measured against [attaswift/BigInt] in [Benchmark.md](Benchmark.md) —
+faster as operands grow, slower at one or two limbs, and the two libraries turn
+out to disagree about `>>` on negative values. It runs only when asked:
+
+```bash
+cd Benchmarks && swift run -c release
+```
+
+That is a separate package on purpose. A benchmark target in this manifest would
+pull attaswift back in as a dependency of the root, and `swift build` would stop
+fetching nothing.
+
 ### Playground
 
 `macOS.playground` has a page per type — Synopsis, BigInt, BigRat, BigFloat,
@@ -221,6 +235,8 @@ the `BigNum` module is built, then open the playground.
   conformance, `IntRat` and the other fixed-width rationals
 * [BigFloat.md](BigFloat.md) — `BigFloat`: mantissa and scale, rounding,
   truncation, parsing
+* [Benchmark.md](Benchmark.md) — `BigInt` against attaswift/BigInt, and the one
+  place they disagree
 
 # Prerequisite
 
@@ -251,6 +267,11 @@ API attaswift gave them. Two deliberate breaks:
 * **`as*` conversions are now `to*()` methods** — `asDouble` became `toDouble()`,
   matching the `toString()` that was already there. Likewise `asBigRat`,
   `asMixed`, `asIntRat`, `asBigFloat`.
+
+And one difference that is not a break so much as a correction: **`>>` on a
+negative value floors**, as `Int` and `BinaryInteger` specify, where attaswift
+shifts the magnitude and keeps the sign. `BigInt(-5) >> 1` is -3 here and -2
+there. [Benchmark.md](Benchmark.md) has the comparison against `Int`.
 
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
 [apple/swift-numerics]: https://github.com/apple/swift-numerics
