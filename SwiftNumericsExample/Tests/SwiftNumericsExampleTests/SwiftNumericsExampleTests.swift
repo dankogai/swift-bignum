@@ -7,23 +7,17 @@ import Foundation
 ///
 /// `Complex<BigRat>` and `Complex<BigFloat>`, which is the point of this package.
 ///
-/// The conformances they rest on are five members declared on the concrete types
-/// to break a tie between two protocol hierarchies -- see NumericsConformance.swift.
-/// Two things therefore need testing that would not otherwise:
-///
-///  *  that the five do not recurse.  Declaring `sqrt` on `BigFloat` makes it
-///     BigNum's witness as well as swift-numerics', so a body that called
-///     `BigFloat.sqrt` would come back to itself.  That compiles.  Every one of the
-///     five is called directly below, and a stack overflow is a failed test run
-///     rather than a wrong number.
-///  *  that they still mean what BigNum means.  A witness that outranks the
-///     library's own default is a chance to change behaviour by accident.
+/// The conformances are two empty `extension`s, because BigNum declares the five
+/// members that would otherwise tie on its concrete types -- see the end of
+/// Real.swift.  What is worth checking from this side is that the tie really is
+/// broken, so the five are exercised below through a file that imports both
+/// hierarchies: an ambiguity would be a build failure, and a witness that had come
+/// to call itself would be a test run that never returns.
 ///
 @Suite struct ConformanceTests {
 
-    /// The five tie-breakers, called directly.  If any recursed this test would not
-    /// return.
-    @Test func theTieBreakersTerminateAndAgreeWithBigNum() {
+    /// The five, called from a file that can see both `Real`s.
+    @Test func theTieBreakersResolveAndAgreeWithBigNum() {
         // sqrt
         #expect(BigRat.sqrt(BigRat(4)) == 2)
         #expect(BigFloat.sqrt(BigFloat(4)) == 2)
@@ -58,6 +52,13 @@ import Foundation
         // division
         #expect(BigRat(1) / BigRat(4) == BigRat(1, 4))
         #expect(BigRat(-7) / BigRat(2) == BigRat(-7, 2))
+        // `Double` conforms to both `Real`s as well, and the same four are at stake.
+        // swift-numerics declares `exp10` concretely on `Double` and BigNum leaves
+        // that one to it; BigNum declares the other three.  All four resolve.
+        #expect(Double.sqrt(4.0) == 2.0)
+        #expect(Double.exp10(2.0) == 100.0)
+        #expect(Double.signGamma(-0.5) == .minus)
+        #expect(4.0.reciprocal == 0.25)
     }
 
     /// Exact where `Double` cannot be: a rational's `/` divides rather than rounds.

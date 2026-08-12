@@ -163,3 +163,79 @@ extension Double : Real {
     }
     public static func logGamma(_ x: Double) -> Double       { return libm_lgamma(x) }
 }
+
+// MARK: - the four that swift-numerics defaults too
+//
+// `extension Real` above defaults `sqrt`, `exp10`, `reciprocal` and `signGamma`,
+// and apple/swift-numerics defaults the same four on *its* `Real`.  A type
+// conforming to both then has two equally specific candidates for each -- neither
+// protocol refines the other, so nothing breaks the tie -- and a requirement with
+// two equally good witnesses is unsatisfied rather than overloaded:
+//
+//     error: type 'BigFloat' does not conform to protocol 'AlgebraicField'
+//     note: multiple matching properties named 'reciprocal' with type 'BigFloat?'
+//
+// A member declared on the concrete type outranks any protocol-extension default,
+// so spelling these out here settles it.  It is a dozen forwarding lines that save
+// every consumer of both packages from writing them, and it is the reason
+// `extension BigFloat: RealModule.Real {}` can be empty.
+//
+// Each body reaches a differently-shaped function on purpose.  These *are* the
+// witnesses for BigNum's own requirements now, so a body calling the one-argument
+// form would call itself.
+
+extension BigFloat {
+    public static func sqrt(_ x: BigFloat) -> BigFloat {
+        return sqrt(x, precision: BigFloat.precision, debug: false)
+    }
+    public static func exp10(_ x: BigFloat) -> BigFloat {
+        return pow(10, x, precision: BigFloat.precision, debug: false)
+    }
+    public static func signGamma(_ x: BigFloat) -> FloatingPointSign {
+        return _signGamma(x)
+    }
+    public var reciprocal: BigFloat? { return _reciprocal(of: self) }
+}
+
+extension BigRat {
+    public static func sqrt(_ x: BigRat) -> BigRat {
+        return sqrt(x, precision: BigRat.precision, debug: false)
+    }
+    public static func exp10(_ x: BigRat) -> BigRat {
+        return pow(10, x, precision: BigRat.precision, debug: false)
+    }
+    public static func signGamma(_ x: BigRat) -> FloatingPointSign {
+        return _signGamma(x)
+    }
+    public var reciprocal: BigRat? { return _reciprocal(of: self) }
+    /// `BigFloat` declares `/` on the struct, so it already outranks
+    /// `AlgebraicField`'s default; a rational's comes from `extension RationalType`
+    /// and merely ties with it.
+    public static func / (a: BigRat, b: BigRat) -> BigRat { return a.over(b) }
+}
+
+extension Double {
+    public static func sqrt(_ x: Double) -> Double { return x.squareRoot() }
+    // No `exp10` here: swift-numerics declares one *concretely* on `Double`
+    // (RealModule/Double+Real.swift), so BigNum's protocol-extension default loses
+    // to it and there is no ambiguity.  Declaring ours concretely too would make
+    // two equally good candidates and break the call.
+    public static func signGamma(_ x: Double) -> FloatingPointSign { return _signGamma(x) }
+    public var reciprocal: Double? { return _reciprocal(of: self) }
+}
+
+/// The bodies of the two that cannot forward to a differently-shaped twin, kept
+/// here so the three types above share one copy.  Both match what `extension Real`
+/// does, and that generic version stays for any other conformer.
+@inline(__always) internal func _reciprocal<T:Real>(of x: T) -> T? {
+    let recip = 1/x
+    if recip.isNormal || x.isZero || !x.isFinite { return recip }
+    return nil
+}
+@inline(__always) internal func _signGamma<T:FloatingPoint>(_ x: T) -> FloatingPointSign {
+    if x >= 0 { return .plus }
+    let trunc = x.rounded(.towardZero)
+    if x == trunc { return .plus }              // a pole, not a sign change
+    let half = (trunc / 2).rounded(.towardZero)
+    return half * 2 == trunc ? .minus : .plus
+}

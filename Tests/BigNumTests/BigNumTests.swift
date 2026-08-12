@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import BigNum
 
 /// `BigRat` and `BigFloat` as `FloatingPoint`s -- comparison, arithmetic, rounding.
@@ -335,5 +336,89 @@ import Testing
         #expect(IntRat(num: 2, den: 4).hashValue == IntRat(1, 2).hashValue)
         #expect(IntRat(1, 3) != IntRat(1, 2))
         #expect(IntRat(1, 3) < IntRat(1, 2))
+    }
+}
+
+///
+/// The four members BigNum declares on its concrete types rather than defaulting on
+/// `Real`: `sqrt`, `exp10`, `reciprocal` and `signGamma`, plus `/` for `BigRat`.
+///
+/// They are spelled out so that a type conforming to both this `Real` and
+/// apple/swift-numerics' has one candidate per requirement instead of two -- see the
+/// end of Real.swift.  That makes them the witnesses for *BigNum's* requirements as
+/// well, which has two consequences worth a test.  A body that called the
+/// one-argument form would call itself: that compiles, and hangs.  And a member
+/// outranking the library's own default is a chance to change behaviour by accident.
+///
+@Suite struct ConcreteRealWitnessTests {
+
+    @Test func theyTerminate() {
+        // If any of these recursed, this test would not return.
+        #expect(BigFloat.sqrt(BigFloat(4)) == 2)
+        #expect(BigRat.sqrt(BigRat(4)) == 2)
+        #expect(Double.sqrt(4.0) == 2.0)
+        #expect(BigFloat.exp10(BigFloat(2)) == 100)
+        #expect(BigRat.exp10(BigRat(3)) == 1000)
+        #expect(Double.exp10(2.0) == 100.0)
+        #expect(BigFloat(4).reciprocal == BigFloat(0.25))
+        #expect(BigRat(4).reciprocal == BigRat(1, 4))
+        #expect(4.0.reciprocal == 0.25)
+        #expect(BigFloat.signGamma(BigFloat(-0.5)) == .minus)
+        #expect(BigRat.signGamma(BigRat(-1, 2)) == .minus)
+        #expect(Double.signGamma(-0.5) == .minus)
+        #expect(BigRat(1) / BigRat(4) == BigRat(1, 4))
+    }
+
+    /// `sqrt` has to stay the `precision:`-taking one at `Self.precision`, which for
+    /// a `BigRat` is *not* what the bare `squareRoot()` would give -- that one
+    /// defaults to 64 bits.
+    @Test func sqrtKeepsItsPrecision() {
+        #expect((BigRat.sqrt(BigRat(2)) - BigRat.SQRT2(precision: 128)).isZero)
+        #expect((BigFloat.sqrt(BigFloat(2)) - BigFloat.SQRT2(precision: 128)).isZero)
+        // 64 bits would be visibly short of that
+        #expect(BigRat.sqrt(BigRat(2)) != BigRat(2).squareRoot(precision: 64))
+        for x in [2, 3, 5, 10, 1000] {
+            let r = BigRat.sqrt(BigRat(x))
+            #expect((r * r - BigRat(x)).magnitude < BigRat.getEpsilon(precision: 120), "√\(x)")
+        }
+    }
+
+    /// `exp10` is `pow(10, x)`, as the generic default was.
+    @Test func exp10MatchesPow() {
+        for x in [0, 1, 2, -1, 3] {
+            #expect(BigFloat.exp10(BigFloat(x)) == BigFloat.pow(BigFloat(10), BigFloat(x)), "10^\(x)")
+            #expect(BigRat.exp10(BigRat(x)) == BigRat.pow(BigRat(10), BigRat(x)), "10^\(x)")
+        }
+        // not exactly 1/10: `pow` rounds to 128 bits, so a negative power of ten
+        // comes back as the nearest dyadic rational rather than the fraction
+        #expect(BigRat.exp10(BigRat(-1)) != BigRat(1, 10))
+        #expect((BigRat.exp10(BigRat(-1)) - BigRat(1, 10)).magnitude
+                  < BigRat.getEpsilon(precision: 120))
+    }
+
+    /// `signGamma` against `tgamma`, which is an independent answer rather than a
+    /// restatement of the same logic.
+    @Test func signGammaAgreesWithTgamma() {
+        for x in [3.0, -0.5, -1.5, -2.5, -3.5, 0.0, 7.25, -7.25, -0.25, -1.75] {
+            let want: FloatingPointSign = tgamma(x) < 0 ? .minus : .plus
+            #expect(BigFloat.signGamma(BigFloat(x)) == want, "BigFloat signGamma(\(x))")
+            #expect(BigRat.signGamma(BigRat(x)) == want, "BigRat signGamma(\(x))")
+            #expect(Double.signGamma(x) == want, "Double signGamma(\(x))")
+        }
+        // the poles are `.plus` by convention, where tgamma is not finite
+        for x in [-1.0, -2.0, -3.0] {
+            #expect(BigFloat.signGamma(BigFloat(x)) == .plus, "a pole, not a sign change")
+            #expect(BigRat.signGamma(BigRat(x)) == .plus)
+        }
+    }
+
+    /// `reciprocal` returns nil only where `1/x` is not normal, which for these
+    /// unbounded types means never -- but zero must still come back infinite.
+    @Test func reciprocalMatchesTheGenericRule() {
+        #expect(BigFloat.zero.reciprocal?.isInfinite == true)
+        #expect(BigRat.zero.reciprocal?.isInfinite == true)
+        #expect(BigRat(1, 3).reciprocal == BigRat(3))
+        #expect(BigFloat(-4).reciprocal == BigFloat(-0.25))
+        #expect(Double.leastNonzeroMagnitude.reciprocal == nil, "1/x overflows for a Double")
     }
 }
