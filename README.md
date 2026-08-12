@@ -21,8 +21,10 @@ BigFloat.sqrt(2)                // 1.414213562373095048801688724209698078569
 BigRat.exp(1, precision:256)    // e to 256 bits
 ```
 
-`swift build` fetches nothing. The whole package is this repository plus the Swift
-standard library and the platform's libm.
+**This package depends on no other SwiftPM package — only on itself.** `swift build`
+fetches nothing: the whole of it is this repository plus the Swift standard library
+and the platform's libm. Up to 5.x there were two dependencies; both moved in, and
+[Prerequisite](#prerequisite) says what and why.
 
 ## The four types
 
@@ -70,6 +72,42 @@ an `Int` has, and `BigInt(2).power(1024)` is right there when you need it. The
 modular form never overflows, which is what makes it worth having.
 [BigInt.md](BigInt.md#on-the-built-in-integers-too) has the full table of which
 operations can trap.
+
+## `BigRat` and `BigFloat` as somebody else's real part
+
+Being standalone cuts both ways, and the second way is the useful one. `BigRat` and
+`BigFloat` are ordinary `FloatingPoint` conformances carrying the whole of
+`<math.h>`, so they can serve as the **real part of any package that is generic over
+one** — and nothing has to be agreed in advance, because the dependency runs
+outward. swift-bignum knows nothing about the packages that use it, and does not
+need to.
+
+Two worked examples ship in this repository, each its own package so that this
+manifest keeps fetching nothing:
+
+| Example | Complex from | The conformance |
+|---|---|---|
+| [SwiftNumericsExample](SwiftNumericsExample/) | [apple/swift-numerics] | `extension BigRat: RealModule.Real {}` |
+| [SwiftComplexExample](SwiftComplexExample/) | [dankogai/swift-complex] | `extension BigRat: RMath {}` |
+
+Both give you `Complex<BigRat>` and `Complex<BigFloat>` for two empty extensions,
+and both are only examples. Any package generic over a real type can take these:
+a complex type is simply the case that shows it off, since it needs the whole of
+`ElementaryFunctions` rather than just arithmetic.
+
+```swift
+Complex<BigRat>(1, 2) / Complex<BigRat>(3, 4)    // exactly (11+2i)/25 -- no rounding
+Complex<BigFloat>.exp(Complex<BigFloat>(0, .pi)) // -1, to within 1e-39 at 128 bits
+```
+
+What it costs is not always nothing, and the two examples differ in exactly the way
+worth knowing about: **a protocol whose functions are requirements composes; one
+whose functions are extension defaults collides.** swift-numerics defaults four of
+them — `sqrt`, `exp10`, `reciprocal`, `signGamma`, and `/` besides, for `BigRat` —
+so those had to be settled on the concrete types here; see the end of
+[Real.swift](Sources/BigNum/Real.swift). swift-complex declares its functions as
+requirements, so nothing collides at all. Each example's README works through its
+own case.
 
 ## The exponentiation operator, on demand
 
@@ -254,6 +292,9 @@ the `BigNum` module is built, then open the playground.
 * [CAVEAT.md](CAVEAT.md) — every way this `BigInt` is *not* a drop-in replacement
   for attaswift's, measured by compiling all 106 of its public members against
   ours
+* [SwiftNumericsExample](SwiftNumericsExample/) and
+  [SwiftComplexExample](SwiftComplexExample/) — `BigRat` and `BigFloat` as the real
+  part of somebody else's `Complex`, one package each
 
 # Prerequisite
 
@@ -298,6 +339,7 @@ there. [Benchmark.md](Benchmark.md) has the comparison against `Int`.
 
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
 [apple/swift-numerics]: https://github.com/apple/swift-numerics
+[dankogai/swift-complex]: https://github.com/dankogai/swift-complex
 [dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
 
 # License
