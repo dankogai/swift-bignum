@@ -157,6 +157,8 @@ BigInt(2).power(64)                              // 18446744073709551616
 BigInt(-2).power(3)                              // -8
 BigInt(3).power(0)                               // 1
 BigInt(5).power(-2)                              // 0   -- no integral reciprocal
+BigInt(2).power(UInt8(10))                       // 1024 -- any integer exponent type
+BigInt(2).power(BigInt(10))                      // 1024
 
 BigInt(2).power(64).squareRoot()                 // 4294967296
 BigInt(10).squareRoot()                          // 3   -- floor(sqrt(10))
@@ -233,9 +235,18 @@ BigUInt(3).power(BigUInt(1) << 100, mod: 1000000007)   // 870513414
 ```
 
 A 2048-bit modexp with a 2048-bit exponent runs in tens of milliseconds in a
-release build. There is deliberately no `power(_: Self)` without a modulus to match: an exponent
-past `Int` has no representable answer there, since the result would want more
-bits than the machine has.
+release build.
+
+An exponent that wide is only meaningful *with* a modulus, which bounds the answer.
+`power(_:)` accepts one — the exponent is generic over `BinaryInteger` — and rejects
+it at runtime past `UInt.max`, because a result needing that many bits has nowhere
+to live:
+
+```swift
+BigInt(2).power(BigInt(10))         // 1024 -- a wide exponent type is fine
+BigInt(2).power(BigInt(1) << 70)    // traps: more bits than there are addresses
+BigInt(2).power(BigInt(1) << 70, mod: 1000000007)   // 100126750 -- bounded, so fine
+```
 
 ## Conversions
 
@@ -601,10 +612,10 @@ UInt8(200).power(200, mod: 251)         // 1, though 200 * 200 overflows a UInt8
 can hold falls outside the exhaustively verified range. A 128-bit type is the
 exception — above `UInt64.max` a prime can come back `nil`.
 
-Two small print items. The modular `power` takes its exponent generically
-(`power<E: BinaryInteger>(_:mod:)`) rather than as the `Int`/`Self` pair
-`BigIntegerType` uses, because when `Self` is `Int` those two are the same
-signature and every call site is ambiguous. And `squareRoot()` and
+Two small print items. The modular `power` here has no `Self`-exponent twin like
+the one `BigIntegerType` keeps alongside its generic, because when `Self` is `Int`
+the two would be the same signature and every call site ambiguous. The generic
+covers both anyway. And `squareRoot()` and
 `greatestCommonDivisor(with:)` already reached the *signed* built-ins through
 `RationalElement`, by this same widen-and-return trick — `Int(10).squareRoot()` is
 not new. Only the unsigned ones gained them, `RationalElement` being a
@@ -621,8 +632,8 @@ public protocol BigIntegerType : BinaryInteger, LosslessStringConvertible, Codab
     func toString(radix: Int, uppercase: Bool) -> String
     init?<S: StringProtocol>(_ text: S, radix: Int)
     func squareRoot() -> Self
-    func power(_ exponent: Int) -> Self
-    func power(_ exponent: Int, mod modulus: Self) -> Self
+    func power<E: BinaryInteger>(_ exponent: E) -> Self
+    func power<E: BinaryInteger>(_ exponent: E, mod modulus: Self) -> Self
     func power(_ exponent: Self, mod modulus: Self) -> Self
     func greatestCommonDivisor(with other: Self) -> Self
 }
@@ -638,3 +649,9 @@ specializing — which is what `BigInt` and `BigUInt` do for `squareRoot()` and
 `greatestCommonDivisor(with:)`. The three `power`s share a single
 square-and-multiply loop, which takes the modulus as an `Optional` and reduces
 after each step when it has one.
+
+The exponent is generic over `BinaryInteger` rather than an `Int`, so any integer
+type can go in that position — `BigInt(2).power(UInt8(10))` and
+`BigInt(2).power(BigInt(10))` both work. The third overload is what the generic
+already covers, kept because overload resolution prefers a concrete signature and
+because a `Self` exponent is the shape the cryptographic case uses.

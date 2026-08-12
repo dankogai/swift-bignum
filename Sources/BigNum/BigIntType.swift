@@ -28,11 +28,14 @@ public protocol BigIntegerType : BinaryInteger, LosslessStringConvertible, Codab
     /// ⌊√self⌋.  Traps on a negative `self`.
     func squareRoot() -> Self
     /// `self` raised to `exponent`.
-    func power(_ exponent: Int) -> Self
+    func power<E:BinaryInteger>(_ exponent: E) -> Self
     /// `self` raised to `exponent`, reduced modulo `modulus` -- Python's
     /// three-argument `pow()`.
-    func power(_ exponent: Int, mod modulus: Self) -> Self
-    /// The same, for an exponent too wide to be an `Int`.
+    func power<E:BinaryInteger>(_ exponent: E, mod modulus: Self) -> Self
+    /// The same for a `Self` exponent, which the generic above already covers --
+    /// `Self` is a `BinaryInteger`.  Kept because it is the concrete overload the
+    /// compiler prefers, and because it is the shape the cryptographic case
+    /// actually uses, where the exponent is as wide as the modulus.
     func power(_ exponent: Self, mod modulus: Self) -> Self
     /// The greatest common divisor of `self` and `other`, always non-negative.
     func greatestCommonDivisor(with other: Self) -> Self
@@ -188,7 +191,13 @@ extension BigIntegerType {
 
     /// A negative `exponent` has no integral answer, so it yields 0 except for
     /// the two values that are their own reciprocal.
-    public func power(_ exponent: Int) -> Self {
+    ///
+    /// The exponent is generic so that any integer type can be written here, but
+    /// it still has to fit a `UInt`: a bigger one names a result with more bits
+    /// than the machine can address, whatever type it arrived in.  Reach for
+    /// `power(_:mod:)`, which is bounded by its modulus and does not care how wide
+    /// the exponent is.
+    public func power<E:BinaryInteger>(_ exponent: E) -> Self {
         if exponent == 0 { return 1 }
         if exponent == 1 { return self }
         if exponent < 0 {
@@ -199,7 +208,14 @@ extension BigIntegerType {
             if Self.isSigned && self == 0 - 1 { return exponent % 2 == 0 ? 1 : self }
             return 0
         }
-        return self._squareAndMultiply(UInt(exponent), mod: nil)
+        guard let e = UInt(exactly: exponent) else {
+            // Said here rather than left to the trap inside `UInt.init`, which
+            // would blame a numeric conversion for what is really a request that
+            // has no answer.
+            preconditionFailure("power(\(exponent)) needs more bits than there are"
+                              + " addresses; use power(_:mod:) for an exponent this wide")
+        }
+        return self._squareAndMultiply(e, mod: nil)
     }
 
     /// `self`⁻¹ mod `modulus` by the extended Euclidean algorithm, or nil when
@@ -236,16 +252,20 @@ extension BigIntegerType {
     /// Only the modulus bounds the intermediates, so this stays cheap where
     /// `power(_:)` could not run at all: `e` squarings of a value no wider than
     /// `modulus`, rather than a result with `e * self.bitWidth` bits.
-    public func power(_ exponent: Int, mod modulus: Self) -> Self {
+    public func power<E:BinaryInteger>(_ exponent: E, mod modulus: Self) -> Self {
         return self._power(exponent, mod: modulus)
     }
 
-    /// `power(_:mod:)` for an exponent too large to be an `Int`, which is the
-    /// usual case in cryptography -- an RSA exponent is as wide as its modulus.
+    /// `power(_:mod:)` with a `Self` exponent, which is the usual case in
+    /// cryptography -- an RSA exponent is as wide as its modulus.
     ///
-    /// There is deliberately no `power(_: Self)` to match: without a modulus an
-    /// exponent past `Int` has no representable answer anyway, since the result
-    /// would need more bits than the machine has.
+    /// The generic overload above covers this, `Self` being a `BinaryInteger`, so
+    /// this one is a concrete specialization rather than extra reach.  Overload
+    /// resolution prefers it, which is why it stays.
+    ///
+    /// Note that a modulus is what makes a wide exponent meaningful: `power(_:)`
+    /// accepts a `Self` exponent too, and rejects one past `UInt.max` at runtime,
+    /// because a result that big has nowhere to live.
     public func power(_ exponent: Self, mod modulus: Self) -> Self {
         return self._power(exponent, mod: modulus)
     }

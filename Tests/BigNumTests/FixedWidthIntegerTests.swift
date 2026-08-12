@@ -56,6 +56,45 @@ import Testing
         #expect(Int(1).power(-9) == 1 && Int(-1).power(-9) == -1)
     }
 
+    /// The exponent is generic over `BinaryInteger` rather than an `Int`, so any
+    /// integer type can be written in that position.  Only the first line of each
+    /// group below compiled before it was.
+    ///
+    /// This is a compile-time claim as much as a runtime one: every line here is a
+    /// distinct overload resolution, and the test earns its keep by failing to
+    /// build if one of them stops resolving.
+    @Test func anyIntegerTypeCanBeAnExponent() {
+        // a fixed-width receiver
+        #expect(Int(2).power(10) == 1024)
+        #expect(Int(2).power(UInt8(10)) == 1024)
+        #expect(Int(2).power(BigInt(10)) == 1024)
+        #expect(Int(2).power(BigUInt(10)) == 1024)
+        #expect(UInt8(3).power(UInt8(4)) == 81)
+        // a big receiver
+        #expect(BigInt(2).power(10) == 1024)
+        #expect(BigInt(2).power(UInt8(10)) == 1024)
+        #expect(BigInt(2).power(BigInt(10)) == 1024)
+        #expect(BigInt(2).power(BigUInt(10)) == 1024)
+        #expect(BigUInt(2).power(UInt(10)) == 1024)
+        // the sign rules do not change with the exponent's type
+        #expect(BigInt(-2).power(Int8(3)) == -8)
+        #expect(BigInt(5).power(Int8(-2)) == 0)
+        #expect(BigInt(-1).power(Int16(-3)) == -1)
+        #expect(Int(-2).power(Int8(3)) == -8)
+        // and neither do the modular ones
+        #expect(BigInt(3).power(UInt8(5), mod: BigInt(7)) == 5)
+        #expect(BigInt(3).power(BigInt(5), mod: BigInt(7)) == 5)
+        #expect(BigInt(3).power(BigUInt(5), mod: BigInt(7)) == 5)
+        #expect(BigInt(2).power(Int8(-1), mod: 5) == 3)
+        #expect(Int(2).power(UInt16(1024), mod: 1_000_000_007) == 812734592)
+        // An exponent past `UInt` is meaningful only with a modulus to bound the
+        // answer, and `power(_:)` rejects one.  A trap cannot be `#expect`ed, so
+        // what is checked here is the boundary it has to *accept* -- if the guard
+        // were off by one this would trap rather than fail.
+        #expect(BigUInt(3).power(BigUInt(1) << 100, mod: 1000000007) == 870513414)
+        #expect(BigInt(1).power(UInt.max) == 1)
+    }
+
     /// The modular form is the one that cannot overflow, since the answer is
     /// bounded by a modulus that is a `Self` already.  It is therefore also the
     /// one worth checking at full width.

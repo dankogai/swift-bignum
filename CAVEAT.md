@@ -202,7 +202,8 @@ compile unchanged.
   forms
 * `quotientAndRemainder(dividingBy:)`, `isMultiple(of:)`, `negate()`, `signum()`,
   `magnitude`, `isZero`, `isSigned`
-* `power(_:)` with an `Int` exponent, `squareRoot()`,
+* `power(_:)` — ours takes any `BinaryInteger` exponent where attaswift takes an
+  `Int`, so every attaswift call still compiles — `squareRoot()`,
   `greatestCommonDivisor(with:)`
 * `words`, `Words`, `Magnitude`, `bitWidth`, `trailingZeroBitCount`
 * `Codable` (the protocol; see the format caveat above), `Hashable`, `Comparable`
