@@ -60,8 +60,9 @@ concurrent stress test under the thread sanitiser to pin down.
 
 They are no longer cached. Each is a 640-bit literal, verified against an
 independent source, and a request at or below 512 bits is a truncation of it. Above
-512 bits, √2 is refined from the seed by Newton-Raphson and the others are summed —
-computed fresh, not stored. So the answer never depends on what ran before it, on
+512 bits each is computed fresh rather than stored: √2 by Newton-Raphson from the
+seed, π/4 and log 2 by the arithmetic-geometric mean, log 10 from log 2 and a short
+correction series, e by its own series. So the answer never depends on what ran before it, on
 which thread, or in what order, and there is no lock to contend for either. See
 [Constants.swift](Sources/BigNum/Constants.swift).
 
