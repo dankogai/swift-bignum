@@ -28,14 +28,14 @@ public protocol BigIntegerType : BinaryInteger, LosslessStringConvertible, Codab
     /// ⌊√self⌋.  Traps on a negative `self`.
     func squareRoot() -> Self
     /// `self` raised to `exponent`.
-    func power<E:BinaryInteger>(_ exponent: E) -> Self
+    func power<E:BinaryInteger & SignedInteger>(_ exponent: E) -> Self
     /// `self` raised to `exponent`, reduced modulo `modulus` -- Python's
     /// three-argument `pow()`.
-    func power<E:BinaryInteger>(_ exponent: E, mod modulus: Self) -> Self
-    /// The same for a `Self` exponent, which the generic above already covers --
-    /// `Self` is a `BinaryInteger`.  Kept because it is the concrete overload the
-    /// compiler prefers, and because it is the shape the cryptographic case
-    /// actually uses, where the exponent is as wide as the modulus.
+    func power<E:BinaryInteger & SignedInteger>(_ exponent: E, mod modulus: Self) -> Self
+    /// The same for a `Self` exponent.  Where `Self` is signed the generic above
+    /// covers it and the compiler prefers this concrete signature; where `Self` is
+    /// *unsigned* this is the only route, and it is what lets a `BigUInt` exponent
+    /// -- the cryptographic shape, as wide as the modulus -- still be written.
     func power(_ exponent: Self, mod modulus: Self) -> Self
     /// The greatest common divisor of `self` and `other`, always non-negative.
     func greatestCommonDivisor(with other: Self) -> Self
@@ -192,12 +192,17 @@ extension BigIntegerType {
     /// A negative `exponent` has no integral answer, so it yields 0 except for
     /// the two values that are their own reciprocal.
     ///
-    /// The exponent is generic so that any integer type can be written here, but
-    /// it still has to fit a `UInt`: a bigger one names a result with more bits
-    /// than the machine can address, whatever type it arrived in.  Reach for
-    /// `power(_:mod:)`, which is bounded by its modulus and does not care how wide
-    /// the exponent is.
-    public func power<E:BinaryInteger>(_ exponent: E) -> Self {
+    /// The exponent is generic over the *signed* integers.  Signed rather than
+    /// `BinaryInteger`, because that reciprocal is half of what this method means:
+    /// an unsigned exponent type could not express the case, so the branch below
+    /// would be unreachable and the caller would have written something whose
+    /// documented behaviour cannot occur.  Better to say so at compile time.
+    ///
+    /// Any width is accepted, but the value still has to fit a `UInt`: a bigger one
+    /// names a result with more bits than the machine can address, whatever type it
+    /// arrived in.  Reach for `power(_:mod:)`, which is bounded by its modulus and
+    /// does not care how wide the exponent is.
+    public func power<E:BinaryInteger & SignedInteger>(_ exponent: E) -> Self {
         if exponent == 0 { return 1 }
         if exponent == 1 { return self }
         if exponent < 0 {
@@ -252,20 +257,22 @@ extension BigIntegerType {
     /// Only the modulus bounds the intermediates, so this stays cheap where
     /// `power(_:)` could not run at all: `e` squarings of a value no wider than
     /// `modulus`, rather than a result with `e * self.bitWidth` bits.
-    public func power<E:BinaryInteger>(_ exponent: E, mod modulus: Self) -> Self {
+    public func power<E:BinaryInteger & SignedInteger>(_ exponent: E, mod modulus: Self) -> Self {
         return self._power(exponent, mod: modulus)
     }
 
     /// `power(_:mod:)` with a `Self` exponent, which is the usual case in
     /// cryptography -- an RSA exponent is as wide as its modulus.
     ///
-    /// The generic overload above covers this, `Self` being a `BinaryInteger`, so
-    /// this one is a concrete specialization rather than extra reach.  Overload
-    /// resolution prefers it, which is why it stays.
+    /// This one is load-bearing, not a convenience.  For a signed `Self` the
+    /// generic above also matches and the compiler merely prefers the concrete
+    /// signature; for an **unsigned** `Self` it is the only route, `Self` not being
+    /// a `SignedInteger`.  It is what keeps
+    /// `BigUInt(3).power(BigUInt(1) << 100, mod: m)` compiling.
     ///
     /// Note that a modulus is what makes a wide exponent meaningful: `power(_:)`
-    /// accepts a `Self` exponent too, and rejects one past `UInt.max` at runtime,
-    /// because a result that big has nowhere to live.
+    /// takes one too, and rejects it past `UInt.max` at runtime, because a result
+    /// that big has nowhere to live.
     public func power(_ exponent: Self, mod modulus: Self) -> Self {
         return self._power(exponent, mod: modulus)
     }
