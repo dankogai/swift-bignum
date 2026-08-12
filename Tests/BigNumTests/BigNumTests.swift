@@ -166,3 +166,174 @@ import Testing
         }
     }
 }
+
+///
+/// `BigFloat`'s `==` is IEEE equality, not representation equality.
+///
+/// The distinction is not academic: `truncate(width:)` rounds the mantissa in place
+/// without moving the zeroed bits into the scale, so ordinary API hands back the
+/// same number in more than one shape.  `init(scale:mantissa:)` normalizes, `<`
+/// compares by subtraction, and `==` used to compare the stored properties -- which
+/// left `<`, `==` and `>` all false for a pair of equal values, something
+/// `Comparable` forbids.
+///
+@Suite struct BigFloatEqualityTests {
+
+    /// The pair that found it.  √2 at 129 bits against √2 at 641 bits, the latter
+    /// being the 640-bit seed with its low 512 bits rounded away but still stored.
+    @Test func theSameNumberInTwoWidthsIsEqual() {
+        let a = BigFloat.sqrt(BigFloat(2))
+        let b = BigFloat.SQRT2(precision: 128)
+        #expect(a.mantissa.bitWidth != b.mantissa.bitWidth, "two shapes")
+        #expect((a - b).isZero, "one number")
+        #expect(a == b)
+        #expect(!(a === b), "`===` still reports the shapes differ, which is its job")
+        #expect(a.hashValue == b.hashValue, "equal values, equal hashes")
+        #expect(a <= b && a >= b)
+        #expect([a < b, a == b, a > b].filter { $0 }.count == 1,
+                "exactly one of <, == and > -- this is the contract that was broken")
+    }
+
+    /// `pow` returns values of the same padded shape, which is how a test in this
+    /// package came to assert that `pow(4, 0.5) != 2`.  It is 2, stored as
+    /// 2⁷⁶³ × 2⁻⁷⁶².
+    @Test func powLandsExactlyOnRepresentableAnswers() {
+        let two = BigFloat.pow(BigFloat(4), BigFloat(0.5))
+        #expect(two == 2)
+        #expect(two.hashValue == BigFloat(2).hashValue)
+        #expect(!(two === BigFloat(2)), "same number, and stored with 762 spare bits")
+    }
+
+    /// `scale` and `mantissa` are settable `public var`s, so a caller can denormalize
+    /// a value directly.  That on its own rules out representation equality.
+    @Test func denormalizingByHandDoesNotChangeTheNumber() {
+        var padded = BigFloat(1)
+        padded.mantissa <<= 64
+        padded.scale -= 64
+        #expect(padded == BigFloat(1))
+        #expect(padded.hashValue == BigFloat(1).hashValue)
+        #expect(!(padded === BigFloat(1)))
+        #expect([padded < 1, padded == 1, padded > 1].filter { $0 }.count == 1)
+    }
+
+    /// The IEEE cases BigFloat.md promises, which the fix had to leave alone.
+    @Test func theIEEECasesStillHold() {
+        #expect(BigFloat(0) == -BigFloat(0), "the two zeros are equal")
+        #expect(!(BigFloat(0) === -BigFloat(0)), "and stored differently")
+        #expect(BigFloat(0).hashValue == (-BigFloat(0)).hashValue, "so they must hash alike")
+        #expect(BigFloat.nan != BigFloat.nan)
+        #expect(BigFloat.nan === BigFloat.nan)
+        #expect(BigFloat.infinity == BigFloat.infinity)
+        #expect(-BigFloat.infinity == -BigFloat.infinity)
+        #expect(BigFloat.infinity != -BigFloat.infinity)
+        #expect(BigFloat.infinity != BigFloat(1))
+        #expect(BigFloat.infinity != BigFloat(0))
+    }
+
+    /// A `Set` is where a broken hash shows up as a wrong count rather than a wrong
+    /// comparison.
+    @Test func aSetHoldsEachNumberOnce() {
+        let s: Set<BigFloat> = [BigFloat.sqrt(BigFloat(2)), BigFloat.SQRT2(precision: 128),
+                                BigFloat.pow(BigFloat(4), BigFloat(0.5)), BigFloat(2),
+                                BigFloat(0), -BigFloat(0)]
+        #expect(s.count == 3, "√2, 2 and zero -- got \(s.count)")
+    }
+
+    /// Different numbers stay different, whatever widths they are carrying.
+    @Test func differentNumbersStayDifferent() {
+        let wide = BigFloat.SQRT2(precision: 128)       // 641 bits
+        let narrow = BigFloat.sqrt(BigFloat(3))         // 129 bits, larger
+        #expect(wide != narrow)
+        #expect(wide < narrow)
+        #expect(!(narrow < wide))
+        #expect(BigFloat(1) != BigFloat(2))
+        // a one-bit difference at the bottom of a wide mantissa must not be lost
+        var nudged = BigFloat.SQRT2(precision: 128)
+        nudged.mantissa += 1
+        #expect(nudged != wide, "differing in the last stored bit is a difference")
+        #expect(wide < nudged)
+    }
+}
+
+///
+/// The same defect in `BigRat`, and the same fix.
+///
+/// `init(_:_:)` reduces, so ordinary arithmetic never produced an unreduced value --
+/// which is why `==` comparing `num` and `den` looked sound.  But `init(num:den:)` is
+/// a protocol requirement that stores what it is given, `num` and `den` are settable,
+/// and `BigRat(someBigFloat)` writes `mantissa / 2^-scale` without reducing.
+///
+@Suite struct BigRatEqualityTests {
+
+    /// Reached through a conversion, which is how this turned up: the same √2 as a
+    /// 129-bit fraction and as a 641-bit one.
+    @Test func theSameNumberUnreducedIsEqual() {
+        let a = BigRat(BigFloat.sqrt(BigFloat(2)))
+        let b = BigRat(BigFloat.SQRT2(precision: 128))
+        #expect(a.den.bitWidth != b.den.bitWidth, "two fractions")
+        #expect((a - b).isZero, "one number")
+        #expect(a == b)
+        #expect(!a.isIdentical(to: b), "`isIdentical(to:)` still reports the fractions differ")
+        #expect(a.hashValue == b.hashValue)
+        #expect(a <= b && a >= b)
+        #expect([a < b, a == b, a > b].filter { $0 }.count == 1,
+                "exactly one of <, == and > -- the contract that was broken")
+    }
+
+    /// `init(num:den:)` stores without reducing, by design -- it is the primitive the
+    /// reducing `init(_:_:)` is built on.  Equality has to cope with its output.
+    @Test func theRawInitializerDoesNotReduce() {
+        let half = BigRat(num: BigInt(2), den: BigInt(4))
+        #expect(half.den == 4, "stored as given")
+        #expect(BigRat(2, 4).den == 2, "where init(_:_:) reduces")
+        #expect(half == BigRat(1, 2))
+        #expect(half.hashValue == BigRat(1, 2).hashValue)
+        #expect([half < BigRat(1,2), half == BigRat(1,2), half > BigRat(1,2)].filter { $0 }.count == 1)
+        // and a negative denominator denotes the same number as its negation
+        #expect(BigRat(num: BigInt(-1), den: BigInt(-2)) == BigRat(1, 2))
+        #expect(BigRat(num: BigInt(-1), den: BigInt(2)) == BigRat(-1, 2))
+    }
+
+    /// The IEEE cases, which the fix had to leave alone.
+    @Test func theIEEECasesStillHold() {
+        #expect(BigRat(0) == -BigRat(0))
+        #expect(BigRat(0).hashValue == (-BigRat(0)).hashValue, "±0 are ==, so must hash alike")
+        #expect(BigRat.nan != BigRat.nan)
+        #expect(BigRat.nan.isIdentical(to: BigRat.nan), "no `===` operator on the rationals, only BigFloat has one")
+        #expect(BigRat.infinity == BigRat.infinity)
+        #expect(-BigRat.infinity == -BigRat.infinity)
+        #expect(BigRat.infinity != -BigRat.infinity)
+        #expect(BigRat.infinity != BigRat(1))
+        #expect(!(BigRat.infinity < BigRat.infinity), "and infinity is not below itself")
+        #expect(BigRat.infinity <= BigRat.infinity)
+        #expect(-BigRat.infinity < BigRat.infinity)
+    }
+
+    /// Where a broken hash shows as a wrong count rather than a wrong comparison.
+    @Test func aSetHoldsEachNumberOnce() {
+        let s: Set<BigRat> = [BigRat(BigFloat.sqrt(BigFloat(2))),
+                              BigRat(BigFloat.SQRT2(precision: 128)),
+                              BigRat(num: BigInt(2), den: BigInt(4)), BigRat(1, 2),
+                              BigRat(2, 4), BigRat(0), -BigRat(0)]
+        #expect(s.count == 3, "√2, 1/2 and zero -- got \(s.count)")
+    }
+
+    /// Different numbers stay different, reduced or not.
+    @Test func differentNumbersStayDifferent() {
+        #expect(BigRat(1, 3) != BigRat(1, 2))
+        #expect(BigRat(1, 2) < BigRat(2, 3))
+        #expect(!(BigRat(2, 3) < BigRat(1, 2)))
+        #expect(BigRat(num: BigInt(2), den: BigInt(4)) != BigRat(1, 3))
+        #expect(BigRat(num: BigInt(2), den: BigInt(4)) < BigRat(2, 3))
+        // ordering across unreduced forms, including a negative denominator
+        #expect(BigRat(num: BigInt(-3), den: BigInt(-6)) < BigRat(num: BigInt(4), den: BigInt(6)))
+    }
+
+    /// The fix is on `RationalType`, so the fixed-width rationals get it too.
+    @Test func theFixedWidthRationalsGetItAsWell() {
+        #expect(IntRat(num: 2, den: 4) == IntRat(1, 2))
+        #expect(IntRat(num: 2, den: 4).hashValue == IntRat(1, 2).hashValue)
+        #expect(IntRat(1, 3) != IntRat(1, 2))
+        #expect(IntRat(1, 3) < IntRat(1, 2))
+    }
+}

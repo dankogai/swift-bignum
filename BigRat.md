@@ -136,6 +136,32 @@ why `toString(.fraction)` is the format that can still show it — `(+0/-1)`.
 > is that `atan2(-0, x)` returns `+0` instead of `-0` for finite positive `x`;
 > `ElementaryFunctionsTests` records it as a known issue.
 
+## Equality compares numbers, not fractions
+
+One number has many spellings as a fraction, and `BigRat` does not always hand you
+the reduced one. `init(_:_:)` reduces — `BigRat(2,4).den` is 2 — but `init(num:den:)`
+is the primitive underneath it and stores what it is given, `num` and `den` are
+settable, and `BigRat(someBigFloat)` writes `mantissa / 2^-scale` without reducing:
+
+```swift
+let a = BigRat(BigFloat.sqrt(BigFloat(2)))        // den 129 bits
+let b = BigRat(BigFloat.SQRT2(precision: 128))    // den 641 bits
+a == b                                            // true  -- one number
+a.isIdentical(to: b)                              // false -- two fractions
+BigRat(num: BigInt(2), den: BigInt(4)) == BigRat(1, 2)      // true
+BigRat(num: BigInt(-1), den: BigInt(-2)) == BigRat(1, 2)    // true
+```
+
+`==` cross-multiplies; `isIdentical(to:)` compares `num` and `den`. `hashValue`
+follows `==`, so the two spellings of √2 above share one `Set` slot. There is no
+`===` operator here — that one is `BigFloat`'s.
+
+Up to 5.x `==` compared the fraction, which called that pair unequal and left
+`a < b`, `a == b` and `a > b` **all** false, where `Comparable` requires exactly one
+to hold. `<` was never affected: it already cross-multiplied. The same fix landed on
+[`BigFloat`](BigFloat.md#equality-and-identity), whose `==` compared `scale` and
+`mantissa`.
+
 ## Mixed numbers, rounding and conversions
 
 ```swift

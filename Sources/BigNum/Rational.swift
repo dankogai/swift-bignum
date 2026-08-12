@@ -140,25 +140,75 @@ extension RationalType {
     public var isSignalingNaN:Bool  { return self.isNaN }
     public var isCanonical:Bool     { return true }
     //
+    /// Whether `self` and `other` are stored the same way -- a stronger question
+    /// than `==`, since one number has many spellings as a fraction.
     public func isIdentical(to other: Self) -> Bool {
         return self.num == other.num && self.den == other.den
     }
+    ///
+    /// Whether `self` and `other` are the same *number*.
+    ///
+    /// `init(_:_:)` reduces, so a value built through it is settled by the identity
+    /// check below and nothing further is spent.  But `init(num:den:)` is a
+    /// requirement of this protocol and stores what it is given, `num` and `den` are
+    /// settable, and conversions use them -- `BigRat(someBigFloat)` writes
+    /// `mantissa / 2^-scale` without reducing.  So an unreduced value is ordinary,
+    /// not pathological, and representation equality cannot answer this.
+    ///
+    /// This was `isIdentical(to:)` outright, which called 2/4 and 1/2 unequal
+    /// whenever the first arrived without being reduced.  Worse, `<`, `==` and `>`
+    /// were then *all* false for one number, and `Comparable` requires exactly one
+    /// to hold.
+    ///
+    /// Cross-multiplication settles it, and is what `isLessThan` already pays for
+    /// every unequal pair.  It does not care about the sign of either denominator:
+    /// `-1/-2` and `1/2` give the same products.
+    ///
     public func isEqual(to other: Self) -> Bool {
-        return self.isNaN || other.isNaN ? false
-          :  self.isZero ? other.isZero
-          :  self.isIdentical(to: other)
+        if self.isNaN || other.isNaN { return false }
+        if self.isIdentical(to: other) { return true }
+        if self.isZero || other.isZero { return self.isZero && other.isZero }
+        if self.isInfinite || other.isInfinite {
+            return self.isInfinite && other.isInfinite && self.sign == other.sign
+        }
+        return self.num * other.den == other.num * self.den
+    }
+    /// `Hashable` asks that equal values hash equally, so this hashes what
+    /// `init(_:_:)` would have stored.  The synthesized conformance hashed `num` and
+    /// `den` as they lay, which put one number in two buckets -- and a `Set` then
+    /// holds it twice.
+    ///
+    /// The reduction costs a gcd, paid only when hashing and not when comparing.
+    /// ±0 have to agree, being `==`; NaN equals nothing, itself included, so its
+    /// hash is free to be anything.
+    public func hash(into hasher: inout Hasher) {
+        if self.isZero     { hasher.combine(0) ; hasher.combine(0) ; return }
+        if self.isNaN      { hasher.combine(1) ; hasher.combine(0) ; return }
+        if self.isInfinite { hasher.combine(2) ; hasher.combine(self.sign == .minus ? -1 : 1) ; return }
+        var (n, d) = den < 0 ? (-num, -den) : (num, den)
+        let g = n.greatestCommonDivisor(with: d)
+        if g != 1 { n /= g ; d /= g }
+        hasher.combine(n)
+        hasher.combine(d)
     }
     private func isLessThan(_ other:Self, onEqual:Bool)->Bool {
-        if self.isEqual(to: other) { return onEqual }
         if self.isNaN || other.isNaN { return false }
+        if self.isIdentical(to: other) { return onEqual }
+        if self.isZero && other.isZero { return onEqual }
         if self.isInfinite {
+            // two infinities of one sign are equal, which the identity check above
+            // only catches when they are spelled the same way
+            if other.isInfinite && self.sign == other.sign { return onEqual }
             return self.sign == .minus
         }
         if other.isInfinite {
             return other.sign == .plus
         }
+        // Equality falls out of the same two products, so this does not call
+        // `isEqual(to:)` and pay for them twice.
         let l = self.num * other.den
         let r = other.num * self.den
+        if l == r { return onEqual }
         return self.den.signum() * other.den.signum() < 0 ? r < l : l < r
     }
     public func isLess(than other: Self) -> Bool {

@@ -186,6 +186,29 @@ BigFloat.nan === BigFloat.nan    // true
 
 `isIdentical(to:)` is the spelled-out form of `===`.
 
+The two are further apart than they look, because **the same number can be stored
+more than one way**. `init(scale:mantissa:)` normalizes — it moves the mantissa's
+trailing zeros into the scale — but `truncate(width:)` rounds the mantissa in place
+without doing that, and `scale` and `mantissa` are settable anyway:
+
+```swift
+let a = BigFloat.sqrt(BigFloat(2))          // mantissa 129 bits
+let b = BigFloat.SQRT2(precision: 128)      // mantissa 641 bits, low 512 zeroed
+a == b                           // true   -- one number
+a === b                          // false  -- two shapes
+a.mantissa.bitWidth              // 129
+b.mantissa.bitWidth              // 641
+
+BigFloat.pow(BigFloat(4), BigFloat(0.5)) == 2    // true, stored as 2⁷⁶³ × 2⁻⁷⁶²
+```
+
+So `==` compares values and `===` compares storage, and only the first of those is
+a number question. Up to 5.x `==` compared storage too, which made `a == b` false —
+and, worse, made `a < b`, `a == b` and `a > b` *all* false, where `Comparable`
+requires exactly one to hold. `<` was never affected: it compares by subtraction.
+
+`hashValue` follows `==`, so the two spellings of √2 above land in one `Set` slot.
+
 ## Specials
 
 ```swift

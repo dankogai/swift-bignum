@@ -255,13 +255,57 @@ extension BigFloat {
     public static func ===(_ lhs:BigFloat, _ rhs:BigFloat)->Bool {
         return lhs.isIdentical(to:rhs)
     }
+    ///
+    /// Whether `self` and `other` are the same *number*.
+    ///
+    /// `init(scale:mantissa:)` normalizes -- it moves the mantissa's trailing zeros
+    /// into the scale -- so a value built through it is settled by the identity
+    /// check below.  Two things break that invariant, and neither requires doing
+    /// anything unusual:
+    ///
+    ///  *  `truncate(width:)` rounds the mantissa in place, zeroing its low bits
+    ///     without moving them into the scale.  `BigFloat.SQRT2(precision: 128)`
+    ///     comes back as a 641-bit mantissa with 512 trailing zeros, where
+    ///     `BigFloat.sqrt(BigFloat(2))` -- the same number -- has 129 bits.
+    ///  *  `scale` and `mantissa` are settable `public var`s, so any caller can
+    ///     denormalize a value. That alone rules out representation equality.
+    ///
+    /// This was `isIdentical(to:)` outright, which called those two values unequal.
+    /// The consequence was worse than a wrong answer: `<`, `==` and `>` were *all*
+    /// false for them, and `Comparable` requires exactly one to hold.  `isLess
+    /// (than:)` compares by subtraction and was right the whole time, so `==` was
+    /// the only liar.
+    ///
     public func isEqual(to other:BigFloat)->Bool {
-        return self.isNaN || other.isNaN ? false
-          :  self.isZero ? other.isZero
-          :  self.isIdentical(to: other)
+        if self.isNaN || other.isNaN { return false }
+        if self.isIdentical(to: other) { return true }
+        // ±0 equal each other and nothing else.  ±∞ equal only themselves, which
+        // the identity check has already settled, there being one spelling of each.
+        if self.isZero || other.isZero { return self.isZero && other.isZero }
+        if self.isInfinite || other.isInfinite { return false }
+        // Finite and non-zero on both sides: compare what `init(scale:mantissa:)`
+        // would have stored, without building it.
+        let ls = self.mantissa.trailingZeroBitCount
+        let rs = other.mantissa.trailingZeroBitCount
+        return self.scale + ls == other.scale + rs
+          &&   self.mantissa >> ls == other.mantissa >> rs
     }
     public static func ==(_ lhs:BigFloat, _ rhs:BigFloat)->Bool {
         return lhs.isEqual(to:rhs)
+    }
+    /// `Hashable` asks that equal values hash equally, so this hashes the
+    /// normalized form for the same reason `isEqual(to:)` compares it.  The
+    /// synthesized conformance hashed the stored properties, which put the same
+    /// number in two buckets.
+    ///
+    /// ±0 have to agree, being `==`.  NaN needs no care -- it equals nothing,
+    /// itself included -- but keeping the two spellings apart costs nothing.
+    public func hash(into hasher: inout Hasher) {
+        if self.isNaN  { hasher.combine(Int.max) ; hasher.combine(mantissa) ; return }
+        if self.isZero { hasher.combine(0) ; hasher.combine(Significand.zero) ; return }
+        let shift = mantissa.trailingZeroBitCount
+        hasher.combine(scale + shift)
+        hasher.combine(mantissa >> shift)
     }
 }
 /// comparison.  Now we need infinity and isInfinite

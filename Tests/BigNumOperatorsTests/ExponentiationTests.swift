@@ -76,9 +76,19 @@ import BigNumOperators
         // near enough to be a rounding difference and no more
         let err = (BigRat(1,3) ** 2 - BigRat(1,9)).magnitude
         #expect(err < BigRat.getEpsilon(precision: 120), "\(err) should be a 128-bit rounding")
-        // BigFloat rounds too, and prints as though it had not
+        // BigFloat rounds too: √3 is irrational, so squaring what `pow` returns
+        // does not get 3 back
+        let r = BigFloat.pow(BigFloat(3), BigFloat(0.5))
+        #expect(r * r != 3, "pow rounds to 128 bits")
+        #expect((r * r - 3).magnitude < BigFloat.getEpsilon(precision: 120),
+                "and the miss is that rounding and nothing more")
+        // Where the answer *is* representable, `pow` lands on it exactly.  This
+        // used to read `!= 2`, "which is worth knowing" -- and what it knew was a
+        // bug: `pow(4, 0.5)` is 2, stored as 2⁷⁶³ × 2⁻⁷⁶² because `truncate(width:)`
+        // zeroes low mantissa bits without renormalizing, and `BigFloat.==`
+        // compared the representation.  See `BigFloat.isEqual(to:)`.
+        #expect(BigFloat.pow(BigFloat(4), BigFloat(0.5)) == 2)
         #expect(BigFloat.pow(BigFloat(4), BigFloat(0.5)).description == "2.0")
-        #expect(BigFloat.pow(BigFloat(4), BigFloat(0.5)) != 2, "which is worth knowing")
     }
 
     /// Which overload a bare literal picks.  `2 ** 3` has four candidates -- Int
