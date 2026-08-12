@@ -22,32 +22,42 @@
 //  1024 in one division and 4096 in three.  Nothing it needs comes from this file,
 //  which is what makes it safe to use here.
 //
-//  The other four do not refine, and the reason is circularity rather than effort:
+//  The other four do not refine the seed, and for π/4, ln 2 and ln 10 that is not
+//  a limitation but a choice: each has a *quadratically* convergent method that
+//  starts from nothing, and 512 seeded bits are not worth much against a method
+//  whose correct-bit count doubles every pass.  Refining was measured, not assumed
+//  -- Newton on ln 2 through `exp` came in at 193ms at 4096 bits against the AGM's
+//  85ms, because each Newton step pays for a 537-term `exp` series.
 //
-//   *  ln 2 by Newton is `x ← x - 1 + 2·exp(-x)`, and `exp` reduces its argument
-//      by ln 2.
-//   *  π/4 does not refine from its seed either -- Newton would want a
-//      trigonometric function, and those reduce their arguments by π -- but it does
-//      not need to: Gauss-Legendre doubles its correct bits every pass, so it
-//      reaches any precision in a number of passes proportional to the logarithm
-//      of it.
-//   *  ln 10 could be refined through `exp` (which needs only ln 2, so no cycle),
-//      and e through `log` for the same reason -- but e's own series converges
-//      superexponentially, so from-scratch is already fast, and ln 10 is one `log`
-//      call either way.
+//   *  π/4 runs Gauss-Legendre.
+//   *  ln 2 runs `ln s = π/(2·AGM(1, 4/s))` with `s = 2ⁿ`, which is exactly the
+//      case where the AGM's tiny starting value costs nothing: `4/2ⁿ` is a power
+//      of two and `BigRat` holds it exactly.
+//   *  ln 10 cannot use that -- `4/10ⁿ` is not dyadic, and `truncate` quantises on
+//      an absolute grid, so the AGM loses about half its digits unless `working` is
+//      widened to pay for it.  It goes through `LN2` and a short correction series
+//      instead; see `LN10`.
+//   *  e is the exception that really is from-scratch: its own series converges
+//      superexponentially, so there is nothing to beat.
 //
-//  Above 512 bits e, ln 2 and ln 10 run the series they always ran, at the
-//  precision asked for and without caching the result; π/4 runs Gauss-Legendre.  Those series were slow and are less
-//  so: at 4096 bits pi/4 went from 502ms to 68ms, ln 2 from 3.2s to 0.8s, e from
-//  475ms to 235ms and sqrt 2 from 2.1ms to 1.1ms.  Almost none of that came from
-//  the loops -- it came from `_gcd` learning that a power-of-two operand shares
-//  nothing (BigUInt.swift), because every `truncate` produces one and `BigRat`
-//  reduces every fraction it builds.  The loops contribute by keeping their
-//  accumulators truncated, so the reduction has that shape to begin with.  That is slower than a cache for a
-//  caller who asks repeatedly for 1024 bits, and it is the trade being made: a
-//  correct answer with no shared state, against a faster one with a lock around
-//  it.  Raising `seedBits` is the lever if the boundary is in the wrong place --
-//  the seeds are generated, not typed, and a wider one costs only source size.
+//  Nothing above caches, so each of these is paid again on every call.  That is
+//  slower than a memo for a caller who asks repeatedly for 1024 bits, and it is
+//  the trade being made: a correct answer with no shared state, against a faster
+//  one with a lock around it.  Raising `seedBits` is the lever if the boundary is
+//  in the wrong place -- the seeds are generated, not typed, and a wider one costs
+//  only source size.
+//
+//  Where the time went, at 4096 bits, from the memoised original to now:
+//
+//      π/4      502ms -> 27ms      e     475ms -> 158ms
+//      ln 2     3.2s  -> 85ms      √2    2.1ms -> 1.1ms
+//      ln 10    3.8s  -> 172ms
+//
+//  Roughly half of that was not the formulae at all: it was `_gcd` learning that a
+//  power-of-two operand shares nothing (BigUInt.swift), because every `truncate`
+//  produces one and `BigRat` reduces every fraction it builds.  The loops here
+//  contribute by keeping their accumulators truncated, so the reduction has that
+//  shape to begin with.
 //
 //  The seeds are not this library's own output.  They were generated from Python's
 //  `decimal` module -- √2 exactly, by integer square root -- and π/4 from the
@@ -137,44 +147,129 @@ extension BigFloatingPoint {
         return e.truncated(width: apx)
     }
 
-    /// ln 2
+    /// The arithmetic-geometric mean of 1 and `b0`.
     ///
-    /// Truncated from the seed at or below 512 bits.  Above that, the same
-    /// `atanh`-style series as before -- Newton on this one would want `exp`,
-    /// which reduces its argument by ln 2.
-    public static func LN2(precision px:Int = Self.precision, debug db:Bool = false)->Self {
-        let apx = Swift.abs(px)
-        if apx <= _Constant.seedBits { return Self(_Constant.ln2).truncated(width: apx) }
-        if Self.self != BigRat.self { return Self(BigRat.LN2(precision: apx)) }
-        let epsilon = getEpsilon(precision: apx)
-        let working = apx + 64          // see ATAN1 for why the sum is bounded
-        var (t, r) = (Self(1)/Self(3), Self(1)/Self(3))
-        for i in 1 ... apx.magnitude {
-            t *= Self(1)/Self(9)
-            t.truncate(width: working)
-            if db { print("\(Self.self).LN2: i=\(i)") }
-            if t < epsilon { break }
-            // Truncated *before* it is added.  `t / (2i+1)` has an odd denominator,
+    /// Each pass replaces the pair by its arithmetic and geometric means, which
+    /// agree to twice as many bits as the pass before -- so the count of passes
+    /// grows with the *logarithm* of the precision asked for.  `ATAN1` runs the
+    /// same recurrence but has to accumulate two more variables along the way, so
+    /// it keeps its own copy of the loop.
+    internal static func _agm(_ b0:Self, working:Int, epsilon:Self, debug db:Bool = false)->Self {
+        var a = Self(1)
+        var b = b0
+        var passes = 0
+        while passes < 400 {
+            let aNext = ((a + b) / 2).truncated(width: working)
+            let bNext = (a * b).truncated(width: working)
+                          .squareRoot(precision: working).truncated(width: working)
+            passes += 1
+            let converged = (aNext - bNext).magnitude < epsilon
+            a = aNext
+            b = bNext
+            if db { print("\(Self.self)._agm: pass \(passes)") }
+            if converged { break }
+        }
+        return a
+    }
+
+    /// `atanh z` by its series, for a `z` small enough that it converges quickly.
+    ///
+    /// `ElementaryFunctions` already has an `atanh`, but it goes by way of `log`,
+    /// and `log` is the slow thing this file is trying not to call.
+    internal static func _atanhSeries(_ z:Self, working:Int)->Self {
+        let epsilon = getEpsilon(precision: working - 8)
+        let z2 = (z * z).truncated(width: working)
+        var t = z
+        var r = z
+        var k = 1
+        while true {
+            t = (t * z2).truncated(width: working)
+            k += 1
+            if t.magnitude < epsilon { break }
+            // Truncated *before* it is added: `t / (2k-1)` has an odd denominator,
             // and adding that to the running sum gives the sum an odd factor too --
-            // which is precisely the case the gcd fast path cannot help with, so
-            // every addition would reduce the hard way.  Rounding the term to a
+            // precisely the case the gcd fast path cannot help with, so every
+            // addition would reduce the hard way.  Rounding the term to a
             // power-of-two denominator first keeps both sides cheap to reduce.
-            var term = t / Self(2 * i + 1)
+            var term = t / Self(2 * k - 1)
             term.truncate(width: working)
             r += term
             r.truncate(width: working)
         }
-        return (2*r).truncated(width: apx)
+        return r
+    }
+
+    /// ln 2
+    ///
+    /// Truncated from the seed at or below 512 bits.  Above that, by the AGM:
+    ///
+    ///     ln s = π / (2 · AGM(1, 4/s))   to within O(s⁻² log s)
+    ///
+    /// so `s = 2ⁿ` with `n ≈ px/2` gives `n · ln 2` to the precision asked for.
+    /// That choice of `s` is what makes this cheap here: `4/s` is an exact power of
+    /// two, and `BigRat` holds it exactly, whatever `n` is.
+    ///
+    /// It replaced a `2·atanh(1/3)` series, which is correct and linear -- 1292
+    /// terms at 4096 bits against the AGM's 20 passes.  Measured: 4096 bits 525ms
+    /// to 85ms, 2048 82ms to 25ms, 1024 17ms to 7ms, and the gain widens with
+    /// precision because the term count grows linearly while the pass count grows
+    /// logarithmically.
+    ///
+    /// Newton-Raphson on the seed was the other candidate and lost: `x ← x - 1 +
+    /// 2·exp(-x)` needs `exp`, whose series at 4096 bits is 537 terms, and it
+    /// measured 193ms.  A quadratic method from scratch beats refining a seed when
+    /// the seed's 512 bits are a small fraction of the answer.
+    public static func LN2(precision px:Int = Self.precision, debug db:Bool = false)->Self {
+        let apx = Swift.abs(px)
+        if apx <= _Constant.seedBits { return Self(_Constant.ln2).truncated(width: apx) }
+        if Self.self != BigRat.self { return Self(BigRat.LN2(precision: apx)) }
+        let working = apx + 64
+        // s = 2ⁿ, and the error in the formula above is O(s⁻²), so 2n bits of it
+        // have to cover the answer -- n = apx/2 with a little to spare.
+        let n = apx / 2 + 16
+        let b0 = Self(BigRat(BigInt(1), BigInt(1) << (n - 2)))       // 4/2ⁿ, exact
+        let m = _agm(b0, working: working,
+                     epsilon: getEpsilon(precision: working - 16), debug: db)
+        let pi = 4 * ATAN1(precision: working)
+        return (pi / (2 * Self(n) * m)).truncated(width: apx)
     }
 
     /// ln 10
     ///
-    /// Truncated from the seed at or below 512 bits; above that, one `log` call,
-    /// which is what a Newton step would have cost anyway.
+    /// Truncated from the seed at or below 512 bits.  Above that, from `LN2` and a
+    /// short series, rather than from the AGM directly.
+    ///
+    /// The AGM would want `4/10ⁿ`, which is not a power of two -- and `truncate`
+    /// quantises on an absolute grid (`Rational.swift`), so a value sitting 2288
+    /// bits below 1 keeps only `working - 2288` significant bits.  Asking the AGM
+    /// for ln 10 at 4096 bits that way returns 563 correct digits of 1231.
+    /// Widening `working` to pay for it works and costs 211ms.
+    ///
+    /// This is faster.  `485/146` is a convergent of log₂10, so `2⁴⁸⁵/10¹⁴⁶` is
+    /// within about 10⁻³ of 1:
+    ///
+    ///     ln 10 = (485 · ln 2 - ln(2⁴⁸⁵/10¹⁴⁶)) / 146
+    ///
+    /// and the correction, being a log of something near 1, is 188 series terms at
+    /// 4096 bits rather than the 1292 that `log(10)` needed.  Measured at 4096
+    /// bits: 1146ms to 172ms.  Later convergents converge faster still and later
+    /// ones were tried -- `2136/643` reaches 155ms -- but their numerators are
+    /// wider than the precision being asked for at ordinary widths, and `485/146`
+    /// is the fastest of them below about a thousand bits.
     public static func LN10(precision px:Int = Self.precision, debug db:Bool = false)->Self {
         let apx = Swift.abs(px)
         if apx <= _Constant.seedBits { return Self(_Constant.ln10).truncated(width: apx) }
-        return Self.log(10, precision: apx).truncated(width: apx)
+        if Self.self != BigRat.self { return Self(BigRat.LN10(precision: apx)) }
+        let working = apx + 64
+        let (k, m) = (485, 146)
+        let tenToM = BigInt(10).power(m)
+        // 2⁴⁸⁵/10¹⁴⁶ - 1, exactly; negative, as it happens
+        let d = Self(BigRat((BigInt(1) << k) - tenToM, tenToM))
+        // ln(1 + d) = 2 atanh(d / (2 + d))
+        let z = (d / (2 + d)).truncated(width: working)
+        let correction = 2 * _atanhSeries(z, working: working)
+        if db { print("\(Self.self).LN10: correction = \(correction)") }
+        return ((Self(k) * LN2(precision: working) - correction) / Self(m)).truncated(width: apx)
     }
 
     /// π/4

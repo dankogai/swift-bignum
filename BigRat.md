@@ -208,10 +208,13 @@ BigRat(2).power(10)             // (1024/1) -- integer exponent, exact
 ```
 
 √2, e, log 2, log 10 and π/4 are not computed at all below 512 bits: each is a
-640-bit literal, truncated to what you asked for. Above 512 bits, √2 is refined
-from its seed by Newton-Raphson and the rest are summed. Nothing is cached, so
-there is no shared state to synchronise and the answer does not depend on what ran
-before it — see [Constants.swift](Sources/BigNum/Constants.swift).
+640-bit literal, truncated to what you asked for. Above 512 bits √2 is refined from
+its seed by Newton-Raphson; π/4 and log 2 use the arithmetic-geometric mean, whose
+correct-bit count doubles every pass; log 10 comes from log 2 and a short
+correction; and e is summed, because its own series already converges
+superexponentially. Nothing is cached, so there is no shared state to synchronise
+and the answer does not depend on what ran before it — see
+[Constants.swift](Sources/BigNum/Constants.swift).
 
 ## Strings
 

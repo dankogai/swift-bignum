@@ -275,6 +275,15 @@ extension BigFloatingPoint {
         return 0 < px ? r : r.truncated(width: px)
     }
     /// natural log (base e)
+    ///
+    /// The `atanh` series below is linear: `(fx-1)/(fx+1)` is at most 1/3, so it
+    /// gains about 3.2 bits a term and needs 1292 of them at 4096 bits.  The AGM
+    /// that `Constants.LN2` uses applies here too and is not linear -- taking ln 10
+    /// that way measured 211ms against this function's 1146ms.  It is more work
+    /// than it looks: the AGM wants `4/x` scaled far below 1, where `truncate`'s
+    /// absolute grid costs precision (see `Constants.LN10`), so `working` has to be
+    /// widened to pay for it, and that has to hold across the whole domain rather
+    /// than at one argument.  Not attempted here.
     public static func log(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
         if x.isNaN          { return nan }
         if x.isLess(than:0) { return nan }
