@@ -634,8 +634,8 @@ public protocol BigIntegerType : BinaryInteger, LosslessStringConvertible, Codab
     func toString(radix: Int, uppercase: Bool) -> String
     init?<S: StringProtocol>(_ text: S, radix: Int)
     func squareRoot() -> Self
-    func power<E: BinaryInteger & SignedInteger>(_ exponent: E) -> Self
-    func power<E: BinaryInteger & SignedInteger>(_ exponent: E, mod modulus: Self) -> Self
+    func power<E: SignedInteger>(_ exponent: E) -> Self
+    func power<E: SignedInteger>(_ exponent: E, mod modulus: Self) -> Self
     func power(_ exponent: Self, mod modulus: Self) -> Self
     func greatestCommonDivisor(with other: Self) -> Self
 }

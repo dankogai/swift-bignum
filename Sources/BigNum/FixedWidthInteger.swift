@@ -42,7 +42,7 @@ extension FixedWidthInteger {
     /// Traps unless the result is representable -- `Int(2).power(1024)` is not a
     /// number an `Int` has.  Use `BigInt(self).power(exponent)` for one that can
     /// hold it.
-    public func power<E:BinaryInteger & SignedInteger>(_ exponent: E) -> Self {
+    public func power<E:SignedInteger>(_ exponent: E) -> Self {
         return Self(BigInt(self).power(exponent))
     }
 
@@ -63,7 +63,7 @@ extension FixedWidthInteger {
     /// `BigIntegerType` keeps: when `Self` is `Int` the two would be the same
     /// signature, and every call ambiguous.  The generic covers both, and takes a
     /// `BigInt` exponent as well.
-    public func power<E:BinaryInteger & SignedInteger>(_ exponent: E, mod modulus: Self) -> Self {
+    public func power<E:SignedInteger>(_ exponent: E, mod modulus: Self) -> Self {
         return Self(BigInt(self).power(BigInt(exponent), mod: BigInt(modulus)))
     }
 }
