@@ -1,5 +1,17 @@
 import Testing
 import Foundation
+// `tgamma` for the signGamma oracle.  Foundation is not a reliable route to libm on
+// every platform -- Dispatch is not re-exported by it on Linux either, which is what
+// ConcurrencyTests notes -- so this is the same conditional import Real.swift uses.
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#elseif os(Windows)
+import CRT
+#endif
 @testable import BigNum
 
 /// `BigRat` and `BigFloat` as `FloatingPoint`s -- comparison, arithmetic, rounding.
