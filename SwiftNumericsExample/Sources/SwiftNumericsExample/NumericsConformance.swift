@@ -26,4 +26,9 @@ import BigNum
 import RealModule
 
 extension BigRat: RealModule.Real {}
-extension BigFloat: RealModule.Real {}
+// `BigFloat` is now `BigFloatOf<BigInt>`, and an extension of the typealias is a
+// *constrained* extension of the generic -- whose conformance would be
+// conditional, and a conditional `Real` has to restate every inherited protocol.
+// Conforming the generic unconditionally is both shorter and more useful: every
+// `BigFloatOf<I>` is a `Real`, `Complex<BigFloatOf<I>>` included.
+extension BigFloatOf: RealModule.Real {}

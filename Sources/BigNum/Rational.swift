@@ -1,6 +1,15 @@
 /// Signed integer type that can be a numerator and denominator of `RationalType`
 public protocol RationalElement : SignedInteger {
     init(_:Int)
+    /// The greatest common divisor of `self` and `other`, always non-negative.
+    ///
+    /// A *requirement* rather than a convenience, so generic `Rational<I>` code
+    /// dispatches to the conformer's own implementation -- `BigInt`'s limb
+    /// version, or whatever a foreign element brings -- instead of statically
+    /// binding to the extension's schoolbook loop below.
+    func greatestCommonDivisor(with other:Self)->Self
+    /// ⌊√self⌋.  A requirement for the same dispatch reason.
+    func squareRoot()->Self
 }
 
 extension RationalElement {
@@ -40,6 +49,29 @@ public protocol BigRationalType : RationalType & BigFloatingPoint {}
 extension BigInt: RationalElement {
     public func over(_ den:BigInt)->BigRational {
         return BigRational(self, den)
+    }
+}
+
+extension RationalType {
+    /// truncate significand to `width` bits.  The body is identical to
+    /// `BigRationalType`'s below; this one lives on `RationalType` so a generic
+    /// `Rational<I>` -- which has no `BigFloatingPoint` statics to default the
+    /// rounding rule from -- can truncate too.
+    public mutating func truncate(width:Int, round:FloatingPointRoundingRule) {
+        if self.isNaN || self.isZero || self.isInfinite { return }
+        if width == 0       { return }
+        let w = width < 0 ? -width : +width
+        if den >> den.trailingZeroBitCount == 1 && num.bitWidth - 1 <= w { return }
+        let s = max(den.bitWidth - 1, w)    // -1 for sign bit
+        let d = Element(1) << s
+        var n = (num << (s+2)) / den    // 2 bits for rounding hint
+        n.truncate(width:width, round:round)
+        self = Self(n >> 2, d)  // shift down and back up to discard lower bits
+    }
+    public func truncated(width:Int, round:FloatingPointRoundingRule)->Self {
+        var result = self
+        result.truncate(width:width, round:round)
+        return result
     }
 }
 

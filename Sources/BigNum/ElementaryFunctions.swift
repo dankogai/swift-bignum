@@ -951,4 +951,4 @@ extension BigFloatingPoint {
 }
 
 extension BigRat : ElementaryFunctions, RealFunctions {}
-extension BigFloat : ElementaryFunctions, RealFunctions {}
+extension BigFloatOf : ElementaryFunctions, RealFunctions {}
