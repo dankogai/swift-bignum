@@ -184,17 +184,17 @@ extension Double : Real {
 // witnesses for BigNum's own requirements now, so a body calling the one-argument
 // form would call itself.
 
-extension BigFloat {
-    public static func sqrt(_ x: BigFloat) -> BigFloat {
-        return sqrt(x, precision: BigFloat.precision, debug: false)
+extension BigFloatOf {
+    public static func sqrt(_ x: BigFloatOf) -> BigFloatOf {
+        return sqrt(x, precision: Self.precision, debug: false)
     }
-    public static func exp10(_ x: BigFloat) -> BigFloat {
-        return pow(10, x, precision: BigFloat.precision, debug: false)
+    public static func exp10(_ x: BigFloatOf) -> BigFloatOf {
+        return pow(10, x, precision: Self.precision, debug: false)
     }
-    public static func signGamma(_ x: BigFloat) -> FloatingPointSign {
+    public static func signGamma(_ x: BigFloatOf) -> FloatingPointSign {
         return _signGamma(x)
     }
-    public var reciprocal: BigFloat? { return _reciprocal(of: self) }
+    public var reciprocal: BigFloatOf? { return _reciprocal(of: self) }
 }
 
 extension BigRat {
