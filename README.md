@@ -109,6 +109,26 @@ so those had to be settled on the concrete types here; see the end of
 requirements, so nothing collides at all. Each example's README works through its
 own case.
 
+## Somebody else's integer under `BigRat` and `BigFloat`
+
+The genericity runs the other direction too. `Rational` is generic over
+`RationalElement`, and `BigFloat` is `BigFloatOf<IntType>` since [#31], so the
+integer under both is a slot — and two sister packages fill it with engines
+that are not Swift at all:
+
+| Package | The integer | Backed by |
+|---|---|---|
+| [dankogai/swift-bigint-gmp] | `GMPBigInt` | [GNU MP], the C bignum library |
+| [dankogai/swift-bigint-javascriptcore] | `JSBigInt` | JavaScriptCore's native `BigInt` |
+
+Each conforms its integer to `RationalElement` and `BigIntegerType` in two
+retroactive extensions, and `Rational<GMPBigInt>` and `BigFloatOf<GMPBigInt>`
+follow — `BigRat`'s and `BigFloat`'s machinery, GMP's digits, agreeing with
+`BigFloat` digit for digit on π, √2 and e. Each repository's
+`SwiftBigNumExample/` is the worked example, and each's Benchmark.md races its
+integer against this package's: GMP ahead at nearly every size, JSC ahead of
+the pure-Swift bignums once operands reach thousands of digits.
+
 ## The exponentiation operator, on demand
 
 `**` is not part of `BigNum`. It lives in a second module, so it appears only
@@ -339,6 +359,10 @@ there. [Benchmark.md](Benchmark.md) has the comparison against `Int`.
 
 [attaswift/BigInt]: https://github.com/attaswift/BigInt
 [apple/swift-numerics]: https://github.com/apple/swift-numerics
+[dankogai/swift-bigint-gmp]: https://github.com/dankogai/swift-bigint-gmp
+[dankogai/swift-bigint-javascriptcore]: https://github.com/dankogai/swift-bigint-javascriptcore
+[GNU MP]: https://gmplib.org
+[#31]: https://github.com/dankogai/swift-bignum/pull/31
 [dankogai/swift-complex]: https://github.com/dankogai/swift-complex
 [dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
 
