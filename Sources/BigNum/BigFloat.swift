@@ -16,9 +16,11 @@ public struct BigFloatOf<IntType: BigIntegerType & RationalElement>: Equatable, 
     public typealias Stride             = BigFloatOf
     public var scale:Exponent           // stored property
     public var mantissa:Significand     // stored property
-    // basic init
+    // basic init.  `trailingZeroBitCount` of zero is convention: BigInt says 0,
+    // the stdlib documents "equal to bitWidth" -- so a zero mantissa must not
+    // consult it, or the scale smears and ±0's encoding breaks.
     public init(scale: Exponent, mantissa:Significand) {
-        let shift = mantissa.trailingZeroBitCount
+        let shift = mantissa == 0 ? 0 : mantissa.trailingZeroBitCount
         self.scale    =    scale  + shift
         self.mantissa = mantissa >> shift
     }
@@ -123,7 +125,7 @@ extension BigFloatOf {
     public init(sign:FloatingPointSign, exponent:Exponent, significand:BigFloatOf) {
         scale    = exponent + significand.scale - (significand.mantissa.bitWidth-1)
         mantissa = sign == .minus ? -significand.mantissa : +significand.mantissa
-        let shift = mantissa.trailingZeroBitCount
+        let shift = mantissa == 0 ? 0 : mantissa.trailingZeroBitCount
         scale     += shift
         mantissa >>= shift
     }
@@ -211,7 +213,7 @@ extension BigFloatOf : ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
     public init?<T:BinaryInteger>(exactly bi:T) {
         mantissa = Significand(bi)
         scale = 0
-        let shift = mantissa.trailingZeroBitCount
+        let shift = mantissa == 0 ? 0 : mantissa.trailingZeroBitCount
         scale     += shift
         mantissa >>= shift
     }
