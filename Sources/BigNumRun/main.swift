@@ -1,9 +1,4 @@
 import BigNum
-#if os(Linux)
-import Glibc
-#else
-import Darwin
-#endif
 
 //
 print(BigFloat.exp(1))
