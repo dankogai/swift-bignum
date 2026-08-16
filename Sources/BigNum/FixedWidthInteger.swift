@@ -163,7 +163,13 @@ extension FixedWidthInteger {
     /// which for anything wider than an `Int16` means it will not.
     ///
     ///     Array(Int.primes.prefix(5))     // [2, 3, 5, 7, 11]
-    public static var primes: some Sequence<Self> {
+    ///
+    /// Spelled out rather than `some Sequence<Self>`, which reads better and costs
+    /// more than it looks: opaque return types need iOS 13 / tvOS 13 / watchOS 6,
+    /// and this package otherwise has no deployment floor at all.  Writing the type
+    /// keeps it that way.  `LazyMapSequence` is what `.lazy.map` returns, so this is
+    /// the type that was there all along -- `some` only hid the name.
+    public static var primes: LazyMapSequence<PrimeSequence<BigInt>, Self> {
         return BigInt.primes.lazy.map { Self($0) }
     }
 }

@@ -3,14 +3,28 @@ import Foundation
 // `tgamma` for the signGamma oracle.  Foundation is not a reliable route to libm on
 // every platform -- Dispatch is not re-exported by it on Linux either, which is what
 // ConcurrencyTests notes -- so this is the same conditional import Real.swift uses.
+// Every branch here is `canImport`, and the order matters: a platform that
+// exposes more than one of these gets its own first.  Android was the gap that
+// made SwiftPackageIndex's build fail -- none of Darwin/Glibc/Musl/CRT matched, so
+// nothing was imported and every libm call came back "cannot find 'exp' in scope".
+// Wasm was the same story with WASILibc.  The `#error` is so the next such gap is
+// one line rather than thirty.
 #if canImport(Darwin)
 import Darwin
+#elseif canImport(Bionic)
+import Bionic
+#elseif canImport(Android)
+import Android
 #elseif canImport(Glibc)
 import Glibc
 #elseif canImport(Musl)
 import Musl
+#elseif canImport(WASILibc)
+import WASILibc
 #elseif os(Windows)
 import CRT
+#else
+#error("BigNum needs the platform's libm and cannot find it")
 #endif
 @testable import BigNum
 
