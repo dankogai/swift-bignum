@@ -333,7 +333,7 @@ Swift 6 or 5, macOS or Linux.
   never arrived there to justify carrying the rest. They are now declared in
   [Real.swift](Sources/BigNum/Real.swift) and
   [ElementaryFunctions.swift](Sources/BigNum/ElementaryFunctions.swift).
-* Versions before that depended on [dankogai/swift-floatingpoint] for the
+* Versions before that depended on [dankogai/swift-floatingpointmath] for the
   `FloatingPointMath` protocols, replaced by `ElementaryFunctions`.
 
 Code written against swift-numerics keeps compiling — the protocol requirement
@@ -364,7 +364,7 @@ there. [Benchmark.md](Benchmark.md) has the comparison against `Int`.
 [GNU MP]: https://gmplib.org
 [#31]: https://github.com/dankogai/swift-bignum/pull/31
 [dankogai/swift-complex]: https://github.com/dankogai/swift-complex
-[dankogai/swift-floatingpoint]: https://github.com/danogai/swift-floatingpoint
+[dankogai/swift-floatingpointmath]: https://github.com/danogai/swift-floatingpointmath
 
 # License
 
