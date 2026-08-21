@@ -536,4 +536,137 @@ extension ElementaryFunctionsTests {
         let (so, co) = BigRat.sincosPi(x + BigRat((BigInt(1) << 80) + 1), precision:px)
         #expect(s == -so && c == -co, "2^80 + 1 + 1/3 is not the negation of 1/3")
     }
+
+    // MARK: - the small-argument end of the log chain
+
+    /// Where the answer is about as small as the argument, `truncate(width:)`'s
+    /// absolute grid used to clip its tail -- `log1p(0.001)` at 128 bits came
+    /// back with 119, `atanh(2^-30)` with 122 -- because the old routes handed
+    /// `log` a value next to 1 whose distance from 1 was already rounded
+    /// absolutely.  The references are the leading Maclaurin terms in exact
+    /// `BigRat` arithmetic; at these x the first omitted term is at least 100
+    /// bits past anything `px + 16` can see.
+    ///
+    /// Both arguments are `3 * 2^-k` and not `2^-k`, deliberately: `2^-k` is
+    /// blind twice over.  `1 ± 2^-k`-shaped intermediates land next to powers
+    /// of two, where clipped bits happen to be zeros -- and a would-be
+    /// reference argument like 0.001 is not even representable in `BigFloat`,
+    /// so what looks like an algorithm's error is the *input's* rounding at
+    /// the static default precision.  `3 * 2^-k` is exact in both types and
+    /// lands nowhere special.  Everything is checked in `BigFloat` as well as
+    /// `BigRat`, whose arithmetic loses precision in different places.
+    @Test func smallArgumentsKeepTheirTail() {
+        let limit = BigRat.getEpsilon(precision:px + 16)
+        func relativeError(_ got:BigRat, _ want:BigRat)->BigRat {
+            return (got - want).divided(by:want, precision:px + 250).magnitude
+        }
+        for k in [35, 100] {
+            let x  = BigRat(3, BigInt(1) << k)
+            let (x2, x3) = (x * x, x * x * x)
+            let (x4, x5) = (x2 * x2, x2 * x3)
+            let log1pWant:BigRat    = x - x2/2 + x3/3 - x4/4 + x5/5
+            let log1pNegWant:BigRat = -x - x2/2 - x3/3 - x4/4 - x5/5
+            let atanhWant:BigRat    = x + x3/3 + x5/5
+            let asinhWant:BigRat    = x - x3/6 + 3*x5/40
+            let cases:[(String, BigRat, BigRat)] = [
+                ("log1p",  BigRat.log1p(x, precision:px),  log1pWant),
+                ("log1p-", BigRat.log1p(-x, precision:px), log1pNegWant),
+                ("atanh",  BigRat.atanh(x, precision:px),  atanhWant),
+                ("asinh",  BigRat.asinh(x, precision:px),  asinhWant),
+                ("BigFloat.log1p", BigRat(BigFloat.log1p(BigFloat(x), precision:px)), log1pWant),
+                ("BigFloat.atanh", BigRat(BigFloat.atanh(BigFloat(x), precision:px)), atanhWant),
+                ("BigFloat.asinh", BigRat(BigFloat.asinh(BigFloat(x), precision:px)), asinhWant),
+            ]
+            for (name, got, want) in cases {
+                #expect(relativeError(got, want) < limit,
+                        "\(name)(3*2^-\(k)) dropped below \(px + 16) bits")
+            }
+        }
+    }
+
+    /// acos near 1 and acosh near 1, where the answer ~ √(2d) is all
+    /// cancellation in a formula that subtracts O(1) values: `π/2 - asin(x)`
+    /// carries π/2's *absolute* rounding into an answer of size √(2d), so at
+    /// d = 2^-100 it cannot deliver more than ~110 bits however wide it works.
+    /// The half-angle `acos` and the exact-subtraction `acosh` stay relative.
+    /// d is 2^-100 rather than something milder precisely so that the guarded
+    /// old formula still fails here -- at 2^-40 it squeaked past on guard bits.
+    ///
+    /// `acos`'s reference is the round trip through `sincos` -- but through the
+    /// *sine* side: cos(acos(1-d)) == 1-d is a flat-side comparison that any
+    /// answer within 2^-50 of the true one passes.  sin(acos(x)) == √((1-x)(1+x))
+    /// is as steep as acos is, and the same goes for `acosh` through sinh.
+    @Test func inverseFunctionsSurviveTheirCancellationPoints() {
+        let d     = BigRat(3, BigInt(1) << 100)     // non-dyadic; see the test above
+        let limit = BigRat.getEpsilon(precision:px + 16)
+        func relativeError(_ got:BigRat, _ want:BigRat)->BigRat {
+            return (got - want).divided(by:want, precision:px + 200).magnitude
+        }
+        // sin(acos(1-d)) == √(d(2-d))
+        let sinWant = BigRat.sqrt(d * (2 - d), precision:px + 200)
+        let a  = BigRat.acos(1 - d, precision:px)
+        let fa = BigRat(BigFloat.acos(BigFloat(BigRat(1) - d), precision:px))
+        #expect(relativeError(BigRat.sincos(a, precision:px + 200).sin, sinWant) < limit,
+                "acos(1-3*2^-100) does not survive the round trip through sin")
+        #expect(relativeError(BigRat.sincos(fa, precision:px + 200).sin, sinWant) < limit,
+                "BigFloat.acos(1-3*2^-100) does not survive the round trip through sin")
+        // sinh(acosh(1+d)) == √(d(2+d))
+        let sinhWant = BigRat.sqrt(d * (2 + d), precision:px + 200)
+        let b  = BigRat.acosh(1 + d, precision:px)
+        let fb = BigRat(BigFloat.acosh(BigFloat(BigRat(1) + d), precision:px))
+        #expect(relativeError(BigRat.sinhcosh(b, precision:px + 200).sinh, sinhWant) < limit,
+                "acosh(1+3*2^-100) does not survive the round trip through sinh")
+        #expect(relativeError(BigRat.sinhcosh(fb, precision:px + 200).sinh, sinhWant) < limit,
+                "BigFloat.acosh(1+3*2^-100) does not survive the round trip through sinh")
+    }
+
+    /// The exp/log family works 32 bits above the asked-for precision, like the
+    /// trig family -- summed *at* it, each delivered a few bits short (exp 130,
+    /// log 128 of 128 asked).  The reference is the same function 200 bits wide;
+    /// the bound asks for `px + 16`, between the ~129 the unguarded code delivers
+    /// and the ~160 the guarded code does, so it fails toward the past and has
+    /// margin toward the future.  These six are cheap even in a debug build --
+    /// their wider selves are series of a few hundred `BigRat` terms, unlike the
+    /// gamma-class functions, which is why they are here and those are not.
+    @Test func expLogFamilyCarriesGuardBits() {
+        let limit = BigRat.getEpsilon(precision:px + 16)
+        func check(_ name:String, _ f:(BigRat, Int)->BigRat, _ x:BigRat) {
+            let got = f(x, px)
+            let ref = f(x, px + 200)
+            let err = (got - ref).divided(by:ref, precision:px + 64).magnitude
+            #expect(err < limit, "\(name) delivers under \(px + 16) bits")
+        }
+        check("exp(1/2)",    { BigRat.exp($0, precision:$1) },         BigRat(1,2))
+        check("expm1(-1/2)", { BigRat.expMinusOne($0, precision:$1) }, BigRat(-1,2))
+        check("exp2(1/2)",   { BigRat.exp2($0, precision:$1) },        BigRat(1,2))
+        check("log(3)",      { BigRat.log($0, precision:$1) },         BigRat(3))
+        check("log2(3)",     { BigRat.log2($0, precision:$1) },        BigRat(3))
+        check("log10(3)",    { BigRat.log10($0, precision:$1) },       BigRat(3))
+        check("asin(1/2)",   { BigRat.asin($0, precision:$1) },        BigRat(1,2))
+    }
+
+    /// `BigFloat`'s bare `1/x` rounds at the operands' width plus the *static
+    /// default* precision -- `Self.precision`, normally 128 -- not the `px` of
+    /// the call it sits in.  For the wide intermediates most functions pass
+    /// around that is invisible, but a *narrow* operand like `0.75` caps the
+    /// whole computation: `log(0.75, precision:1024)` delivered 130 bits, and
+    /// `atan(3, precision:1024)` 132, before their inversions were spelled
+    /// `divided(by:precision:)`.  Inputs are dyadic on purpose: `BigFloat(1)/3`
+    /// would quantise the *argument* at the static default and measure that
+    /// instead of the function.  The references are `BigRat`, whose divisions
+    /// are exact and never had the problem, 200 bits wide of the bound.
+    @Test func narrowOperandsSurviveHighPrecision() {
+        let hpx   = 512     // high enough that the 130-bit cap is unmissable
+        let limit = BigRat.getEpsilon(precision:hpx)
+        func check(_ name:String, _ got:BigFloat, _ want:BigRat) {
+            let err = (BigRat(got) - want).divided(by:want, precision:hpx + 200).magnitude
+            #expect(err < limit, "\(name) at precision:\(hpx) delivers under \(hpx) bits")
+        }
+        check("log(3/4)",      BigFloat.log(BigFloat(3)/4, precision:hpx),
+                               BigRat.log(BigRat(3,4), precision:hpx + 200))
+        check("atan(3)",       BigFloat.atan(BigFloat(3), precision:hpx),
+                               BigRat.atan(BigRat(3), precision:hpx + 200))
+        check("pow(3/4, 1/4)", BigFloat.pow(BigFloat(3)/4, BigFloat(1)/4, precision:hpx),
+                               BigRat.pow(BigRat(3,4), BigRat(1,4), precision:hpx + 200))
+    }
 }

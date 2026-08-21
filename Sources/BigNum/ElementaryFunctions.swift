@@ -109,18 +109,24 @@ extension BigFloatingPoint {
         // cf. https://en.wikipedia.org/wiki/Atan2
         //     https://www.freebsd.org/cgi/man.cgi?query=atan2
         if x.isNaN || y.isNaN { return nan }
+        let apx   = Swift.abs(px)
+        let wpx   = apx + 32
         let ysgn  = Self(y.sign == .minus ? -1 : +1)
         let xsgn  = Self(x.sign == .minus ? -1 : +1)
-        let y_x   = x.isInfinite && y.isInfinite ? ysgn * xsgn : y/x // avoid nan for ±inf/±inf
+        // `divided`, not `/`: the bare operator rounds at the static default
+        // precision, not this call's `px`
+        let y_x   = x.isInfinite && y.isInfinite ? ysgn * xsgn // avoid nan for ±inf/±inf
+                  : y.divided(by:x, precision:wpx)
         if 0 < x {
             return atan(y_x, precision:px)
         }
         if x < 0 {
-            return ysgn * (PI(precision:px) - atan(Swift.abs(y_x), precision:px))
+            let r = ysgn * (PI(precision:wpx) - atan(Swift.abs(y_x), precision:wpx))
+            return 0 < px ? r : r.truncated(width:px)
         }
         else {  // x.isZero
             return ysgn * (
-              y.isZero ? (x.sign == .minus ? PI(precision:px) : 0) : PI(precision: px)/2
+              y.isZero ? (x.sign == .minus ? PI(precision:apx) : 0) : PI(precision:apx)/2
             )
         }
     }
@@ -149,7 +155,12 @@ extension BigFloatingPoint {
         if x.isNaN || x.isInfinite || x.isZero || y.isNaN || y.isInfinite || y.isZero {
             return Self(Double.pow(x.toDouble(), y.toDouble()))
         }
-        if Swift.abs(x) < 1   { return 1/pow(1/x, y, precision:px) }
+        if Swift.abs(x) < 1   {
+            // `divided`, not `1/x` -- see `log` for the width it loses.  The
+            // reciprocal's error is amplified by the exponent, so it gets the
+            // same working precision the log route below uses.
+            return 1/pow(Self(1).divided(by:x, precision:2*Swift.abs(px) + 32), y, precision:px)
+        }
         let (iy, fy) = y.toMixed()
         if Int.max <= iy.magnitude {
             return iy < 0 ? 0 : infinity
@@ -184,16 +195,18 @@ extension BigFloatingPoint {
             return x.sign == .minus ? 0 : +Self.infinity
         }
         if x.isLess(than:0) { return 1/exp(-x, precision:px, debug:db) }
-        let e = E(precision: px * 2)
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let e = E(precision: wpx + 64)  // `power` scales e's error by ix, which expLimit caps
         let (ix, fx) = x.toMixed()
-        var (ir, fr) = (e.power(ix, precision:px), Self(1))
-        if !fr.isZero {
-            let epsilon = getEpsilon(precision: px)
+        var (ir, fr) = (e.power(ix, precision:wpx), Self(1))
+        if !fx.isZero {
+            let epsilon = getEpsilon(precision: wpx)
             var (n, d) = (Self(1), Self(1))
-            for i in 1 ... px.magnitude {
-                n = (n * fx).truncated(width:px)
+            for i in 1 ... wpx.magnitude {
+                n = (n * fx).truncated(width:wpx)
                 d *= Self(i)
-                let t = n.divided(by:d, precision:px)
+                let t = n.divided(by:d, precision:wpx)
                 fr += t
                 if t < epsilon { break }
             }
@@ -209,15 +222,19 @@ extension BigFloatingPoint {
         if expLimit < Swift.abs(x) {
             return x.sign == .minus ? -1 : +Self.infinity
         }
-        if LN2(precision: px) <=  Swift.abs(x)  {
-            return exp(x, precision:px) - 1
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        if LN2(precision: wpx) <=  Swift.abs(x)  {
+            let r = exp(x, precision:wpx) - 1
+            return 0 < px ? r : r.truncated(width:px)
         }
-        let epsilon = getEpsilon(precision: px)
+        let epsilon = getEpsilon(precision: wpx)
         var (n, d, r) = (Self(1), Self(1), Self(0))
-        for i in 1 ... px.magnitude {
+        for i in 1 ... wpx.magnitude {
             n *= x
+            n.truncate(width:wpx)
             d *= Self(i)
-            let t = n.divided(by:d, precision:px)
+            let t = n.divided(by:d, precision:wpx)
             r += t
             // compare the *magnitude*: for x < 0 this series alternates, and a
             // signed test bails out on the very first term
@@ -235,10 +252,12 @@ extension BigFloatingPoint {
             return x.sign == .minus ? 0 : +Self.infinity
         }
         if x.isLess(than:0) { return 1/exp2(-x, precision:px, debug:db) }
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
         let (ix, fx) = x.toMixed()
         let (ir, fr) = (
-          Self(2.0).power(ix, precision:px),
-          exp(fx * LN2(precision:px, debug:db), precision:px, debug:db)
+          Self(2.0).power(ix, precision:wpx),   // exact anyway: 2^n
+          exp(fx * LN2(precision:wpx, debug:db), precision:wpx, debug:db)
         )
         let r = ir * fr
         return  0 < px ? r : r.truncated(width:px)
@@ -249,7 +268,10 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        if x.isLess(than:1) { return -binaryLog(1/x, precision:px) }
+        if x.isLess(than:1) {
+            // `divided`, not `1/x` -- see `log` for the width it loses
+            return -binaryLog(Self(1).divided(by:x, precision:Swift.abs(px) + 32), precision:px)
+        }
         if x.isEqual(to:1)  { return 0 }
         var (ilog, t) = (x.exponent, x.significand)
         if t < 1 { t *= Self(Self.radix); ilog -= 1 }
@@ -271,8 +293,41 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        let r =  log(x, precision:px, debug:db) / LN2(precision:px * 2)
+        let wpx = Swift.abs(px) + 32
+        let r =  log(x, precision:wpx, debug:db)
+          .divided(by:LN2(precision:wpx), precision:wpx)
         return 0 < px ? r : r.truncated(width: px)
+    }
+    /// Σ t²ᵏ/(2k+1) for k = 0, 1, ... -- the atanh series with its leading `t`
+    /// factored out, so that `atanh t == t * Σ`.
+    ///
+    /// The factoring is the point, not a style choice.  `truncate(width:)`
+    /// quantises on an *absolute* grid, so a sum that is itself tiny -- which
+    /// `atanh t` is, for tiny `t` -- has its tail clipped to `2^-working` flat,
+    /// and `log1p(0.001)` at 128 bits came back with 119.  This sum stays inside
+    /// [1, 1.2] where the absolute grid *is* the relative grid; the caller's
+    /// closing multiply by `t` rounds relatively; nothing on the way can lose
+    /// more than an ulp at `working`.
+    ///
+    /// Converges a bit per iteration at |t| = 1/2 and 3.2 bits at the 1/3 that
+    /// `log` feeds it; callers keep |t| at or below 1/3.
+    internal static func _atanhFactor(_ t:Self, working wpx:Int, debug db:Bool=false)->Self {
+        let epsilon = getEpsilon(precision: wpx)
+        let t2 = (t * t).truncated(width: wpx)
+        var (p, r) = (Self(1), Self(1))
+        for i in 1 ... Swift.max(wpx, 2) {
+            p = (p * t2).truncated(width: wpx)
+            if db { print("\(Self.self)._atanhFactor: i=\(i), p=\(p.toDouble())") }
+            if p.magnitude < epsilon { break }
+            // truncated *before* it is added -- rounding the odd-denominator
+            // term to a power-of-two denominator first keeps `BigRat`'s gcd
+            // reductions cheap.  `_atanhSeries` in Constants.swift says why.
+            var term = p.divided(by:Self(2*i + 1), precision:wpx)
+            term.truncate(width: wpx)
+            r += term
+            r.truncate(width: wpx)
+        }
+        return r
     }
     /// natural log (base e)
     ///
@@ -289,21 +344,20 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        if x.isLess(than:1) { return -log(1/x, precision:px, debug:db) }
-        if x.isEqual(to:1)  { return 0 }
-        let epsilon = getEpsilon(precision: px)
-        let (_, ix, fx) = x.decomposed
-        var t = (fx - 1).divided(by:fx + 1, precision:px)
-        let t2 = t * t
-        var fr = t
-        for i in 1...px.magnitude {
-            t *= t2
-            t.truncate(width:px)
-            if db { print("\(Self.self).log:i=\(i), t=\(t), fr=\(fr)") }
-            if t < epsilon { break }
-            fr += t.divided(by:Self(2*i + 1), precision:px)
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        if x.isLess(than:1) {
+            // `divided`, not `1/x`: the bare operator rounds at the operands'
+            // width plus the *static default* precision, which for a narrow `x`
+            // capped `BigFloat.log(0.75, precision:1024)` at 130 bits
+            let r = -log(Self(1).divided(by:x, precision:wpx), precision:px, debug:db)
+            return 0 < px ? r : r.truncated(width: px)
         }
-        let r = Self(IntType(ix)) * LN2(precision: px) + 2 * fr
+        if x.isEqual(to:1)  { return 0 }
+        let (_, ix, fx) = x.decomposed
+        let t = (fx - 1).divided(by:fx + 1, precision:wpx)
+        let fr = t * _atanhFactor(t, working:wpx, debug:db)
+        let r = Self(IntType(ix)) * LN2(precision: wpx) + 2 * fr
         return 0 < px ? r : r.truncated(width: px)
     }
     /// natural log by Newton-Raphson method
@@ -312,7 +366,10 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        if x.isLess(than:1) { return -log(1/x, precision:px, debug:db) }
+        if x.isLess(than:1) {
+            // `divided`, not `1/x` -- see `log` for the width it loses
+            return -log(Self(1).divided(by:x, precision:Swift.abs(px) + 32), precision:px, debug:db)
+        }
         if x.isEqual(to:1)  { return 0 }
         let thresh = x.magnitude * getEpsilon(precision: px)
         func inner(_ y:Self)->Self {
@@ -341,10 +398,17 @@ extension BigFloatingPoint {
         if x.isLess(than:0) { return nan }
         if x.isZero         { return -infinity }
         if x.isInfinite     { return +infinity }
-        let r =  log(x, precision:px, debug:db) / LN10(precision:px)
+        let wpx = Swift.abs(px) + 32
+        let r =  log(x, precision:wpx, debug:db)
+          .divided(by:LN10(precision:wpx), precision:wpx)
         return 0 < px ? r : r.truncated(width: px)
     }
     /// log(1 + x)
+    ///
+    /// `2*atanh(x/(x+2))`, which holds its bits for a tiny `x` for the same
+    /// reasons `atanh` itself does -- see there.  This function is where the
+    /// small-argument losses were first measured (119 of 128 bits at 0.001);
+    /// what fixed them lives in `log` and `_atanhFactor`, not here.
     public static func log1p(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
         if x.isNaN                  { return nan }
         if x.isZero                 { return x }
@@ -353,7 +417,7 @@ extension BigFloatingPoint {
         if (x + 1).isZero           { return -infinity }
         let a = x/(x + 2)
         if db { print("\(Self.self).log1p: x = ", x, "x/(x + 2) =", a) }
-        if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
+        if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Double
             if db { print("\(Self.self).log1p: resorting to BigRat") }
             return Self(BigRat.log1p(x.toBigRat(), precision:px, debug:db))
         }
@@ -510,7 +574,8 @@ extension BigFloatingPoint {
         if s.isNaN || s.isInfinite || c.isNaN || c.isInfinite {
             return Self(Double.tan(x.toDouble()))
         }
-        return s.divided(by:c, precision:px)
+        let r = s.divided(by:c, precision:Swift.abs(px) + 32)
+        return 0 < px ? r : r.truncated(width: px)
     }
     //
     // cf. https://en.wikipedia.org/wiki/Inverse_trigonometric_functions#Infinite_series
@@ -533,13 +598,18 @@ extension BigFloatingPoint {
             guard x < 0.5 else {
                 return x < 1
                   ? atan1 - inner((1-x).divided(by:1+x, precision:wpx))
-                  : 2*atan1 - inner(1/x)
+                  // `divided`, not `1/x` -- see `log` for the width it loses
+                  : 2*atan1 - inner(Self(1).divided(by:x, precision:wpx))
             }
             let x2 = x*x
             let x2p1 = 1 + x2
             var (t, r) = (Self(1), Self(1))
             for i in 1...wpx.magnitude {
                 t *= 2 * (Self(i) * x2).divided(by:Self(2*i + 1) * x2p1, precision:wpx)
+                // without this, `BigRat` -- whose `divided` is exact -- grows
+                // `t`'s denominator by a factor of (2i+1)*x2p1 every term, and
+                // a 328-bit `asin` takes minutes in a debug build
+                t.truncate(width:wpx)
                 r += t
                 r.truncate(width:wpx)
                 if db {
@@ -589,12 +659,24 @@ extension BigFloatingPoint {
         return x.sign == .minus ? -r : +r
     }
     /// arccos
+    ///
+    /// `2 * atan(√((1-x)/(1+x)))` -- the half-angle form, in which every step
+    /// rounds *relatively*: `1-x` and `1+x` are exact, the quotient and the root
+    /// keep whatever smallness they are given, and `atan` of a small argument is
+    /// the argument.  The old `π/2 - asin(x)` subtracted two O(1) values, and
+    /// near 1 -- where acos(1-d) ~ √(2d) is all cancellation -- `acos(1-2^-60)`
+    /// kept 99 of its 128 bits.  Near -1 the quotient is merely huge, and
+    /// `atan`'s own fold returns `π - small` with nothing lost.
     public static func acos(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if (x - 1).isZero || 1 < Swift.abs(x) {
             return Self(Double.acos(x.toDouble()))
         }
-        // print("acos:", x)
-        return 2*ATAN1(precision:px) - asin(x, precision:px)
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        if (x + 1).isZero { return PI(precision:apx) }
+        let t = (1 - x).divided(by:1 + x, precision:wpx)
+        let r = 2 * atan(sqrt(t, precision:wpx), precision:wpx)
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// arcsin
     public static func asin(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
@@ -602,8 +684,11 @@ extension BigFloatingPoint {
         if x.isZero || 1 < Swift.abs(x) || x.isInfinite {
             return Self(Double.asin(x.toDouble()))
         }
-        let a = x.divided(by:1 + sqrt(1 - x*x, precision:px), precision:px)
-        return 2*atan(a, precision:px)
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let a = x.divided(by:1 + sqrt(1 - x*x, precision:wpx), precision:wpx)
+        let r = 2 * atan(a, precision:wpx)
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// - returns: `(sinh(x), cosh(x))`
     ///
@@ -663,42 +748,73 @@ extension BigFloatingPoint {
         if s.isInfinite {
             return x.sign == .minus ? -1 : +1
         }
-        return s.divided(by:c, precision:px)
+        let r = s.divided(by:c, precision:Swift.abs(px) + 32)
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// acosh
+    ///
+    /// The classic `log(x + √(x²-1))`, worked 32 bits wide -- and near 1, where
+    /// acosh(1+d) ~ √(2d) is as small as `d`, that is *enough*: `x² - 1` is an
+    /// exact subtraction of exact products, the root rounds relatively, and
+    /// `log` no longer loses a near-1 argument's distance from 1 (see
+    /// `_atanhFactor`).  A `log1p(d + √(d(x+1)))` variant was tried and measured
+    /// identical, so the simpler form stays.
     public static func acosh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if x.isLess(than: 1) { return nan }
-        let a = x + sqrt(x * x - 1, precision:px, debug:db)
-        return log(a, precision:px, debug:db)
+        let wpx = Swift.abs(px) + 32
+        let a = x + sqrt(x * x - 1, precision:wpx, debug:db)
+        let r = log(a, precision:wpx, debug:db)
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// asinh
+    ///
+    /// The classic `log(x + √(x²+1))`, worked 32 bits wide.  `x² + 1` is an
+    /// exact sum of an exact product, the root and quotient round with the
+    /// operands' width to spare, and `log` holds a near-1 argument -- so the
+    /// classic form keeps a small `x`'s bits on both value types.  A
+    /// `log1p(x + x²/(1+√(1+x²)))` variant was tried and measured identical.
     public static func asinh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if x.isZero || x.isInfinite { return x }
         if x.isLess(than:0){ return -asinh(-x, precision:px) }
-        let epsilon = getEpsilon(precision: px)
+        let wpx = Swift.abs(px) + 32
+        let epsilon = getEpsilon(precision: wpx)
         if x * x <= epsilon {
-            return x    // asinh(x) == x blow this point
+            return x    // asinh(x) == x below this point
         }
-        let a = sqrt(x * x + 1, precision:px, debug:db)
+        let a = sqrt(x * x + 1, precision:wpx, debug:db)
         if db { print("\(Self.self).asinh: x = ", x, "√(x*x + 1) = ", a) }
-        if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
+        if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Double
             if db { print("\(Self.self).asinh: resorting to BigRat") }
             return Self(BigRat.asinh(x.toBigRat(), precision:px, debug:db))
         }
-        return log(x + a, precision:px, debug:db)
+        let r = log(x + a, precision:wpx, debug:db)
+        return 0 < px ? r : r.truncated(width: px)
     }
     /// atanh
+    ///
+    /// `log((1+x)/(1-x))/2`, worked 32 bits wide -- and that survives a tiny
+    /// `x`, on both value types, because nothing on the way rounds absolutely.
+    /// `BigRat`'s quotient is exact; `BigFloat`'s keeps the operands' width *on
+    /// top of* the asked-for precision (see `init(_:RationalType,precision:)`),
+    /// so the small `x` riding next to the 1 keeps its tail; and `log`'s
+    /// factored series is relative-accurate however close to 1 its argument
+    /// sits.  A dedicated small-|x| series was tried here and measured a shade
+    /// *worse* than this route (161 bits against 191 at `atanh(2^-40)`, 128
+    /// asked), so what looks like the naive formula is the deliberate one.
     public static func atanh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self   {
         if x.isZero { return x }
         if 1 <  x.magnitude { return nan }
         if 1 == x.magnitude { return x.sign == .minus ? -infinity : +infinity }
-        let a = (1 + x).divided(by:1 - x, precision:px)
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let a = (1 + x).divided(by:1 - x, precision:wpx)
         if db { print("\(Self.self).atanh: x = ", x, "(1 + x)/(1 - x) =", a) }
-        if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Fixed width Integer
+        if a.magnitude == 1 && !(x is BigRat) { // possible if Self is Double
             if db { print("\(Self.self).atanh: resorting to BigRat") }
             return Self(BigRat.atanh(x.toBigRat(), precision:px, debug:db))
         }
-        return log(a, precision:px, debug:db)  / 2
+        let r = log(a, precision:wpx, debug:db) / 2
+        return 0 < px ? r : r.truncated(width: px)
     }
 }
 
