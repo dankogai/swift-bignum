@@ -121,6 +121,23 @@ private let functions:[Fn] = [
         (.nan, .nan), (-.infinity, .nan), (+.infinity, .nan),
         (-0.0, .value(-0.0)), (+0.0, .value(+0.0)),
     ]),
+    // sinPi and cosPi answer exactly at every half-integer, which is most of what
+    // there is to say about them at their edges.  The zeros are all +0, including
+    // `sinPi(-0)` -- where `sin(-0)` is -0.  A zero of sin(πx) is approached from
+    // both sides, so its sign is a convention rather than a limit, and this is the
+    // convention `sinPi` has always had.
+    Fn("sinPi", { BigFloat.sinPi($0, precision:px) }, { BigRat.sinPi($0, precision:px) }, [
+        (.nan, .nan), (-.infinity, .nan), (+.infinity, .nan),
+        (-0.0, .value(+0.0)), (+0.0, .value(+0.0)),
+        (-1, .value(+0.0)), (1, .value(+0.0)), (2, .value(+0.0)),
+        (-0.5, .value(-1)), (0.5, .value(1)), (1.5, .value(-1)),
+    ]),
+    Fn("cosPi", { BigFloat.cosPi($0, precision:px) }, { BigRat.cosPi($0, precision:px) }, [
+        (.nan, .nan), (-.infinity, .nan), (+.infinity, .nan),
+        (-0.0, .value(1)), (+0.0, .value(1)),
+        (-1, .value(-1)), (1, .value(-1)), (2, .value(1)),
+        (-0.5, .value(+0.0)), (0.5, .value(+0.0)), (1.5, .value(+0.0)),
+    ]),
 
     // MARK: inverse trigonometric.  asin and acos are the two with a bounded
     // domain, so ±1 is both a boundary and an exact answer.
@@ -314,5 +331,209 @@ extension ElementaryFunctionsTests {
             #expect(Swift.abs(r) < BigRat.getEpsilon(precision:px),
                     "BigRat.logGamma(\(x)) = \(r.toDouble()), want ~0")
         }
+    }
+
+    // MARK: - sin(πx) and cos(πx)
+
+    /// What `sinPi`/`cosPi` are *for*.  `sin(PI(precision:px) * x)` rounds π
+    /// before it multiplies, so the argument arrives carrying an absolute error of
+    /// about `x` ulps of π -- and where the answer is near a zero, that absolute
+    /// error is the whole answer.  `sincosPi` reduces `x` exactly and only rounds
+    /// the last small product, so its error stays relative.
+    ///
+    /// The reference here is closed-form rather than another run of the code under
+    /// test.  Both of the arguments below sit `e` past a zero of the function
+    /// asked about, and both answers are the same -sin(πe) -- which is -πe to
+    /// within (πe)³/6, 2^-197 for this `e` and so exact as far as `px` can see:
+    ///
+    ///     cos(π(½+e)) = -sin(πe)      sin(π(1+e)) = -sin(πe)
+    ///
+    /// One lands where the ¼ fold and the ½ swap put it, the other where the
+    /// `1-a` fold does, so between them every branch of the reduction is on the
+    /// hook for its near-zero argument.
+    ///
+    /// The last expectation is the one that would notice `sincosPi` quietly
+    /// turning back into the product: it insists the naive route really is worse
+    /// than `px` bits here, so this test cannot pass by both sides being good.
+    ///
+    /// `limit` is `px + 24` bits rather than `px`.  A result asked for at
+    /// `precision: -px` is truncated to `px` bits, and rounding those correctly
+    /// takes an intermediate that is better than `px` -- which is what the 32
+    /// guard bits inside `sincosPi` are for.  Measured margin is 96 bits at
+    /// `px == 64`, and 65 with the guard bits taken out, so this notices if they
+    /// go.
+    @Test func sincosPiKeepsTheBitsTheNaiveProductLoses() {
+        let e     = BigRat(BigInt(1), BigInt(1) << 100)
+        let want  = -BigRat.PI(precision:px + 200) * e
+        let limit = BigRat.getEpsilon(precision:px + 24)
+        func relativeError(_ got:BigRat)->BigRat {
+            return ((got - want).divided(by:want, precision:px + 200)).magnitude
+        }
+        let atHalf  = BigRat.cosPi(BigRat(1,2) + e, precision:px)
+        let atWhole = BigRat.sinPi(1 + e, precision:px)
+        #expect(relativeError(atHalf) < limit,
+                "cosPi(½+2^-100) is off by \(relativeError(atHalf).toDouble()), want < 2^-\(px+24)")
+        #expect(relativeError(atWhole) < limit,
+                "sinPi(1+2^-100) is off by \(relativeError(atWhole).toDouble()), want < 2^-\(px+24)")
+        // BigFloat takes the same path and should reach the same place
+        let f = BigFloat.cosPi(BigFloat(1)/2 + BigFloat(BigRat(e)), precision:px)
+        #expect(relativeError(BigRat(f)) < limit,
+                "BigFloat.cosPi(½+2^-100) is off by more than 2^-\(px+24)")
+        let naive = BigRat.cos(BigRat.PI(precision:px) * (BigRat(1,2) + e), precision:px)
+        #expect(limit < relativeError(naive),
+                "cos(π*(½+2^-100)) is off by only \(relativeError(naive).toDouble()) -- if the product is that accurate the two routes no longer differ and this test is moot")
+    }
+
+    /// The identities that hold for every argument, at arguments chosen to land in
+    /// each of the four octants the reduction folds and on both sides of an
+    /// integer.  `sin² + cos² == 1` is the one that catches a swapped pair or a
+    /// sign applied to the wrong half.
+    @Test func sincosPiSatisfiesItsIdentities() {
+        let limit = BigRat.getEpsilon(precision:px)
+        for (n, d) in [(1,3), (1,4), (1,6), (2,3), (3,4), (5,6), (7,8), (-1,3), (-9,7), (13,5)] {
+            let x = BigRat(n, d)
+            let (s, c) = BigRat.sincosPi(x, precision:px)
+            #expect(Swift.abs(s*s + c*c - 1) < limit, "sin²+cos² at \(n)/\(d)")
+            #expect(s == BigRat.sinPi(x, precision:px), "sinPi disagrees with sincosPi at \(n)/\(d)")
+            #expect(c == BigRat.cosPi(x, precision:px), "cosPi disagrees with sincosPi at \(n)/\(d)")
+            // period 2, and a half-period that negates both
+            let (s2, c2) = BigRat.sincosPi(x + 2, precision:px)
+            #expect(s == s2 && c == c2, "not periodic in 2 at \(n)/\(d)")
+            let (s1, c1) = BigRat.sincosPi(x + 1, precision:px)
+            #expect(Swift.abs(s + s1) < limit && Swift.abs(c + c1) < limit,
+                    "x+1 does not negate at \(n)/\(d)")
+            // odd and even
+            let (sm, cm) = BigRat.sincosPi(-x, precision:px)
+            #expect(s == -sm && c == cm, "not odd/even at \(n)/\(d)")
+        }
+        // the two arguments whose answers are exact reals
+        #expect(Swift.abs(BigRat.sinPi(BigRat(1,6), precision:px) - BigRat(1,2)) < limit,
+                "sin(π/6) == ½")
+        #expect(Swift.abs(BigRat.cosPi(BigRat(1,3), precision:px) - BigRat(1,2)) < limit,
+                "cos(π/3) == ½")
+    }
+
+    // MARK: - sincos's argument reduction
+
+    /// `sincos` folds its argument by multiples of π/2, and this is the argument
+    /// that punishes a careless fold: π/2 itself, rounded to 1024 bits.  Its
+    /// cosine is the 2^-1025-sized morsel that survives the subtraction
+    /// `x - 1*(π/2)`, and finding it takes a π/2 wider than the one the answer
+    /// was asked in -- the reduction has to notice the cancellation and go back
+    /// for more bits.  The previous `sincos` had no such loop and returned pure
+    /// noise here (its error was ~2^-131, its answer ~2^-1025); this asks for
+    /// the answer good to the working precision, cancellation notwithstanding.
+    ///
+    /// The reference is closed-form: cos(x) = sin(π/2 - x) and π/2 - x is tiny,
+    /// so a 4096-bit π/2 minus `x` *is* the answer, to (π/2-x)³/6 ~ 2^-3000.
+    @Test func sincosSurvivesAnArgumentNearAMultipleOfHalfPi() {
+        let limit = BigRat.getEpsilon(precision:px + 16)
+        do {    // π/2 to 1024 bits: 1025 bits of cancellation
+            let x    = BigRat.PI(precision:1024).divided(by:BigRat(2), precision:1024)
+            let want = BigRat.PI(precision:4096).divided(by:BigRat(2), precision:4096) - x
+            let got  = BigRat.sincos(x, precision:px).cos
+            #expect(((got - want)/want).magnitude < limit,
+                    "cos(π/2 rounded to 1024 bits): got \(got.toDouble()), want \(want.toDouble())")
+        }
+        do {    // 3·(π/2) to 200 bits: cancellation *and* k % 4 == 3
+            let x    = BigRat.PI(precision:200).divided(by:BigRat(2), precision:200) * 3
+            let want = BigRat.PI(precision:4096).divided(by:BigRat(2), precision:4096) * 3 - x
+            let got  = BigRat.sincos(x, precision:px).cos
+            // cos(3π/2 + d) = +sin(d) = d, and x = 3π/2 - want
+            #expect(((got + want)/want).magnitude < limit,
+                    "cos(3π/2 rounded to 200 bits): got \(got.toDouble()), want \((-want).toDouble())")
+        }
+    }
+
+    /// The addition theorem, across arguments that reduce with *different* k --
+    /// which is what makes it a test of the reduction and not just of the series:
+    /// a wrong quadrant or a sloppy `r` on any one of `a`, `b`, `a+b` breaks the
+    /// identity, since the three are folded independently.
+    ///
+    ///     sin(a+b) = sin a cos b + cos a sin b
+    ///     cos(a+b) = cos a cos b - sin a sin b
+    ///
+    /// The pairs put `a+b` in all four quadrants and across ±: k spans -66 to 65.
+    @Test func sincosSatisfiesTheAdditionTheorem() {
+        let limit = BigRat.getEpsilon(precision:px)
+        let pairs:[(BigRat, BigRat)] = [
+            (BigRat(1,3),   BigRat(1)),     // stays in the first fold
+            (BigRat(1),     BigRat(1)),     // crosses π/2
+            (BigRat(3),     BigRat(1,2)),   // crosses π
+            (BigRat(4),     BigRat(1)),     // crosses 3π/2
+            (BigRat(-3),    BigRat(-2)),    // negative k
+            (BigRat(-3),    BigRat(4)),     // negative *and* positive k in one
+                                            // identity -- a quadrant map that is
+                                            // wrong only for negative k passes
+                                            // the all-negative pair above (the
+                                            // errors add consistently) but not
+                                            // this one
+            (BigRat(100),   BigRat(1,7)),   // k = 63 -- an argument the old code
+                                            // wrapped through normalizeAngle
+            (BigRat(-100),  BigRat(-3,7)),  // and its negative
+        ]
+        for (a, b) in pairs {
+            let (sa, ca) = BigRat.sincos(a, precision:px)
+            let (sb, cb) = BigRat.sincos(b, precision:px)
+            let (s, c)   = BigRat.sincos(a + b, precision:px)
+            #expect((s - (sa*cb + ca*sb)).magnitude < limit, "sin(\(a.toDouble()) + \(b.toDouble()))")
+            #expect((c - (ca*cb - sa*sb)).magnitude < limit, "cos(\(a.toDouble()) + \(b.toDouble()))")
+            // and the pair really is a point on the unit circle
+            #expect((s*s + c*c - 1).magnitude < limit, "sin²+cos² at \((a+b).toDouble())")
+        }
+    }
+
+    /// The hyperbolic pair.  `cosh² - sinh² = 1` catches a lost bit on the series
+    /// side but is *exact by construction* on the `exp` side (`em` is a true
+    /// reciprocal there, and the identity reduces to `ep·em == 1`), so each value
+    /// is also held against a 200-bits-wider run of itself -- that comparison
+    /// sees both paths, and it is what noticed the pair summing its series at the
+    /// target precision and coming back a few bits short.  Limit `px + 8`: with
+    /// its guard bits `sinhcosh` agrees with its wider self to ~2^-30 ulp;
+    /// without them it misses by up to 6 ulp.
+    @Test func sinhcoshSatisfiesItsIdentities() {
+        let limit = BigRat.getEpsilon(precision:px + 8)
+        for x in [BigRat(1,10), BigRat(9,10), BigRat(1), BigRat(11,10), BigRat(5)] {
+            let (s, c) = BigRat.sinhcosh(x, precision:px)
+            #expect((c*c - s*s - 1).magnitude < limit, "cosh²-sinh² at \(x.toDouble())")
+            let (S, C) = BigRat.sinhcosh(x, precision:px + 200)
+            #expect(((s - S)/S).magnitude < limit, "sinh at \(x.toDouble()) vs its wider self")
+            #expect(((c - C)/C).magnitude < limit, "cosh at \(x.toDouble()) vs its wider self")
+        }
+    }
+
+    /// `atan`, against a 200-bits-wider run of itself, on both sides of its folds
+    /// at ½ and 1.  The old `atan` subtracted its folds from a target-precision
+    /// ATAN1 and came back a few bits short, which `asin` and `acos` then
+    /// inherited.
+    ///
+    /// Asked with a *negative* precision -- `atan`'s convention for "skip the
+    /// final rounding" -- because the rounded value can be half an ulp from the
+    /// truth with the guard bits or without them; it is the raw value that shows
+    /// whether they are there.
+    @Test func atanAgreesWithItsWiderSelf() {
+        let limit = BigRat.getEpsilon(precision:px + 16)
+        for x in [BigRat(1,10), BigRat(2,5), BigRat(3,5), BigRat(9,10), BigRat(2), BigRat(100)] {
+            let a = BigRat.atan(x, precision: -px)
+            let A = BigRat.atan(x, precision: px + 200)
+            #expect(((a - A)/A).magnitude < limit,
+                    "atan(\(x.toDouble())) = \(a.toDouble()), want \(A.toDouble())")
+        }
+    }
+
+    /// "Stays accurate even when |x| is large" is stronger than accurate: the
+    /// split is exact, so a huge even integer added to the argument does not
+    /// perturb the answer at all -- it produces the identical value, not a nearby
+    /// one.  Feeding the same `x` to `sin` through a product cannot do this; at
+    /// 2^80 there is no π wide enough for it to matter.
+    @Test func sincosPiIsUnmovedByAHugeWholeNumber() {
+        let x    = BigRat(1,3)
+        let huge = x + BigRat(BigInt(1) << 80)      // even, so nothing even flips sign
+        let (s,  c ) = BigRat.sincosPi(x,    precision:px)
+        let (sh, ch) = BigRat.sincosPi(huge, precision:px)
+        #expect(s == sh && c == ch, "2^80 + 1/3 answers differently from 1/3")
+        // and the odd one flips both, exactly
+        let (so, co) = BigRat.sincosPi(x + BigRat((BigInt(1) << 80) + 1), precision:px)
+        #expect(s == -so && c == -co, "2^80 + 1 + 1/3 is not the negation of 1/3")
     }
 }

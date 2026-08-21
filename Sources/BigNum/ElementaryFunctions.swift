@@ -360,6 +360,11 @@ extension BigFloatingPoint {
         return 2*atanh(a, precision:px, debug:db)
     }
     /// normalize `x` to ±π
+    ///
+    /// `sincos` used to reach for this and then halve what came back until the
+    /// series would take it.  It does its own reduction now -- by π/2 rather than
+    /// 2π, which is what lets it drop the halving -- so this is here for callers,
+    /// not for the file.
     public static func normalizeAngle(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
         var theta = x
         let onepi = PI(precision:px)
@@ -377,41 +382,115 @@ extension BigFloatingPoint {
         return theta
     }
     /// - returns: `(sin(x), cos(x))`
+    ///
+    /// The Maclaurin series, on an argument first brought inside `[-π/4, +π/4]`:
+    ///
+    ///     x = k*(π/2) + r      and then k mod 4 picks the pair
+    ///
+    ///     0: (+sin r, +cos r)     2: (-sin r, -cos r)
+    ///     1: (+cos r, -sin r)     3: (-cos r, +sin r)
+    ///
+    /// The reduction is what this function is mostly made of, and it replaced a
+    /// halve-and-double-angle recursion that cost accuracy in two ways.  Doubling
+    /// back up through `cos 2θ = cos²θ - sin²θ` subtracts two numbers that are
+    /// equal at θ = π/4, so an argument anywhere near π/2 lost its cosine to
+    /// cancellation -- `cos(π/2 - 10**-9)` kept 99 of the 128 bits it was asked
+    /// for.  And the series itself alternates, so feeding it the largest argument
+    /// it can take rather than the smallest throws away bits before the doubling
+    /// even starts.  Reducing to a quarter turn instead costs one division and
+    /// leaves nothing to double:
+    ///
+    ///                     x = 0.1   x = 0.9   x = π/2-10**-9   x = 100
+    ///     was, cos           133.1     129.9        98.8         126.6
+    ///     is,  cos           164.8     159.5       158.1         161.0
+    ///     was, sin           125.4     129.2       131.8         125.0
+    ///     is,  sin           157.4     160.0       218.6         159.6
+    ///
+    /// (correct bits at `precision: 128`, against a 1024-bit direct series.)  At
+    /// equal delivered accuracy it is also the faster of the two, since the
+    /// halvings it no longer does cost more than the division it now does.
+    ///
+    /// `r` is where the precision goes.  `x` is exact and so is `k*(π/2)` once
+    /// π/2 is in hand, so the error in `r` is π/2's own -- which is why `hp` below
+    /// carries enough of π/2 to place a value as large as `x`, and why an `x` that
+    /// lands very close to a multiple of π/2 has to ask for more.  See the loop.
     public static func sincos(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->(sin:Self, cos:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
             return (Self(Double.sin(x.toDouble())), Self(Double.cos(x.toDouble())))
         }
-        let epsilon = getEpsilon(precision: px)
-        if x * x <= epsilon {
-            return (x, 1)   // sin(x) == x below this point
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let epsilon = getEpsilon(precision: wpx)
+        // x - k*(π/2), with π/2 to `hp` bits.  `toMixed` truncates toward zero, so
+        // the two nudges below are what turn |r| <= π/2 into |r| <= π/4.
+        let half = Self(1)/2
+        func reduce(_ hp:Int)->(IntType, Self) {
+            let halfPi = PI(precision:hp)/2
+            let (i, f) = x.divided(by:halfPi, precision:hp).toMixed()
+            var k = i
+            if  half < f { k += 1 }
+            if f < -half { k -= 1 }
+            var r = x - Self(k) * halfPi
+            r.truncate(width:hp)
+            return (k, r)
         }
-        func inner(_ x:Self)->(Self, Self) {
-            if 1 < Swift.abs(x) {
-                var (s, c) = inner(x/2)     // use double-angle formula to reduce x
-                if c == s { return (0, 1) } // prevent error accumulation
-                (s, c) = (2*s*c, c*c - s*s)
-                return (s.truncated(width:px*2), c.truncated(width:px*2))
+        var k = IntType(0)
+        var r = x
+        if Self(3)/4 < Swift.abs(x) {   // 3/4 < π/4, so anything below is reduced already
+            let e = Swift.max(0, Int(x.exponent))
+            var hp = wpx + e
+            (k, r) = reduce(hp)
+            // `r` came out of a subtraction, so if `x` sits near a multiple of π/2
+            // it cancelled -- and by exactly as many bits as `r` is small, which
+            // makes the fix self-measuring: ask for that many more and reduce
+            // again.  Each pass at least doubles what it has, and π being
+            // irrational there is always a non-zero `r` to find, so this converges
+            // -- on 2^-1025 in three passes, from an `x` that is π/2 to 1024 bits.
+            // The cap is for the pathological argument that would keep going; what
+            // it settles for is `r` accurate to 2^-wpx absolutely, which is all a
+            // fixed-precision libm ever offers.
+            //
+            // `r` good to `hp - e - lost` bits; half the guard bits may be spent
+            // on `lost`, so an ordinary argument -- whose `r` starts at 2^-1 or
+            // 2^-2 -- passes on the first try rather than paying a second pass
+            // for its last bit or two.
+            //
+            // `r` can even come back *exactly* zero -- `x = 3 * (π/2 to 200
+            // bits)` against the same 200-bit π/2 -- which says only that the
+            // true `r` is below this π/2's own error, `hp - e` bits down.  (A
+            // zero's `exponent` is a sentinel, so it must not reach the `lost`
+            // arithmetic.)
+            for _ in 0 ..< 6 {
+                let lost = r.isZero ? hp - e : -Swift.min(0, Int(r.exponent))
+                if !r.isZero && (lost <= 16 || wpx + lost <= hp - e) { break }
+                hp = Swift.max(e + lost + wpx, 2 * hp)
+                if db { print("\(Self.self).sincos: reducing again at \(hp), lost \(lost)") }
+                (k, r) = reduce(hp)
             }
-            var (c, s) = (Self(0), Self(0))
-            var (n, d) = (Self(1), Self(1))
-            for i in 0...px {
-                let t = n.divided(by:d, precision:px)
-                if db {
-                    print("\(Self.self).sincos: i=\(i),t=\(t)")
-                }
-                if i & 1 == 0 {
-                    c += i & 2 == 2 ? -t : +t
-                } else {
-                    s += i & 2 == 2 ? -t : +t
-                }
-                if Swift.abs(t) < epsilon { break }
-                n *= x
-                n.truncate(width:px)
-                d *= Self(i+1)
-            }
-            return (s, c)
+        } else if x * x <= epsilon {
+            return (x, 1)   // sin(x) == x and cos(x) == 1 below this point
         }
-        let (s, c) = inner(Swift.abs(x) < 8 ? x : normalizeAngle(x, precision:px, debug:db))
+        if db { print("\(Self.self).sincos: k=\(k), r=\(r)") }
+        var (c, s) = (Self(0), Self(0))
+        var (n, d) = (Self(1), Self(1))
+        for i in 0...wpx {
+            let t = n.divided(by:d, precision:wpx)
+            if i & 1 == 0 {
+                c += i & 2 == 2 ? -t : +t
+            } else {
+                s += i & 2 == 2 ? -t : +t
+            }
+            if Swift.abs(t) < epsilon { break }
+            n *= r
+            n.truncate(width:wpx)
+            d *= Self(i+1)
+        }
+        switch ((k % 4) + 4) % 4 {  // k may be negative; % follows its sign
+        case 1:  (s, c) = ( c, -s)
+        case 2:  (s, c) = (-s, -c)
+        case 3:  (s, c) = (-c,  s)
+        default: break
+        }
         return 0 < px ? (s, c) : (s.truncated(width: px), c.truncated(width: px))
     }
     /// cos(x)
@@ -436,34 +515,44 @@ extension BigFloatingPoint {
     //
     // cf. https://en.wikipedia.org/wiki/Inverse_trigonometric_functions#Infinite_series
     /// arctan
+    ///
+    /// The series and its folds carry 32 guard bits; the two folds subtract from
+    /// `atan1`, and a subtraction at the target precision is where the last few
+    /// bits used to go.
     public static func atan(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
         if x.isNaN || x.isZero { return x }
-        let atan1 = ATAN1(precision: px)
-        if x.isInfinite { return x.sign == .minus ? -2*atan1 : +2*atan1 }
-        let epsilon = getEpsilon(precision: px)
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let atan1 = ATAN1(precision: wpx)
+        if x.isInfinite {
+            return (x.sign == .minus ? -2*atan1 : +2*atan1).truncated(width:apx)
+        }
+        let epsilon = getEpsilon(precision: wpx)
         if x * x < epsilon { return x } // atan(x) == x below this point
         func inner(_ x:Self)->Self {
             guard x < 0.5 else {
                 return x < 1
-                  ? atan1 - inner((1-x).divided(by:1+x, precision:px))
+                  ? atan1 - inner((1-x).divided(by:1+x, precision:wpx))
                   : 2*atan1 - inner(1/x)
             }
             let x2 = x*x
             let x2p1 = 1 + x2
             var (t, r) = (Self(1), Self(1))
-            for i in 1...px.magnitude {
-                t *= 2 * (Self(i) * x2).divided(by:Self(2*i + 1) * x2p1, precision:px)
+            for i in 1...wpx.magnitude {
+                t *= 2 * (Self(i) * x2).divided(by:Self(2*i + 1) * x2p1, precision:wpx)
                 r += t
-                r.truncate(width:px)
+                r.truncate(width:wpx)
                 if db {
                     print("\(Self.self).atan:i=\(i) r=\(r), t.sign=\(t.sign)")
                 }
                 if t < epsilon { break }
             }
-            return r * x.divided(by:x2p1, precision:px)
+            return r * x.divided(by:x2p1, precision:wpx)
         }
         let ax = Swift.abs(x)
-        if ax == 1 { return x.sign == .minus ? -atan1 : atan1 }
+        if ax == 1 {
+            return (x.sign == .minus ? -atan1 : atan1).truncated(width:apx)
+        }
         var r = inner(ax)
         if 0 < px { r.truncate(width: px) }
         return x.sign == .minus ? -r : +r
@@ -517,40 +606,44 @@ extension BigFloatingPoint {
         return 2*atan(a, precision:px)
     }
     /// - returns: `(sinh(x), cosh(x))`
+    ///
+    /// The series carries 32 guard bits, like `sincos`'s -- summed at the asked-for
+    /// precision it delivered a few bits *under* it.  No reduction here: the terms
+    /// are all positive, so a large argument loses nothing to alternation, and
+    /// above 1 the pair is had from `exp` in one call anyway.
     public static func sinhcosh(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->(sinh:Self, cosh:Self) {
         if x.isZero || x.isInfinite || x.isNaN {
             return (Self(Double.sinh(x.toDouble())), Self(Double.cosh(x.toDouble())))
         }
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
         if 1 < x.magnitude {
-            let ep = exp(x, precision:px)
+            let ep = exp(x, precision:wpx)
             let em = ep.reciprocal!
-            return ((ep - em)/2, (ep + em)/2)
+            let (s, c) = ((ep - em)/2, (ep + em)/2)
+            return 0 < px ? (s, c) : (s.truncated(width: px), c.truncated(width: px))
         }
-        let epsilon = getEpsilon(precision: px)
+        let epsilon = getEpsilon(precision: wpx)
         if x * x <= epsilon {
             return (x, 1)   // sinh(x) == x below this point
         }
-        func inner(_ x:Self)->(Self, Self) {
-            var (c, s) = (Self(0), Self(0))
-            var (n, d) = (Self(1), Self(1))
-            for i in 0...px {
-                let t = n.divided(by:d, precision:px)
-                if db {
-                    print("\(Self.self).sincos: i=\(i),t=:\(t)")
-                }
-                if i & 1 == 0 {
-                    c += t
-                } else {
-                    s += t
-                }
-                if Swift.abs(t) < epsilon { break }
-                n *= x
-                n.truncate(width:px)
-                d *= Self(i+1)
+        var (c, s) = (Self(0), Self(0))
+        var (n, d) = (Self(1), Self(1))
+        for i in 0...wpx {
+            let t = n.divided(by:d, precision:wpx)
+            if db {
+                print("\(Self.self).sinhcosh: i=\(i),t=:\(t)")
             }
-            return (s, c)
+            if i & 1 == 0 {
+                c += t
+            } else {
+                s += t
+            }
+            if Swift.abs(t) < epsilon { break }
+            n *= x
+            n.truncate(width:wpx)
+            d *= Self(i+1)
         }
-        let (s, c) = inner(x)
         return 0 < px ? (s, c) : (s.truncated(width: px), c.truncated(width: px))
     }
     /// hyperbolic cosine
@@ -652,14 +745,68 @@ extension BigFloatingPoint {
         return Swift.abs(x) < 128
           ? exp(x, precision:px, debug:db) : expByExp2(x, precision:px, debug:db)
     }
-    /// sin(π*x).  stays accurate even when |x| is large
-    /// because only the fractional part of `x` is fed to `sin()`
+    /// `(sin(π*x), cos(π*x))`
+    ///
+    /// π*x is never actually built.  `x` is split into `ix + fx` -- exactly, since
+    /// both parts are values of a type that holds `x` itself -- and the octant
+    /// identities take `fx` down to `[0, ¼]` before π multiplies anything:
+    ///
+    ///     sin(π(ix+a)) = (-1)**ix * sin(πa)   cos likewise, so `ix` is a sign
+    ///     sin(-πa) = -sin(πa)                 cos(-πa) = +cos(πa)
+    ///     sin(π(1-a)) = +sin(πa)              cos(π(1-a)) = -cos(πa)
+    ///     sin(π(½-a)) = +cos(πa)              cos(π(½-a)) = +sin(πa)
+    ///
+    /// which is what makes these worth having as their own functions rather than
+    /// `sin(PI(precision:px) * x)`.  That product is off by `x` ulps of π before
+    /// `sin` is even called, and near a zero of the result the absolute error it
+    /// carries is all that is left -- `cos(π*x)` at `x = ½ + 2**-100` keeps 30 of
+    /// its 128 bits.  Here `a` is exact and only `πa` is rounded, so the error
+    /// stays relative and the answer keeps its bits wherever it lands.  Correct
+    /// bits at `precision: 128` against a 528-bit reference -- cos in the first
+    /// column, where the answer is the 2^-100-sized sliver past the zero at ½,
+    /// and sin in the others:
+    ///
+    ///                              x = ½+2**-100   x = 0.999999   x = 123456.789
+    ///     around PI(precision:128) * x     31.3          110.4           111.4
+    ///     sincosPi(x, precision:128)      160.8          160.8           161.0
+    ///
+    /// The half-integers come out exact rather than nearly so: `a` reduces to 0
+    /// there, and (0, 1) is what `sincos` returns for it.  So `sinPi(±½) == ∓ 1`
+    /// and `cosPi(n+½) == 0` with no epsilon anywhere.  Both zeros are `+0`, as
+    /// `sinPi` has always returned at integral `x`; the sign of a zero here is a
+    /// convention, not a limit.
+    public static func sincosPi(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->(sin:Self, cos:Self) {
+        if x.isNaN || x.isInfinite { return (nan, nan) }
+        let apx = Swift.abs(px)
+        let wpx = apx + 32
+        let (ix, fx) = x.toMixed()      // x == ix + fx where |fx| < 1, both exact
+        // (-1)**ix flips both; the reductions below then flip one at a time
+        var negateSin = ix % 2 != 0
+        var negateCos = negateSin
+        let half      = Self(1)/2
+        var a         = fx
+        if a.isLess(than:0) { a = -a;    negateSin = !negateSin }
+        if half < a         { a = 1 - a; negateCos = !negateCos }
+        var swapped = false
+        if half/2 < a       { a = half - a; swapped = true }
+        if db { print("\(Self.self).sincosPi: x =", x, "a =", a, "swapped =", swapped) }
+        // |πa| <= π/4, which is (just) past `sincos`'s own reduction threshold of
+        // 3/4 -- so it may fold once more by π/2, harmlessly finding k == 0
+        var (s, c) = sincos(PI(precision:wpx) * a, precision:wpx, debug:db)
+        if swapped { Swift.swap(&s, &c) }
+        // negating an exact zero would make it -0 and say something that is not so
+        if negateSin && !s.isZero { s = -s }
+        if negateCos && !c.isZero { c = -c }
+        return 0 < px ? (s, c) : (s.truncated(width:px), c.truncated(width:px))
+    }
+    /// sin(π*x).  stays accurate even when |x| is large, and where the result is
+    /// small -- see `sincosPi(_:precision:debug:)`, which does the work
     public static func sinPi(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
-        if x.isNaN || x.isInfinite { return nan }
-        let (ix, fx) = x.toMixed()    // x == ix + fx where |fx| < 1
-        if fx.isZero { return 0 }   // sin(π*n) == 0
-        let s = sin(PI(precision:px) * fx, precision:px, debug:db)
-        return ix % 2 == 0 ? +s : -s
+        return sincosPi(x, precision:px, debug:db).sin
+    }
+    /// cos(π*x) -- see `sincosPi(_:precision:debug:)`
+    public static func cosPi(_ x:Self, precision px:Int=Self.precision, debug db:Bool=false)->Self {
+        return sincosPi(x, precision:px, debug:db).cos
     }
     /// error function
     ///
